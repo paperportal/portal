@@ -1,0 +1,8 @@
+.cache
+.DS_Store
+.zig-cache
+build
+components
+managed_components
+sdkconfig
+zig-out

@@ -1,0 +1,40 @@
+idf_component_register(
+  SRCS
+    "main.cpp"
+    "m5papers3_display.cpp"
+    "sd_card.cpp"
+    "host/event_loop.cpp"
+    "input/touch_tracker.cpp"
+    "services/devserver_service.cpp"
+    "services/wifi_service.cpp"
+    "other/mem_utils.cpp"
+    "services/settings_service.cpp"
+    "wasm/api/core.cpp"
+    "wasm/api/devserver.cpp"
+    "wasm/api/display.cpp"
+    "wasm/api/display_images.cpp"
+    "wasm/api/display_primitives.cpp"
+    "wasm/api/display_text.cpp"
+    "wasm/api/fast_epd.cpp"
+    "wasm/api/fs.cpp"
+    "wasm/api/hal.cpp"
+    "wasm/api/http.cpp"
+    "wasm/api/httpd.cpp"
+    "wasm/api/i2c_bus.cpp"
+    "wasm/api/imu.cpp"
+    "wasm/api/log.cpp"
+    "wasm/api/m5.cpp"
+    "wasm/api/net.cpp"
+    "wasm/api/nvs.cpp"
+    "wasm/api/power.cpp"
+    "wasm/api/rtc.cpp"
+    "wasm/api/socket.cpp"
+    "wasm/api/speaker.cpp"
+    "wasm/api/touch.cpp"
+    "wasm/wasm_controller.cpp"
+  INCLUDE_DIRS "."
+  PRIV_REQUIRES esp_adc esp_http_client esp_http_server esp_netif esp_psram esp_wifi mdns FastEPD LovyanGFX fatfs sdmmc wamr json
+)
+
+target_add_binary_data(${COMPONENT_LIB} "assets/entrypoint.wasm" BINARY)
+target_add_binary_data(${COMPONENT_LIB} "assets/settings.wasm" BINARY)

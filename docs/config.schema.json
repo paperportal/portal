@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://paperportal.org/schemas/config.json",
+  "title": "Paper Portal Configuration",
+  "description": "Configuration file for Paper Portal application, which manages WiFi connectivity settings.",
+  "type": "object",
+  "properties": {
+    "wifi": {
+      "type": "object",
+      "description": "WiFi network connection settings for the Paper Portal device.",
+      "required": ["ssid", "password"],
+      "properties": {
+        "ssid": {
+          "type": "string",
+          "description": "The SSID (network name) of the WiFi network to connect to.",
+          "minLength": 1
+        },
+        "password": {
+          "type": "string",
+          "description": "The password for the WiFi network. For WPA2-PSK and WPA3-Personal networks, this is the pre-shared key."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,12 @@
+.{
+    .name = .zig_file_browser,
+    .version = "0.1.0",
+    .dependencies = .{
+        .paper_portal_sdk = .{
+            .url = "git+https://github.com/paperportal/zig-sdk#dc533a3efd5b59aa908c8ae58d8caf69dbb51fb0",
+            .hash = "paper_portal_sdk-0.0.0-TiKtz2EMAQDqEpoeWOJbWqshS9duyOwNzXhP8glcRowd",
+        },
+    },
+    .paths = .{""},
+    .fingerprint = 0xce68a72f8fba618d,
+}
