@@ -1,0 +1,29 @@
+dependencies:
+  bitbank2/jpegdec:
+    component_hash: d1f2ee29cffb627bc54138ccbd0206389b9951ec75b45393cb298c446bfe30a7
+    dependencies: []
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.6.2
+  espressif/mdns:
+    component_hash: 29e47564b1a7ee778135e17fbbf2a2773f71c97ebabfe626c8eda7c958a7ad16
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
+    source:
+      registry_url: https://components.espressif.com/
+      type: service
+    version: 1.9.1
+  idf:
+    source:
+      type: idf
+    version: 5.3.3
+direct_dependencies:
+- bitbank2/jpegdec
+- espressif/mdns
+- idf
+manifest_hash: 2f5d516ff639206b6d716f7774460c84eaa5050ddf66fc7bb264d4e53021bd5a
+target: esp32s3
+version: 2.0.0

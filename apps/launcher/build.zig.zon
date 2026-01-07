@@ -1,0 +1,12 @@
+.{
+    .name = .paperportal_app,
+    .version = "0.1.0",
+    .dependencies = .{
+        .paper_portal_sdk = .{
+            .url = "git+https://github.com/paperportal/zig-sdk#8b863ea81373b3d567362ba860cea1ec8199a917",
+            .hash = "paper_portal_sdk-0.0.0-TiKtz0OoAgDPhwvUhOeQV7up_tdUEPho4r7m9o5_tGRz",
+        },
+    },
+    .paths = .{""},
+    .fingerprint = 0xd5fc6218f1e03f21,
+}

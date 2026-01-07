@@ -1,0 +1,12 @@
+{
+  "manifest_version": 1,
+  "sdk_version": 1,
+  "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "name": "Notes",
+  "checksum": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "version": "1.2.3",
+  "description": "A tiny notes app.",
+  "author": "Example Publisher",
+  "home_page": "https://example.com/notes",
+  "copyright": "Copyright (c) 2026 Example Publisher"
+}
