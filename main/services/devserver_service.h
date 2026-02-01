@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -16,8 +17,34 @@ enum class DevCommandKind : int32_t {
 
 struct DevCommandReply {
     SemaphoreHandle_t done = nullptr;
+    std::atomic<uint32_t> refcount{0};
     int32_t result = 0;
     char message[160] = {};
+
+    // Allocates a reply object with 2 owners: the HTTP handler and the host event loop.
+    // Each side must call Release() exactly once.
+    static DevCommandReply *CreateForDevCommand()
+    {
+        DevCommandReply *reply = new DevCommandReply();
+        reply->refcount.store(2, std::memory_order_relaxed);
+        reply->done = xSemaphoreCreateBinary();
+        if (!reply->done) {
+            delete reply;
+            return nullptr;
+        }
+        return reply;
+    }
+
+    void Release()
+    {
+        if (refcount.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+            if (done) {
+                vSemaphoreDelete(done);
+                done = nullptr;
+            }
+            delete this;
+        }
+    }
 };
 
 struct DevCommand {

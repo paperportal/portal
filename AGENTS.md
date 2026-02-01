@@ -1,21 +1,33 @@
 # Repository Guidelines
 
 ## Project Overview
-`paperportal-runner` is an ESP-IDF (C/C++) firmware project targeting `esp32s3` (see `dependencies.lock`). It embeds a WASM entrypoint (`main/assets/entrypoint.wasm`) and integrates third-party components (LovyanGFX, FastEPD, WAMR) fetched locally.
+`portal` is an ESP-IDF (C/C++) firmware project targeting `esp32s3` (see `dependencies.lock`). It embeds a WASM entrypoint (`main/assets/entrypoint.wasm`) and integrates third-party components (LovyanGFX, FastEPD, WAMR) fetched locally.
 
 ## Project Structure & Module Organization
 - `main/`: application code and the ESP-IDF component registration (`main/CMakeLists.txt`).
 - `main/wasm/`: WASM controller + host API surface (`main/wasm/api/*.cpp`).
-- `main/assets/`: binary assets embedded into the firmware (currently `entrypoint.wasm`).
-- `components/`: vendored dependencies cloned by `fetch-deps.sh` (intentionally ignored by git).
+- `main/assets/`: binary assets embedded into the firmware (e.g., `entrypoint.wasm`, `settings.wasm`).
+- `apps/`: Zig/WASM app sources (e.g., `apps/launcher`, `apps/settings`).
+- `docs/`: project documentation and schemas.
+  - `docs/specs/`: technical specifications for features (keep these aligned with the implementation).
+  - `docs/plans/`: execution plans for planned/ongoing work (create/update as the plan changes).
+  - `docs/*.schema.json`: JSON schemas used by firmware tooling/config (e.g., `config.schema.json`, `app-manifest.schema.json`).
+- `components/`: vendored dependencies cloned by `fetch-deps.sh` (often ignored by git; treated as generated/vendor code).
+- `managed_components/`: ESP-IDF component-manager dependencies fetched by ESP-IDF tooling.
+- `patches/`: local patch files applied to third-party components.
 - `sdkconfig`, `sdkconfig.defaults`, `partitions.csv`: ESP-IDF configuration and partition layout.
 - `build/`: generated build output (ignored).
+
+## Documentation Guidelines
+- `docs/specs/` and `docs/plans/` are part of the project’s “source of truth” alongside the code: changes to behavior, configuration, interfaces, or build/deploy workflow must come with corresponding doc updates.
+- Keep specs and plans current. Stale docs cause wasted time, incorrect assumptions during debugging, and regressions when features evolve.
 
 ## Build, Test, and Development Commands
 Prereq: ESP-IDF installed and exported (so `IDF_PATH` and `idf.py` are available).
 - `./fetch-deps.sh`: clones pinned component versions into `components/` (requires network).
 - `idf.py set-target esp32s3`: sets the target (usually one-time per workspace).
 - `idf.py build`: compiles firmware into `build/`.
+- `./conf.sh [profile]`: reconfigure using `sdkconfig.defaults` plus optional `sdkconfig.<profile>` (e.g., `release`, `heap`).
 - `idf.py -p /dev/tty.usbserial-XXXX flash`: flashes to device.
 - `idf.py -p /dev/tty.usbserial-XXXX monitor`: serial monitor (use after flash).
 - `idf.py menuconfig`: adjust `sdkconfig` options.

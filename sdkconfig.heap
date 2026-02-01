@@ -9,3 +9,9 @@ CONFIG_COMPILER_STACK_CHECK_MODE_STRONG=y
 
 # Avoid interrupt WDT timeouts during heavy heap integrity checks (debug)
 CONFIG_ESP_INT_WDT_TIMEOUT_MS=1000
+
+# WAMR memory profiling
+CONFIG_WAMR_ENABLE_MEMORY_PROFILING=y
+
+# Heap tracing
+CONFIG_HEAP_TRACING_STANDALONE=y

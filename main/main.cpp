@@ -60,5 +60,7 @@ extern "C" void app_main() {
         ESP_LOGE(kTag, "[app_main] Failed to start host event loop");
         return;
     }
-    ESP_LOGI(kTag, "[app_main] Application shutting down.");
+    ESP_LOGI(kTag, "[app_main] Looping forever...");
+    for (;;) { vTaskDelay(pdMS_TO_TICKS(1000)); }
+
 }

@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://paperportal.org/schemas/app-manifest.json",
+  "title": "Paper Portal App Manifest",
+  "description": "Schema for a Paper Portal WebAssembly app manifest.json embedded in a .papp package.",
+  "type": "object",
+  "required": ["manifest_version", "sdk_version", "id", "name", "checksum", "version"],
+  "properties": {
+    "manifest_version": {
+      "type": "integer",
+      "description": "Manifest schema version. Currently supported value: 1.",
+      "const": 1
+    },
+    "sdk_version": {
+      "type": "integer",
+      "description": "Paper Portal SDK/host-contract compatibility version. Currently supported value: 1.",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "description": "Stable unique app identifier used for install/update and paths. Must be a lower-case GUID/UUID canonical string (RFC 4122).",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Short app name displayed under the icon in the launcher.",
+      "minLength": 1
+    },
+    "checksum": {
+      "type": "string",
+      "description": "Checksum of app.wasm (SHA-256 of the uncompressed module bytes), encoded as lower-case hex with a sha256: prefix.",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Optional app version string in #.#.# format (exactly three dot-separated numbers).",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional longer human-readable description."
+    },
+    "author": {
+      "type": "string",
+      "description": "Optional app author / publisher name."
+    },
+    "home_page": {
+      "type": "string",
+      "description": "Optional app homepage URL.",
+      "format": "uri"
+    },
+    "copyright": {
+      "type": "string",
+      "description": "Optional copyright notice."
+    },
+    "publisher_pubkey": {
+      "type": "string",
+      "description": "Optional Ed25519 public key (raw 32 bytes, Base64-encoded). When present, signature must also be present."
+    },
+    "signature": {
+      "type": "string",
+      "description": "Optional Ed25519 signature (raw 64 bytes, Base64-encoded). When present, publisher_pubkey must also be present."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "required": ["publisher_pubkey"] },
+      "then": { "required": ["signature"] }
+    },
+    {
+      "if": { "required": ["signature"] },
+      "then": { "required": ["publisher_pubkey"] }
+    }
+  ],
+  "additionalProperties": true
+}

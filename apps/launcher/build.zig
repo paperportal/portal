@@ -16,6 +16,8 @@ pub fn build(b: *std.Build) void {
     root_mod.export_symbol_names = &.{
         "pp_contract_version",
         "pp_init",
+        "pp_tick",
+        "pp_shutdown",
         "pp_alloc",
         "pp_free",
         "pp_on_gesture",
@@ -36,9 +38,9 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("paper_portal_sdk", sdk);
 
-    exe.stack_size = 64 * 1024;
-    exe.initial_memory = 1024 * 1024;
-    exe.max_memory = 2 * 1024 * 1024;
+    exe.stack_size = 32 * 1024;
+    exe.initial_memory = 512 * 1024;
+    exe.max_memory = 1024 * 1024;
 
     b.installArtifact(exe);
 

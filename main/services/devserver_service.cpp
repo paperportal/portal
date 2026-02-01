@@ -245,33 +245,41 @@ static esp_err_t send_json(httpd_req_t *req, int status, bool ok, const char *me
 
 static esp_err_t handle_stop(httpd_req_t *req)
 {
-    DevCommandReply reply;
-    reply.done = xSemaphoreCreateBinary();
-    if (!reply.done) {
+    struct ReplyGuard {
+        DevCommandReply *reply = nullptr;
+        ~ReplyGuard()
+        {
+            if (reply) {
+                reply->Release();
+            }
+        }
+    };
+
+    DevCommandReply *reply = DevCommandReply::CreateForDevCommand();
+    if (!reply) {
         return send_json(req, 500, false, "alloc failed");
     }
+    ReplyGuard reply_guard{reply};
 
     DevCommand *cmd = new DevCommand();
     cmd->kind = DevCommandKind::StopUploadedWasm;
-    cmd->reply = &reply;
+    cmd->reply = reply;
 
     const HostEvent ev = MakeDevCommandEvent((int32_t)(esp_timer_get_time() / 1000), cmd);
     if (!host_event_loop_enqueue(ev, pdMS_TO_TICKS(100))) {
+        reply->Release(); // release host-event-loop ref
         delete cmd;
-        vSemaphoreDelete(reply.done);
         return send_json(req, 500, false, "event queue not ready");
     }
 
-    if (xSemaphoreTake(reply.done, pdMS_TO_TICKS(15000)) != pdTRUE) {
-        vSemaphoreDelete(reply.done);
+    if (xSemaphoreTake(reply->done, pdMS_TO_TICKS(15000)) != pdTRUE) {
         return send_json(req, 500, false, "timeout");
     }
 
-    vSemaphoreDelete(reply.done);
-    if (reply.result == kWasmOk) {
+    if (reply->result == kWasmOk) {
         return send_json(req, 200, true, "stopped");
     }
-    return send_json(req, 500, false, reply.message);
+    return send_json(req, 500, false, reply->message);
 }
 
 static esp_err_t handle_run(httpd_req_t *req)
@@ -320,27 +328,37 @@ static esp_err_t handle_run(httpd_req_t *req)
         }
     }
 
-    DevCommandReply reply;
-    reply.done = xSemaphoreCreateBinary();
-    if (!reply.done) {
+    struct ReplyGuard {
+        DevCommandReply *reply = nullptr;
+        ~ReplyGuard()
+        {
+            if (reply) {
+                reply->Release();
+            }
+        }
+    };
+
+    DevCommandReply *reply = DevCommandReply::CreateForDevCommand();
+    if (!reply) {
         if (args_heap) {
             heap_caps_free(args_heap);
         }
         heap_caps_free(buf);
         return send_json(req, 500, false, "alloc failed");
     }
+    ReplyGuard reply_guard{reply};
 
     DevCommand *cmd = new DevCommand();
     cmd->kind = DevCommandKind::RunUploadedWasm;
     cmd->wasm_bytes = buf;
     cmd->wasm_len = (size_t)req->content_len;
     cmd->args = args_heap;
-    cmd->reply = &reply;
+    cmd->reply = reply;
 
     const HostEvent ev = MakeDevCommandEvent((int32_t)(esp_timer_get_time() / 1000), cmd);
     if (!host_event_loop_enqueue(ev, pdMS_TO_TICKS(100))) {
+        reply->Release(); // release host-event-loop ref
         delete cmd;
-        vSemaphoreDelete(reply.done);
         if (args_heap) {
             heap_caps_free(args_heap);
         }
@@ -348,16 +366,14 @@ static esp_err_t handle_run(httpd_req_t *req)
         return send_json(req, 500, false, "event queue not ready");
     }
 
-    if (xSemaphoreTake(reply.done, pdMS_TO_TICKS(20000)) != pdTRUE) {
-        vSemaphoreDelete(reply.done);
-            return send_json(req, 500, false, "timeout");
+    if (xSemaphoreTake(reply->done, pdMS_TO_TICKS(20000)) != pdTRUE) {
+        return send_json(req, 500, false, "timeout");
     }
 
-    vSemaphoreDelete(reply.done);
-    if (reply.result == kWasmOk) {
+    if (reply->result == kWasmOk) {
         return send_json(req, 200, true, "running");
     }
-    return send_json(req, 500, false, reply.message);
+    return send_json(req, 500, false, reply->message);
 }
 
 struct SseTaskArgs {

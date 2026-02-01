@@ -1,0 +1,44 @@
+--- a/components/wamr/core/iwasm/common/wasm_runtime_common.c
++++ b/components/wamr/core/iwasm/common/wasm_runtime_common.c
+@@ -7870,7 +7870,11 @@
+ wasm_runtime_detect_native_stack_overflow(WASMExecEnv *exec_env)
+ {
+     uint8 *boundary = exec_env->native_stack_boundary;
+-    RECORD_STACK_USAGE(exec_env, (uint8 *)&boundary);
++    /* Use a non-local address to approximate the current native stack pointer.
++       Taking the address of a local variable here triggers -Wdangling-pointer
++       in newer GCC when memory profiling is enabled. */
++    uint8 *current_sp = (uint8 *)__builtin_frame_address(0);
++    RECORD_STACK_USAGE(exec_env, current_sp);
+     if (boundary == NULL) {
+         /* the platform doesn't support os_thread_get_stack_boundary */
+         return true;
+@@ -7880,7 +7884,7 @@
+     uint32 guard_page_count = STACK_OVERFLOW_CHECK_GUARD_PAGE_COUNT;
+     boundary = boundary + page_size * guard_page_count;
+ #endif
+-    if ((uint8 *)&boundary < boundary) {
++    if (current_sp < boundary) {
+         wasm_runtime_set_exception(wasm_runtime_get_module_inst(exec_env),
+                                    "native stack overflow");
+         return false;
+@@ -7893,7 +7897,9 @@
+                                                uint32 requested_size)
+ {
+     uint8 *boundary = exec_env->native_stack_boundary;
+-    RECORD_STACK_USAGE(exec_env, (uint8 *)&boundary);
++    /* See wasm_runtime_detect_native_stack_overflow() for rationale. */
++    uint8 *current_sp = (uint8 *)__builtin_frame_address(0);
++    RECORD_STACK_USAGE(exec_env, current_sp);
+     if (boundary == NULL) {
+         /* the platform doesn't support os_thread_get_stack_boundary */
+         return true;
+@@ -7905,7 +7911,7 @@
+ #endif
+     /* adjust the boundary for the requested size */
+     boundary = boundary - WASM_STACK_GUARD_SIZE + requested_size;
+-    if ((uint8 *)&boundary < boundary) {
++    if (current_sp < boundary) {
+         wasm_runtime_set_exception(wasm_runtime_get_module_inst(exec_env),
+                                    "native stack overflow");
+         return false;

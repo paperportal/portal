@@ -11,14 +11,21 @@ This file specifies how the launcher main interface works.
 - Header of the launcher with paper portal logo shown immediately after launch to be very fast (see launcher interface section). After header is visible start setting up the environment and loading apps.
 - Maybe optimize startup further by saving image of the full launch page with apps and display that while loading -- must test how it works in practice.
 - Setup environment, SD, display, touch -- show clear error message if there are problems.
-- App packages can be found from SD card folder /pp/apps.
+- App packages (`.papp`) can be found from SD card folder `/portal/apps` (WASM-visible; maps to `/sdcard/portal/apps`).
 - Find all modified app packages from there.
-- Uncompress modified app packages to /pp/apps/<app-name-or-identifier>
-- Load uncompressed apps from subfolders
+- Install/unpack modified app packages to `/portal/apps/<id>/` (where `<id>` comes from `manifest.json.id`).
+- Load installed apps from `/portal/apps/<id>/` subfolders.
 
 ## App catalog file
-- Keep a catalog of all installed apps in /pp/apps.json so it can be loaded quickly.
-- TODO: specify format of the file
+- Keep a catalog of all installed apps in /portal/apps.json so it can be loaded quickly.
+- Format (schema_version 1):
+  - JSON object with:
+    - `schema_version`: integer (`1`)
+    - `apps`: array of objects, each:
+      - `id`: lower-case UUID string (RFC 4122 canonical form)
+      - `manifest`: JSON object (the app’s `manifest.json`, preserved as-is for forward compatibility)
+      - `pinned_publisher_pubkey` (optional): Base64 string of the pinned Ed25519 publisher public key (raw 32 bytes) for TOFU pinning
+- The Settings app is not stored in this file; it is injected by the launcher UI as the first app tile.
 - If an app package is removed then automatically update the catalog by removing it from catalog.
 - If an app package is updated then automatically update new information to the catalog.
 

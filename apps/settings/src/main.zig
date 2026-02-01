@@ -35,7 +35,7 @@ const UiLayout = struct {
 
 var g_view: View = .Home;
 var g_layout: UiLayout = undefined;
-var g_font_handle: i32 = 0;
+var g_font_handle: ?i32 = null;
 var g_status_buf: [96]u8 = [_]u8{0} ** 96;
 var g_status_len: usize = 0;
 var g_initialized: bool = false;
@@ -69,13 +69,13 @@ fn drawHome() Error!void {
     const screen_h = display.height();
     if (screen_w <= 0 or screen_h <= 0) return Error.Internal;
 
-    if (g_font_handle != 0) {
-        try display.vlw.use(g_font_handle);
+    if (g_font_handle) |font_handle| {
+        try display.vlw.use(font_handle);
     }
     try display.text.set_encoding_utf8();
     try display.text.set_wrap(false, false);
     try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
-    try display.text.set_size(3, 3);
+    try display.text.set_size(0.8, 0.8);
 
     const margin: i32 = 16;
 
@@ -96,13 +96,13 @@ fn drawSettings() Error!void {
     const screen_h = display.height();
     if (screen_w <= 0 or screen_h <= 0) return Error.Internal;
 
-    if (g_font_handle != 0) {
-        try display.vlw.use(g_font_handle);
+    if (g_font_handle) |font_handle| {
+        try display.vlw.use(font_handle);
     }
     try display.text.set_encoding_utf8();
     try display.text.set_wrap(false, false);
     try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
-    try display.text.set_size(3, 3);
+    try display.text.set_size(0.8, 0.8);
 
     const margin: i32 = 16;
     const row_h: i32 = 64;
@@ -152,10 +152,9 @@ fn drawDevServer() Error!void {
     const screen_h = display.height();
     if (screen_w <= 0 or screen_h <= 0) return Error.Internal;
 
-    if (g_font_handle != 0) {
-        try display.vlw.use(g_font_handle);
+    if (g_font_handle) |font_handle| {
+        try display.vlw.use(font_handle);
     }
-    try display.text.set_size(2, 2);
     try display.text.set_encoding_utf8();
     try display.text.set_wrap(false, false);
     try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
@@ -237,21 +236,21 @@ pub export fn pp_init(api_version: i32, api_features: i64, screen_w: i32, screen
     g_initialized = true;
 
     core.begin() catch {
-        core.log.err("pp_init: core.begin failed\n");
+        core.log.err("pp_init: core.begin failed");
         return -1;
     };
 
     g_font_handle = display.vlw.register(font_bytes) catch {
-        core.log.err("pp_init: font register failed\n");
+        core.log.err("pp_init: font register failed");
         return -1;
     };
 
     drawSettings() catch {
-        core.log.err("pp_init: drawSettings failed\n");
+        core.log.err("pp_init: drawSettings failed");
         return -1;
     };
 
-    core.log.info("Settings app initialized.\n");
+    core.log.info("Settings app initialized.");
     return 0;
 }
 
@@ -267,7 +266,7 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
         } else if (g_view == .Settings) {
             if (g_layout.back_btn.contains(x, y)) {
                 drawHome() catch {
-                    core.log.err("drawHome failed\n");
+                    core.log.err("drawHome failed");
                 };
                 return 0;
             }
@@ -285,21 +284,21 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
                 }
 
                 drawSettings() catch {
-                    core.log.err("drawSettings failed\n");
+                    core.log.err("drawSettings failed");
                 };
                 return 0;
             }
 
             if (devserver.is_running() and g_layout.devserver_row.contains(x, y)) {
                 drawDevServer() catch {
-                    core.log.err("drawDevServer failed\n");
+                    core.log.err("drawDevServer failed");
                 };
                 return 0;
             }
         } else if (g_view == .DevServer) {
             if (g_layout.back_btn.contains(x, y)) {
                 drawSettings() catch {
-                    core.log.err("drawSettings failed\n");
+                    core.log.err("drawSettings failed");
                 };
                 return 0;
             }
@@ -309,11 +308,15 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
                     setStatusFromLastError("stop failed");
                 };
                 drawSettings() catch {
-                    core.log.err("drawSettings failed\n");
+                    core.log.err("drawSettings failed");
                 };
                 return 0;
             }
         }
     }
     return 0;
+}
+
+pub export fn pp_shutdown() void {
+    display.vlw.clear_all() catch {};
 }

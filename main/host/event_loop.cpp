@@ -33,7 +33,7 @@ static pthread_t g_event_thread = {};
 static bool g_event_thread_started = false;
 static volatile bool g_event_loop_running = false;
 static volatile bool g_pending_app_switch = false;
-static char g_pending_app_id[32] = "";
+static char g_pending_app_id[64] = "";
 static char g_pending_app_args[256] = "";
 
 static wifi::Subscription g_wifi_sub = {};
@@ -87,23 +87,50 @@ int32_t abs_i32(int32_t v)
     return v < 0 ? -v : v;
 }
 
+bool is_lower_uuid(const char *s)
+{
+    if (!s) {
+        return false;
+    }
+    if (strlen(s) != 36) {
+        return false;
+    }
+    if (s[8] != '-' || s[13] != '-' || s[18] != '-' || s[23] != '-') {
+        return false;
+    }
+    for (size_t i = 0; i < 36; i++) {
+        if (i == 8 || i == 13 || i == 18 || i == 23) {
+            continue;
+        }
+        const char c = s[i];
+        const bool ok = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+        if (!ok) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void finish_dev_command(devserver::DevCommand *cmd, int32_t result, const char *message)
 {
     if (!cmd) {
         return;
     }
 
-    if (cmd->reply) {
-        cmd->reply->result = result;
+    devserver::DevCommandReply *reply = cmd->reply;
+    cmd->reply = nullptr;
+    if (reply) {
+        reply->result = result;
         if (message) {
-            snprintf(cmd->reply->message, sizeof(cmd->reply->message), "%s", message);
+            snprintf(reply->message, sizeof(reply->message), "%s", message);
         }
         else {
-            cmd->reply->message[0] = '\0';
+            reply->message[0] = '\0';
         }
-        if (cmd->reply->done) {
-            xSemaphoreGive(cmd->reply->done);
+        if (reply->done) {
+            xSemaphoreGive(reply->done);
         }
+        reply->Release();
     }
 
     if (cmd->args) {
@@ -518,6 +545,28 @@ void host_event_loop_run(WasmController *wasm)
         if (g_pending_app_switch) {
             ESP_LOGI(kTag, "Processing pending app switch to '%s'", g_pending_app_id);
 
+            auto reload_launcher = [&]() -> bool {
+                wasm->UnloadModule();
+
+                if (!wasm->LoadEmbeddedEntrypoint()) {
+                    return false;
+                }
+
+                char err[256] = {};
+                if (!wasm->Instantiate(err, sizeof(err))) {
+                    return false;
+                }
+
+                int32_t screen_w = 0;
+                int32_t screen_h = 0;
+                if (paper_display_ensure_init()) {
+                    screen_w = paper_display().width();
+                    screen_h = paper_display().height();
+                }
+
+                return wasm->CallInit(pp_contract::kContractVersion, 0, screen_w, screen_h, 0, 0);
+            };
+
             // Shutdown and unload current app
             if (wasm->IsReady()) {
                 wasm->CallShutdown();
@@ -526,10 +575,15 @@ void host_event_loop_run(WasmController *wasm)
 
             // Load the requested app
             bool load_ok = false;
+            char load_err[256] = {};
             if (strcmp(g_pending_app_id, "launcher") == 0) {
                 load_ok = wasm->LoadEmbeddedEntrypoint();
             } else if (strcmp(g_pending_app_id, "settings") == 0) {
                 load_ok = wasm->LoadEmbeddedSettings();
+            } else {
+                char app_path[256] = {};
+                snprintf(app_path, sizeof(app_path), "/sdcard/portal/apps/%s/app.wasm", g_pending_app_id);
+                load_ok = wasm->LoadFromFile(app_path, nullptr, load_err, sizeof(load_err));
             }
 
             if (load_ok) {
@@ -553,7 +607,7 @@ void host_event_loop_run(WasmController *wasm)
                         }
                     }
 
-                    wasm->CallInit(1, 0, screen_w, screen_h, args_ptr, args_len);
+                    wasm->CallInit(pp_contract::kContractVersion, 0, screen_w, screen_h, args_ptr, args_len);
                     if (args_ptr > 0) {
                         wasm->CallFree(args_ptr, args_len);
                     }
@@ -561,9 +615,15 @@ void host_event_loop_run(WasmController *wasm)
                     ESP_LOGI(kTag, "Successfully switched to app '%s'", g_pending_app_id);
                 } else {
                     ESP_LOGE(kTag, "Failed to instantiate app '%s': %s", g_pending_app_id, err);
+                    (void)reload_launcher();
                 }
             } else {
-                ESP_LOGE(kTag, "Failed to load app '%s'", g_pending_app_id);
+                if (load_err[0]) {
+                    ESP_LOGE(kTag, "Failed to load app '%s': %s", g_pending_app_id, load_err);
+                } else {
+                    ESP_LOGE(kTag, "Failed to load app '%s'", g_pending_app_id);
+                }
+                (void)reload_launcher();
             }
 
             g_pending_app_switch = false;
@@ -712,7 +772,7 @@ bool host_event_loop_request_app_switch(const char *app_id, const char *argument
         return false;
     }
 
-    if (strcmp(app_id, "launcher") != 0 && strcmp(app_id, "settings") != 0) {
+    if (strcmp(app_id, "launcher") != 0 && strcmp(app_id, "settings") != 0 && !is_lower_uuid(app_id)) {
         ESP_LOGE(kTag, "request_app_switch: unknown app_id '%s'", app_id);
         return false;
     }

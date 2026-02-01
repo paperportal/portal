@@ -72,48 +72,12 @@ int32_t make_host_path(const char *guest_path, char *out, size_t out_len)
         return kWasmErrInvalidArgument;
     }
 
-    // Accept either:
-    // - guest paths like "/sdcard/foo" (legacy style)
-    // - virtual guest paths like "/foo" mapped to "/sdcard/foo"
-    constexpr const char *kPrefix = "/sdcard";
-    const size_t prefix_len = strlen(kPrefix);
-
-    if (strncmp(guest_path, kPrefix, prefix_len) == 0) {
-        // Must be exactly "/sdcard" or "/sdcard/..."
-        if (guest_path[prefix_len] != '\0' && guest_path[prefix_len] != '/') {
-            wasm_api_set_last_error(kWasmErrInvalidArgument, "fs: invalid /sdcard prefix");
-            return kWasmErrInvalidArgument;
-        }
-
-        const size_t n = strnlen(guest_path, out_len);
-        if (n >= out_len) {
-            wasm_api_set_last_error(kWasmErrInvalidArgument, "fs: path too long");
-            return kWasmErrInvalidArgument;
-        }
-        memcpy(out, guest_path, n + 1);
-        return kWasmOk;
-    }
-
-    // Map "/" -> "/sdcard", "/foo" -> "/sdcard/foo".
-    if (strcmp(guest_path, "/") == 0) {
-        const size_t needed = prefix_len + 1;
-        if (needed > out_len) {
-            wasm_api_set_last_error(kWasmErrInvalidArgument, "fs: path too long");
-            return kWasmErrInvalidArgument;
-        }
-        memcpy(out, kPrefix, prefix_len + 1);
-        return kWasmOk;
-    }
-
-    const size_t guest_len = strnlen(guest_path, out_len);
-    const size_t needed = prefix_len + guest_len + 1; // + NUL
-    if (needed > out_len) {
+    const size_t n = strnlen(guest_path, out_len);
+    if (n >= out_len) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "fs: path too long");
         return kWasmErrInvalidArgument;
     }
-
-    memcpy(out, kPrefix, prefix_len);
-    memcpy(out + prefix_len, guest_path, guest_len + 1);
+    memcpy(out, guest_path, n + 1);
     return kWasmOk;
 }
 
@@ -284,6 +248,11 @@ int32_t fs_open(wasm_exec_env_t exec_env, const char *path, int32_t flags)
 
     const int fd = open(host_path, host_flags, 0666);
     if (fd < 0) {
+        const int e = errno;
+        if (e == ENOENT) {
+            wasm_api_set_last_error(kWasmErrNotFound, "fs_open: not found");
+            return kWasmErrNotFound;
+        }
         wasm_api_set_last_error(kWasmErrInternal, "fs_open: open failed");
         return kWasmErrInternal;
     }
@@ -406,6 +375,11 @@ int32_t fs_stat(wasm_exec_env_t exec_env, const char *path, uint8_t *out_ptr, in
 
     struct stat st;
     if (stat(host_path, &st) != 0) {
+        const int e = errno;
+        if (e == ENOENT) {
+            wasm_api_set_last_error(kWasmErrNotFound, "fs_stat: not found");
+            return kWasmErrNotFound;
+        }
         wasm_api_set_last_error(kWasmErrInternal, "fs_stat: stat failed");
         return kWasmErrInternal;
     }
@@ -440,6 +414,11 @@ int32_t fs_remove(wasm_exec_env_t exec_env, const char *path)
     }
 
     if (unlink(host_path) != 0) {
+        const int e = errno;
+        if (e == ENOENT) {
+            wasm_api_set_last_error(kWasmErrNotFound, "fs_remove: not found");
+            return kWasmErrNotFound;
+        }
         wasm_api_set_last_error(kWasmErrInternal, "fs_remove: unlink failed");
         return kWasmErrInternal;
     }
@@ -466,9 +445,67 @@ int32_t fs_rename(wasm_exec_env_t exec_env, const char *from, const char *to)
     }
 
     if (::rename(from_host, to_host) != 0) {
+        const int e = errno;
+        if (e == ENOENT) {
+            wasm_api_set_last_error(kWasmErrNotFound, "fs_rename: not found");
+            return kWasmErrNotFound;
+        }
         wasm_api_set_last_error(kWasmErrInternal, "fs_rename: rename failed");
         return kWasmErrInternal;
     }
+    return kWasmOk;
+}
+
+int32_t fs_mkdir(wasm_exec_env_t exec_env, const char *path)
+{
+    (void)exec_env;
+    if (!sd_card_is_mounted()) {
+        wasm_api_set_last_error(kWasmErrNotReady, "fs_mkdir: SD not mounted");
+        return kWasmErrNotReady;
+    }
+
+    char host_path[256] = "";
+    int32_t rc = make_host_path(path, host_path, sizeof(host_path));
+    if (rc != kWasmOk) {
+        return rc;
+    }
+
+    if (mkdir(host_path, 0777) != 0) {
+        const int e = errno;
+        if (e == EEXIST) {
+            return kWasmOk;
+        }
+        wasm_api_set_last_error(kWasmErrInternal, "fs_mkdir: mkdir failed");
+        return kWasmErrInternal;
+    }
+
+    return kWasmOk;
+}
+
+int32_t fs_rmdir(wasm_exec_env_t exec_env, const char *path)
+{
+    (void)exec_env;
+    if (!sd_card_is_mounted()) {
+        wasm_api_set_last_error(kWasmErrNotReady, "fs_rmdir: SD not mounted");
+        return kWasmErrNotReady;
+    }
+
+    char host_path[256] = "";
+    int32_t rc = make_host_path(path, host_path, sizeof(host_path));
+    if (rc != kWasmOk) {
+        return rc;
+    }
+
+    if (rmdir(host_path) != 0) {
+        const int e = errno;
+        if (e == ENOENT) {
+            wasm_api_set_last_error(kWasmErrNotFound, "fs_rmdir: not found");
+            return kWasmErrNotFound;
+        }
+        wasm_api_set_last_error(kWasmErrInternal, "fs_rmdir: rmdir failed");
+        return kWasmErrInternal;
+    }
+
     return kWasmOk;
 }
 
@@ -488,6 +525,11 @@ int32_t fs_opendir(wasm_exec_env_t exec_env, const char *path)
 
     DIR *d = opendir(host_path);
     if (!d) {
+        const int e = errno;
+        if (e == ENOENT) {
+            wasm_api_set_last_error(kWasmErrNotFound, "fs_opendir: not found");
+            return kWasmErrNotFound;
+        }
         wasm_api_set_last_error(kWasmErrInternal, "fs_opendir: opendir failed");
         return kWasmErrInternal;
     }
@@ -602,6 +644,8 @@ static NativeSymbol g_fs_native_symbols[] = {
     REG_NATIVE_FUNC(fs_stat, "($*i)i"),
     REG_NATIVE_FUNC(fs_remove, "($)i"),
     REG_NATIVE_FUNC(fs_rename, "($$)i"),
+    REG_NATIVE_FUNC(fs_mkdir, "($)i"),
+    REG_NATIVE_FUNC(fs_rmdir, "($)i"),
 
     REG_NATIVE_FUNC(fs_opendir, "($)i"),
     REG_NATIVE_FUNC(fs_readdir, "(i*i)i"),

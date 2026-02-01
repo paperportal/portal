@@ -1,0 +1,137 @@
+--- a/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_EPD.cpp
++++ b/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_EPD.cpp
+@@ -225,7 +225,19 @@ namespace lgfx
+     lut_total_step += _config_detail.lut_fastest_step;
+ 
+     // EPD制御用LUT (2ピクセルセット)
+-    _lut_2pixel = (uint8_t *)heap_caps_malloc(lut_total_step * 256 * sizeof(uint16_t), MALLOC_CAP_DMA);
++    //
++    // This table is read by the CPU while building DMA scanlines; it does not need to be DMA-capable itself.
++    // Allocating it from internal DMA-capable RAM can fail due to fragmentation (it is ~40KB), so prefer SPIRAM
++    // when available and fall back to internal RAM.
++    const size_t lut_bytes = lut_total_step * 256 * sizeof(uint16_t);
++#ifdef MALLOC_CAP_SPIRAM
++    _lut_2pixel = (uint8_t *)heap_caps_malloc(lut_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
++#else
++    _lut_2pixel = nullptr;
++#endif
++    if (!_lut_2pixel) {
++      _lut_2pixel = (uint8_t *)heap_caps_malloc(lut_bytes, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
++    }
+ 
+     // リフレッシュの進行状況付きフレームバッファ (下位8bitはピクセル2個分の16階調値そのまま)
+     // 偶数インデクスは処理中のバッファ、奇数インデクスは予約バッファ。処理中のバッファの完了時に予約バッファの値が参照される。
+@@ -554,10 +566,16 @@ namespace lgfx
+   {
+     if (0 < w && 0 < h)
+     {
+-      _range_mod.left   = std::min<int16_t>(_range_mod.left  , x        );
+-      _range_mod.right  = std::max<int16_t>(_range_mod.right , x + w - 1);
+-      _range_mod.top    = std::min<int16_t>(_range_mod.top   , y        );
+-      _range_mod.bottom = std::max<int16_t>(_range_mod.bottom, y + h - 1);
++      uint_fast16_t xs = x;
++      uint_fast16_t ys = y;
++      uint_fast16_t xe = x + w - 1;
++      uint_fast16_t ye = y + h - 1;
++      _rotate_pos(xs, ys, xe, ye);
++
++      _range_mod.left   = std::min<int_fast16_t>(_range_mod.left  , xs);
++      _range_mod.right  = std::max<int_fast16_t>(_range_mod.right , xe);
++      _range_mod.top    = std::min<int_fast16_t>(_range_mod.top   , ys);
++      _range_mod.bottom = std::max<int_fast16_t>(_range_mod.bottom, ye);
+     }
+ 
+     if (_range_mod.empty()) { return; }
+@@ -575,7 +593,9 @@ namespace lgfx
+     upd.mode = _epd_mode;
+ 
+     _display_busy = true;
+-    cacheWriteBack(&_buf[y * _cfg.panel_width >> 1], h * _cfg.panel_width >> 1);
++    cacheWriteBack(
++        &_buf[_range_mod.top * ((_cfg.panel_width + 1) >> 1)],
++        (_range_mod.bottom - _range_mod.top + 1) * ((_cfg.panel_width + 1) >> 1));
+     vTaskDelay(1);
+     bool res = xQueueSend(_update_queue_handle, &upd, 128 / portTICK_PERIOD_MS) == pdTRUE;
+ // printf("\nres: %d, xs: %d, xe: %d, ys: %d, ye: %d\n", res, xs, xe, ys, ye);
+@@ -779,7 +799,7 @@ __asm__ __volatile(
+     " or     " LPX "," LPX ", " X80 "      \n"
+     " s16i   " LPX "," SRC ", 30           \n"  // src[15] = LPX|0x8000;
+     " j                       BLT_RETURN7  \n"
+-  
++
+     "BLT_END:                              \n"
+     " mov      %0   ," LPX "               \n"  // 戻り値にLPXを指定する。処理ナシの場合 0 / データ処理が存在した場合 0以外となる
+   :"=r"(result)::"a3","a4","a5","a6","a7","a8","a9","a10","a11","a12","a13","a14","a15");
+@@ -928,7 +948,7 @@ __asm__ __volatile(
+             src += panel_w >> 1;
+             dst += (memory_w >> 1) * 2;
+             if (flg_fast) {
+-              for (int i = 0; i < w; i += 2) {
++              for (size_t i = 0; i + 1 < w; i += 2) {
+                 uint_fast16_t s0 = s[0];
+                 uint_fast16_t d1 = d[1];
+                 uint_fast16_t s1 = s[1];
+@@ -948,10 +968,19 @@ __asm__ __volatile(
+                 s += 2;
+                 d += 4;
+               }
++              if (w & 1u) {
++                uint_fast16_t s0 = s[0];
++                uint_fast16_t d1 = d[1];
++                s0 += lut_offset;
++                if (d1 != s0) {
++                  d[1] = s0;
++                  d[0] = s0 - 0x8000;
++                }
++              }
+             } else
+             if (new_data.mode == epd_mode_t::epd_text) {
+               uint_fast16_t white = lut_offset | 0x00FF;
+-              for (int i = 0; i < w; i += 2) {
++              for (size_t i = 0; i + 1 < w; i += 2) {
+                 uint_fast16_t s0 = s[0];
+                 uint_fast16_t s1 = s[1];
+                 uint_fast16_t d1 = d[1];
+@@ -984,8 +1013,21 @@ __asm__ __volatile(
+                 s += 2;
+                 d += 4;
+               }
++              if (w & 1u) {
++                uint_fast16_t s0 = s[0];
++                uint_fast16_t d1 = d[1];
++                s0 += lut_offset;
++                d1 &= 0x7FFF;
++                if (white != d1 || d1 != s0) {
++                  uint_fast16_t d0 = d[0];
++                  d[1] = s0;
++                  if (d0 >= (lut_eraser_step << 8)) {
++                    d[0] = (uint8_t)d0;
++                  }
++                }
++              }
+             } else {
+-              for (int i = 0; i < w; i += 2) {
++              for (size_t i = 0; i + 1 < w; i += 2) {
+                 uint_fast16_t s0 = s[0];
+                 uint_fast16_t s1 = s[1];
+                 uint_fast16_t d1 = d[1];
+@@ -1016,6 +1058,19 @@ __asm__ __volatile(
+                 s += 2;
+                 d += 4;
+               }
++              if (w & 1u) {
++                uint_fast16_t s0 = s[0];
++                uint_fast16_t d1 = d[1];
++                s0 += lut_offset;
++
++                if (d1 != s0) {
++                  uint_fast16_t d0 = d[0];
++                  d[1] = s0;
++                  if (d0 >= (lut_eraser_step << 8)) {
++                    d[0] = (uint8_t)d0;
++                  }
++                }
++              }
+             }
+           } while (--h);
+ 

@@ -31,7 +31,12 @@ idf_component_register(
     "wasm/api/socket.cpp"
     "wasm/api/speaker.cpp"
     "wasm/api/touch.cpp"
-    "wasm/wasm_controller.cpp"
+    "wasm/wasm_controller_globals.cpp"
+    "wasm/wasm_controller_runtime.cpp"
+    "wasm/wasm_controller_load.cpp"
+    "wasm/wasm_controller_instance.cpp"
+    "wasm/wasm_controller_dispatch.cpp"
+    "wasm/wasm_controller_memory.cpp"
   INCLUDE_DIRS "."
   PRIV_REQUIRES esp_adc esp_http_client esp_http_server esp_netif esp_psram esp_wifi mdns FastEPD LovyanGFX fatfs sdmmc wamr json
 )

@@ -67,7 +67,7 @@ int32_t last_error_message(wasm_exec_env_t exec_env, char *out, size_t out_len)
     return (int32_t)bytes_to_copy;
 }
 
-int32_t check_heap_integrity(wasm_exec_env_t exec_env, const char *label, int32_t print_errors)
+int32_t heap_check(wasm_exec_env_t exec_env, const char *label, int32_t print_errors)
 {
     (void)exec_env;
     if (!label) {
@@ -78,6 +78,15 @@ int32_t check_heap_integrity(wasm_exec_env_t exec_env, const char *label, int32_
         wasm_api_set_last_error(kWasmErrInternal, "check_heap_integrity: heap corruption detected");
     }
     return ok ? 1 : 0;
+}
+
+void heap_log(wasm_exec_env_t exec_env, const char *label)
+{
+    (void)exec_env;
+    if (!label) {
+        label = "wasm";
+    }
+    mem_utils::log_heap_brief(kTag, label);
 }
 
 int32_t open_app(wasm_exec_env_t exec_env, const char *app_id, const char *arguments)
@@ -111,7 +120,8 @@ static NativeSymbol g_core_native_symbols[] = {
     REG_NATIVE_FUNC(api_features, "()I"),
     REG_NATIVE_FUNC(last_error_code, "()i"),
     REG_NATIVE_FUNC(last_error_message, "(*~)i"),
-    REG_NATIVE_FUNC(check_heap_integrity, "($i)i"),
+    REG_NATIVE_FUNC(heap_check, "($i)i"),
+    REG_NATIVE_FUNC(heap_log, "($)"),
     REG_NATIVE_FUNC(open_app, "($$)i"),
 };
 /* clang-format on */

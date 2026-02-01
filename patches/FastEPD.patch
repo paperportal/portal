@@ -1,7 +1,5 @@
-diff --git a/src/FastEPD.h b/src/FastEPD.h
-index 9dc5b69..cc91fe2 100644
---- a/src/FastEPD.h
-+++ b/src/FastEPD.h
+--- a/components/FastEPD/src/FastEPD.h
++++ b/components/FastEPD/src/FastEPD.h
 @@ -296,6 +296,7 @@ class FASTEPD
  extern "C" {
  #endif
@@ -10,10 +8,8 @@ index 9dc5b69..cc91fe2 100644
  #ifdef __cplusplus
  };
  #else
-diff --git a/src/FastEPD.inl b/src/FastEPD.inl
-index 722a5db..225a95c 100644
---- a/src/FastEPD.inl
-+++ b/src/FastEPD.inl
+--- a/components/FastEPD/src/FastEPD.inl
++++ b/components/FastEPD/src/FastEPD.inl
 @@ -1458,6 +1458,22 @@ int bbepInitPanel(FASTEPDSTATE *pState, int iPanel, uint32_t u32Speed)
      return BBEP_ERROR_BAD_PARAMETER;
  } /* bbepInitPanel() */
