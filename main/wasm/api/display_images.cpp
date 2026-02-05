@@ -6,6 +6,7 @@
 #include "wasm_export.h"
 
 #include "m5papers3_display.h"
+#include "other/xteink_image_utils.h"
 
 #include "../api.h"
 #include "errors.h"
@@ -15,6 +16,7 @@ namespace {
 constexpr const char *kTag = "wasm_api_display_images";
 constexpr size_t kMaxPngBytes = 1024 * 1024;
 constexpr size_t kMaxJpgBytes = 1024 * 1024;
+constexpr size_t kMaxXthBytes = 1024 * 1024;
 
 LGFX_M5PaperS3 *get_display_or_set_error(void)
 {
@@ -187,6 +189,33 @@ int32_t draw_png(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32
     return kWasmOk;
 }
 
+int32_t draw_xth_centered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+{
+    (void)exec_env;
+    auto *display = get_display_or_set_error();
+    if (!display) {
+        return kWasmErrNotReady;
+    }
+    if (!ptr && len != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: ptr is null");
+        return kWasmErrInvalidArgument;
+    }
+    if (len == 0) {
+        return kWasmOk;
+    }
+    if (len > kMaxXthBytes) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: len too large");
+        return kWasmErrInvalidArgument;
+    }
+
+    const bool ok = drawXth(*display, ptr, len);
+    if (!ok) {
+        wasm_api_set_last_error(kWasmErrInternal, "draw_xth_centered: decode failed");
+        return kWasmErrInternal;
+    }
+    return kWasmOk;
+}
+
 int32_t draw_jpg_fit(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w,
     int32_t max_h)
 {
@@ -314,6 +343,7 @@ static NativeSymbol g_display_images_native_symbols[] = {
     REG_NATIVE_FUNC(push_image_gray8, "(iiii*~)i"),
     REG_NATIVE_FUNC(read_rect_rgb565, "(iiii*~)i"),
     REG_NATIVE_FUNC(draw_png, "(*~ii)i"),
+    REG_NATIVE_FUNC(draw_xth_centered, "(*~)i"),
     REG_NATIVE_FUNC(draw_jpg_fit, "(*~iiii)i"),
     REG_NATIVE_FUNC(draw_png_fit, "(*~iiii)i"),
     REG_NATIVE_FUNC(draw_jpg_file, "(*iiii)i"),

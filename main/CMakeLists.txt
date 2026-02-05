@@ -8,6 +8,7 @@ idf_component_register(
     "services/devserver_service.cpp"
     "services/wifi_service.cpp"
     "other/mem_utils.cpp"
+    "other/xteink_image_utils.cpp"
     "services/settings_service.cpp"
     "wasm/api/core.cpp"
     "wasm/api/devserver.cpp"
