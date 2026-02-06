@@ -86,3 +86,16 @@ bool convertXth(const uint8_t *xth, size_t xth_size, std::vector<uint8_t> &out2b
  * @return true on success, false on decode/draw failure.
  */
 bool drawXth(LGFX_M5PaperS3 &display, const uint8_t *xth, size_t xth_size);
+
+/**
+ * @brief Decode an XTG (1bpp monochrome) image and draw it centered on the display.
+ *
+ * The decoded image is center-cropped to the display size when it is larger than
+ * the destination.
+ *
+ * @param display Target display.
+ * @param xtg Pointer to XTG bytes.
+ * @param xtg_size Size of XTG buffer in bytes.
+ * @return true on success, false on decode/draw failure.
+ */
+bool drawXtg(LGFX_M5PaperS3 &display, const uint8_t *xtg, size_t xtg_size);

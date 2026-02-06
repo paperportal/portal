@@ -9,11 +9,17 @@
 #include "m5papers3_display.h"
 
 static const char *kXthTag = "xth";
+static const char *kXtgTag = "xtg";
 
 static constexpr lgfx::grayscale_t kGray2Palette[4] = {
     lgfx::grayscale_t(0),
     lgfx::grayscale_t(85),
     lgfx::grayscale_t(170),
+    lgfx::grayscale_t(255),
+};
+
+static constexpr lgfx::grayscale_t kGray1Palette[2] = {
+    lgfx::grayscale_t(0),
     lgfx::grayscale_t(255),
 };
 
@@ -39,6 +45,21 @@ static inline uint8_t get_pixel_2bpp(const uint8_t *buf, int32_t w, int32_t x, i
     const uint32_t byte_index = idx >> 2;
     const uint32_t shift = (3u - (idx & 3u)) * 2u;
     return static_cast<uint8_t>((buf[byte_index] >> shift) & 0x3u);
+}
+
+static inline void set_pixel_1bpp(uint8_t *buf, int32_t w, int32_t x, int32_t y, uint8_t v) {
+    const uint32_t row_bytes = (static_cast<uint32_t>(w) + 7u) >> 3;
+    const uint32_t byte_index = static_cast<uint32_t>(y) * row_bytes + (static_cast<uint32_t>(x) >> 3);
+    const uint8_t bit = static_cast<uint8_t>(7u - (static_cast<uint32_t>(x) & 7u));
+    const uint8_t mask = static_cast<uint8_t>(1u << bit);
+    buf[byte_index] = static_cast<uint8_t>((buf[byte_index] & static_cast<uint8_t>(~mask)) | ((v & 0x1u) << bit));
+}
+
+static inline uint8_t get_pixel_1bpp(const uint8_t *buf, int32_t w, int32_t x, int32_t y) {
+    const uint32_t row_bytes = (static_cast<uint32_t>(w) + 7u) >> 3;
+    const uint32_t byte_index = static_cast<uint32_t>(y) * row_bytes + (static_cast<uint32_t>(x) >> 3);
+    const uint8_t bit = static_cast<uint8_t>(7u - (static_cast<uint32_t>(x) & 7u));
+    return static_cast<uint8_t>((buf[byte_index] >> bit) & 0x1u);
 }
 
 bool convertXth(const uint8_t *xth, size_t xth_size, std::vector<uint8_t> &out2bpp, int32_t &out_w, int32_t &out_h) {
@@ -195,5 +216,109 @@ bool drawXth(LGFX_M5PaperS3 &display, const uint8_t *xth, size_t xth_size) {
 
     display.pushImage(dst_x0, dst_y0, draw_w, draw_h, crop_buf.data(), lgfx::color_depth_t::grayscale_2bit,
                       kGray2Palette);
+    return true;
+}
+
+bool drawXtg(LGFX_M5PaperS3 &display, const uint8_t *xtg, size_t xtg_size) {
+    constexpr size_t kHeaderSize = 22;
+    constexpr uint32_t kXtgMark = 0x00475458u; // "XTG\0" little-endian
+
+    if (xtg == nullptr || xtg_size < kHeaderSize) {
+        ESP_LOGE(kXtgTag, "XTG: buffer too small for header (%zu)", xtg_size);
+        return false;
+    }
+
+    const uint32_t mark = read_le_u32(xtg + 0x00);
+    if (mark != kXtgMark) {
+        ESP_LOGE(kXtgTag, "XTG: bad mark 0x%08" PRIx32, mark);
+        return false;
+    }
+
+    const uint16_t width_u16 = read_le_u16(xtg + 0x04);
+    const uint16_t height_u16 = read_le_u16(xtg + 0x06);
+    const uint8_t color_mode = xtg[0x08];
+    const uint8_t compression = xtg[0x09];
+    const uint32_t header_data_size = read_le_u32(xtg + 0x0A);
+
+    if (width_u16 == 0 || height_u16 == 0) {
+        ESP_LOGE(kXtgTag, "XTG: invalid dimensions %ux%u", width_u16, height_u16);
+        return false;
+    }
+    if (color_mode != 0) {
+        ESP_LOGE(kXtgTag, "XTG: unsupported colorMode=%u", color_mode);
+        return false;
+    }
+    if (compression != 0) {
+        ESP_LOGE(kXtgTag, "XTG: unsupported compression=%u", compression);
+        return false;
+    }
+
+    const uint32_t width = width_u16;
+    const uint32_t height = height_u16;
+    const uint64_t row_bytes64 = (static_cast<uint64_t>(width) + 7u) / 8u;
+    const uint64_t data_size64 = row_bytes64 * static_cast<uint64_t>(height);
+    const uint64_t size_max = static_cast<uint64_t>(std::numeric_limits<size_t>::max());
+    if (data_size64 > size_max) {
+        ESP_LOGE(kXtgTag, "XTG: image too large");
+        return false;
+    }
+
+    const size_t expected_data_size = static_cast<size_t>(data_size64);
+    if (header_data_size != expected_data_size) {
+        ESP_LOGW(kXtgTag, "XTG: header dataSize=%" PRIu32 " computed=%zu", header_data_size, expected_data_size);
+    }
+
+    const size_t required_size = kHeaderSize + expected_data_size;
+    if (xtg_size < required_size) {
+        ESP_LOGE(kXtgTag, "XTG: truncated data (need %zu bytes, have %zu)", required_size, xtg_size);
+        return false;
+    }
+
+    const uint8_t *image_data = xtg + kHeaderSize;
+    const int32_t decoded_w = static_cast<int32_t>(width);
+    const int32_t decoded_h = static_cast<int32_t>(height);
+
+    const int32_t disp_w = display.width();
+    const int32_t disp_h = display.height();
+    if (disp_w <= 0 || disp_h <= 0) {
+        ESP_LOGE(kXtgTag, "XTG: invalid display size %" PRId32 "x%" PRId32, disp_w, disp_h);
+        return false;
+    }
+
+    const int32_t draw_w = std::min(decoded_w, disp_w);
+    const int32_t draw_h = std::min(decoded_h, disp_h);
+    const int32_t src_x0 = (decoded_w > draw_w) ? ((decoded_w - draw_w) / 2) : 0;
+    const int32_t src_y0 = (decoded_h > draw_h) ? ((decoded_h - draw_h) / 2) : 0;
+    const int32_t dst_x0 = (disp_w > draw_w) ? ((disp_w - draw_w) / 2) : 0;
+    const int32_t dst_y0 = (disp_h > draw_h) ? ((disp_h - draw_h) / 2) : 0;
+
+    ESP_LOGI(kXtgTag,
+             "XTG: display %" PRId32 "x%" PRId32 ", decoded %" PRId32 "x%" PRId32 ", drawing %" PRId32 "x%" PRId32
+             " at (%" PRId32 ",%" PRId32 ") from (%" PRId32 ",%" PRId32 ")",
+             disp_w, disp_h, decoded_w, decoded_h, draw_w, draw_h, dst_x0, dst_y0, src_x0, src_y0);
+
+    if (draw_w == decoded_w && draw_h == decoded_h) {
+        display.pushImage(dst_x0, dst_y0, decoded_w, decoded_h, image_data, lgfx::color_depth_t::grayscale_1bit,
+                          kGray1Palette);
+        return true;
+    }
+
+    const uint64_t crop_row_bytes = (static_cast<uint64_t>(draw_w) + 7u) / 8u;
+    const uint64_t crop_size64 = crop_row_bytes * static_cast<uint64_t>(draw_h);
+    if (crop_size64 > size_max) {
+        ESP_LOGE(kXtgTag, "XTG: crop buffer too large");
+        return false;
+    }
+
+    std::vector<uint8_t> crop_buf(static_cast<size_t>(crop_size64), 0xFF);
+    for (int32_t yy = 0; yy < draw_h; ++yy) {
+        for (int32_t xx = 0; xx < draw_w; ++xx) {
+            const uint8_t v = get_pixel_1bpp(image_data, decoded_w, src_x0 + xx, src_y0 + yy);
+            set_pixel_1bpp(crop_buf.data(), draw_w, xx, yy, v);
+        }
+    }
+
+    display.pushImage(dst_x0, dst_y0, draw_w, draw_h, crop_buf.data(), lgfx::color_depth_t::grayscale_1bit,
+                      kGray1Palette);
     return true;
 }
