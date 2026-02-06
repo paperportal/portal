@@ -39,7 +39,7 @@ pub const Controller = struct {
     fn setState(self: *Controller, new_state: State) void {
         const old_tag = @tagName(self.state);
         const new_tag = @tagName(new_state);
-        core.log.finfo("State: {s} -> {s}\n", .{ old_tag, new_tag });
+        core.log.finfo("State: {s} -> {s}", .{ old_tag, new_tag });
         self.state = new_state;
     }
 
@@ -51,7 +51,7 @@ pub const Controller = struct {
 
         fs.mount() catch |err| switch (err) {
             Error.NotReady => {
-                core.log.warn("SD not mounted; launcher running without SD apps\n");
+                core.log.warn("SD not mounted; launcher running without SD apps");
                 self.sd_ready = false;
             },
             else => return err,
@@ -106,9 +106,9 @@ pub const Controller = struct {
                                 var buf: [192]u8 = undefined;
                                 const msg = std.fmt.bufPrintZ(
                                     &buf,
-                                    "apps.json: save failed ({s}) path={s}\n",
+                                    "apps.json: save failed ({s}) path={s}",
                                     .{ @errorName(err), paths.catalog_path_z },
-                                ) catch "apps.json: save failed\n";
+                                ) catch "apps.json: save failed";
                                 core.log.warn(msg);
                             };
                         }
@@ -123,7 +123,7 @@ pub const Controller = struct {
                         else => null,
                     };
                     if (meta == null or meta.?.is_dir == false) {
-                        core.log.info("Removed missing app from catalog\n");
+                        core.log.info("Removed missing app from catalog");
                         self.catalog.removeAt(self.allocator, s.index);
                         s.dirty = true;
                         continue;
@@ -169,9 +169,9 @@ pub const Controller = struct {
                                 var buf: [192]u8 = undefined;
                                 const msg = std.fmt.bufPrintZ(
                                     &buf,
-                                    "apps.json: save failed ({s}) path={s}\n",
+                                    "apps.json: save failed ({s}) path={s}",
                                     .{ @errorName(err), paths.catalog_path_z },
-                                ) catch "apps.json: save failed\n";
+                                ) catch "apps.json: save failed";
                                 core.log.warn(msg);
                             };
                             self.rebuildUiApps() catch {};
@@ -208,13 +208,13 @@ pub const Controller = struct {
         const id_z = grid.hitTest(&gs, x, y) orelse return;
         if (std.mem.eql(u8, id_z, "settings")) {
             core.open_app("settings", null) catch {
-                core.log.err("Failed to open settings app\n");
+                core.log.err("Failed to open settings app");
             };
             return;
         }
 
         core.open_app(id_z, null) catch {
-            core.log.err("Failed to open app\n");
+            core.log.err("Failed to open app");
         };
     }
 
