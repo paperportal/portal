@@ -136,8 +136,6 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
     return 0;
 }
 
-pub fn main() void {}
-
 pub export fn pp_shutdown() void {
     if (g_controller) |*c| {
         c.deinit();

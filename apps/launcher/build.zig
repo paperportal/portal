@@ -3,7 +3,7 @@ const ppsdk = @import("paper_portal_sdk");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{
-        .default_target = .{ .cpu_arch = .wasm32, .os_tag = .wasi },
+        .default_target = .{ .cpu_arch = .wasm32, .os_tag = .freestanding },
     });
     const optimize = std.builtin.OptimizeMode.ReleaseSmall;
 
@@ -27,6 +27,7 @@ pub fn build(b: *std.Build) void {
         .name = "main",
         .root_module = root_mod,
     });
+    exe.entry = .disabled;
 
     _ = ppsdk.addWasmUpload(b, exe, .{});
 
