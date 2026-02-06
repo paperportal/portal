@@ -47,6 +47,106 @@ bool validate_display_rect(const LGFX_M5PaperS3 &display, int32_t x, int32_t y, 
     return true;
 }
 
+bool canonicalize_color_depth(int32_t depth_raw, lgfx::color_depth_t *out_depth, uint32_t *out_bits,
+    bool *out_requires_palette, uint32_t *out_palette_entries)
+{
+    if (!out_depth || !out_bits || !out_requires_palette || !out_palette_entries) {
+        wasm_api_set_last_error(kWasmErrInternal, "canonicalize_color_depth: null out pointer");
+        return false;
+    }
+
+    const uint16_t raw_u16 = (uint16_t)depth_raw;
+    const uint32_t bits = (uint32_t)(raw_u16 & (uint16_t)lgfx::color_depth_t::bit_mask);
+    const bool has_palette = (raw_u16 & (uint16_t)lgfx::color_depth_t::has_palette) != 0;
+    const bool nonswapped = (raw_u16 & (uint16_t)lgfx::color_depth_t::nonswapped) != 0;
+    const bool alternate = (raw_u16 & (uint16_t)lgfx::color_depth_t::alternate) != 0;
+
+    lgfx::color_depth_t depth = lgfx::color_depth_t::rgb565_2Byte;
+    uint32_t palette_entries = 0;
+
+    switch (bits) {
+        case 1:
+            depth = has_palette ? lgfx::color_depth_t::palette_1bit : lgfx::color_depth_t::grayscale_1bit;
+            palette_entries = 2;
+            break;
+        case 2:
+            depth = has_palette ? lgfx::color_depth_t::palette_2bit : lgfx::color_depth_t::grayscale_2bit;
+            palette_entries = 4;
+            break;
+        case 4:
+            depth = has_palette ? lgfx::color_depth_t::palette_4bit : lgfx::color_depth_t::grayscale_4bit;
+            palette_entries = 16;
+            break;
+        case 8:
+            if (has_palette) {
+                depth = lgfx::color_depth_t::palette_8bit;
+                palette_entries = 256;
+            } else {
+                depth = alternate ? lgfx::color_depth_t::grayscale_8bit : lgfx::color_depth_t::rgb332_1Byte;
+            }
+            break;
+        case 16:
+            depth = nonswapped ? lgfx::color_depth_t::rgb565_nonswapped : lgfx::color_depth_t::rgb565_2Byte;
+            break;
+        case 24:
+            if (alternate) {
+                depth = nonswapped ? lgfx::color_depth_t::rgb666_nonswapped : lgfx::color_depth_t::rgb666_3Byte;
+            } else {
+                depth = nonswapped ? lgfx::color_depth_t::rgb888_nonswapped : lgfx::color_depth_t::rgb888_3Byte;
+            }
+            break;
+        case 32:
+            depth = nonswapped ? lgfx::color_depth_t::argb8888_nonswapped : lgfx::color_depth_t::argb8888_4Byte;
+            break;
+        default:
+            wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: invalid color depth bit count");
+            return false;
+    }
+
+    *out_depth = depth;
+    *out_bits = bits;
+    *out_palette_entries = palette_entries;
+    *out_requires_palette = (palette_entries != 0) || (bits < 8);
+    return true;
+}
+
+bool compute_expected_image_len(int32_t w, int32_t h, uint32_t bits, size_t *out_expected_len)
+{
+    if (!out_expected_len) {
+        wasm_api_set_last_error(kWasmErrInternal, "compute_expected_image_len: out_expected_len is null");
+        return false;
+    }
+    if (w < 0 || h < 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: negative size");
+        return false;
+    }
+
+    const uint64_t pixels = (uint64_t)(uint32_t)w * (uint64_t)(uint32_t)h;
+    if (pixels > (uint64_t)SIZE_MAX) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: size overflow");
+        return false;
+    }
+
+    uint64_t expected = 0;
+    if (bits == 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: bits is zero");
+        return false;
+    }
+    if (bits < 8) {
+        expected = (pixels * (uint64_t)bits + 7u) / 8u;
+    } else {
+        expected = pixels * ((uint64_t)bits / 8u);
+    }
+
+    if (expected > (uint64_t)SIZE_MAX) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: expected_len overflow");
+        return false;
+    }
+
+    *out_expected_len = (size_t)expected;
+    return true;
+}
+
 int32_t push_image_rgb565(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *ptr,
     size_t len)
 {
@@ -79,6 +179,78 @@ int32_t push_image_rgb565(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_
     }
 
     display->pushImage(x, y, w, h, (const lgfx::rgb565_t *)ptr);
+    return kWasmOk;
+}
+
+int32_t push_image(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *data_ptr,
+    size_t data_len, int32_t depth_raw, const uint8_t *palette_ptr, size_t palette_len)
+{
+    (void)exec_env;
+    auto *display = get_display_or_set_error();
+    if (!display) {
+        return kWasmErrNotReady;
+    }
+    if (!validate_display_rect(*display, x, y, w, h, "push_image: rect out of bounds")) {
+        return kWasmErrInvalidArgument;
+    }
+
+    lgfx::color_depth_t depth = lgfx::color_depth_t::rgb565_2Byte;
+    uint32_t bits = 0;
+    bool requires_palette = false;
+    uint32_t palette_entries = 0;
+    if (!canonicalize_color_depth(depth_raw, &depth, &bits, &requires_palette, &palette_entries)) {
+        return kWasmErrInvalidArgument;
+    }
+
+    size_t expected_len = 0;
+    if (!compute_expected_image_len(w, h, bits, &expected_len)) {
+        return kWasmErrInvalidArgument;
+    }
+
+    if ((!data_ptr && expected_len != 0) || data_len != expected_len) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: data ptr/len mismatch");
+        return kWasmErrInvalidArgument;
+    }
+    if (expected_len == 0) {
+        return kWasmOk;
+    }
+
+    if (bits == 16 && ((uintptr_t)data_ptr & 1u) != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: data_ptr must be 2-byte aligned for 16bpp");
+        return kWasmErrInvalidArgument;
+    }
+    if (bits == 32 && ((uintptr_t)data_ptr & 3u) != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: data_ptr must be 4-byte aligned for 32bpp");
+        return kWasmErrInvalidArgument;
+    }
+
+    // Palette is only used for indexed (<8bpp) and palette_* modes. For other depths, ignore palette args.
+    const lgfx::rgb888_t *palette_rgb888 = nullptr;
+    if (requires_palette) {
+        if (!palette_ptr) {
+            wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: palette_ptr is null (palette required)");
+            return kWasmErrInvalidArgument;
+        }
+        if ((palette_len & 3u) != 0) {
+            wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: palette_len must be multiple of 4 bytes");
+            return kWasmErrInvalidArgument;
+        }
+        if (((uintptr_t)palette_ptr & 3u) != 0) {
+            wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: palette_ptr must be 4-byte aligned");
+            return kWasmErrInvalidArgument;
+        }
+        const size_t expected_palette_len = (size_t)palette_entries * 4u;
+        if (palette_len != expected_palette_len) {
+            wasm_api_set_last_error(kWasmErrInvalidArgument, "push_image: palette_len mismatch");
+            return kWasmErrInvalidArgument;
+        }
+
+        // Palette entries are passed from WASM as u32 values in 0x00RRGGBB form (little-endian bytes BB GG RR 00),
+        // which matches lgfx::rgb888_t memory layout (b, g, r [+ padding]).
+        palette_rgb888 = (const lgfx::rgb888_t *)palette_ptr;
+    }
+
+    display->pushImage(x, y, w, h, (const void *)data_ptr, depth, palette_rgb888);
     return kWasmOk;
 }
 
@@ -340,6 +512,7 @@ int32_t draw_png_file(wasm_exec_env_t exec_env, const char *path, int32_t x, int
 
 static NativeSymbol g_display_images_native_symbols[] = {
     REG_NATIVE_FUNC(push_image_rgb565, "(iiii*~)i"),
+    REG_NATIVE_FUNC(push_image, "(iiii*~i*~)i"),
     REG_NATIVE_FUNC(push_image_gray8, "(iiii*~)i"),
     REG_NATIVE_FUNC(read_rect_rgb565, "(iiii*~)i"),
     REG_NATIVE_FUNC(draw_png, "(*~ii)i"),
