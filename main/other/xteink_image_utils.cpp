@@ -292,11 +292,6 @@ bool drawXtg(LGFX_M5PaperS3 &display, const uint8_t *xtg, size_t xtg_size) {
     const int32_t dst_x0 = (disp_w > draw_w) ? ((disp_w - draw_w) / 2) : 0;
     const int32_t dst_y0 = (disp_h > draw_h) ? ((disp_h - draw_h) / 2) : 0;
 
-    ESP_LOGI(kXtgTag,
-             "XTG: display %" PRId32 "x%" PRId32 ", decoded %" PRId32 "x%" PRId32 ", drawing %" PRId32 "x%" PRId32
-             " at (%" PRId32 ",%" PRId32 ") from (%" PRId32 ",%" PRId32 ")",
-             disp_w, disp_h, decoded_w, decoded_h, draw_w, draw_h, dst_x0, dst_y0, src_x0, src_y0);
-
     if (draw_w == decoded_w && draw_h == decoded_h) {
         display.pushImage(dst_x0, dst_y0, decoded_w, decoded_h, image_data, lgfx::color_depth_t::grayscale_1bit,
                           kGray1Palette);

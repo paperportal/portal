@@ -173,6 +173,33 @@ int32_t fill_circle(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t r, i
     return kWasmOk;
 }
 
+int32_t fill_arc(
+    wasm_exec_env_t exec_env,
+    int32_t x,
+    int32_t y,
+    int32_t r0,
+    int32_t r1,
+    float angle0,
+    float angle1,
+    int32_t rgb888)
+{
+    (void)exec_env;
+    auto *display = get_display_or_set_error();
+    if (!display) {
+        return kWasmErrNotReady;
+    }
+    if (r0 < 0 || r1 < 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "fill_arc: r0 < 0 or r1 < 0");
+        return kWasmErrInvalidArgument;
+    }
+    if (r1 > r0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "fill_arc: r1 > r0");
+        return kWasmErrInvalidArgument;
+    }
+    display->fillArc(x, y, r0, r1, angle0, angle1, color_from_rgb888(rgb888));
+    return kWasmOk;
+}
+
 int32_t draw_ellipse(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t rx, int32_t ry, int32_t rgb888)
 {
     (void)exec_env;
@@ -256,6 +283,7 @@ static NativeSymbol g_display_primitives_native_symbols[] = {
     REG_NATIVE_FUNC(fill_round_rect, "(iiiiii)i"),
     REG_NATIVE_FUNC(draw_circle, "(iiii)i"),
     REG_NATIVE_FUNC(fill_circle, "(iiii)i"),
+    REG_NATIVE_FUNC(fill_arc, "(iiiiffi)i"),
     REG_NATIVE_FUNC(draw_ellipse, "(iiiii)i"),
     REG_NATIVE_FUNC(fill_ellipse, "(iiiii)i"),
     REG_NATIVE_FUNC(draw_triangle, "(iiiiiii)i"),
