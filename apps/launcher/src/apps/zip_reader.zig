@@ -39,6 +39,10 @@ pub const Entry = struct {
 const kLocalHeaderSig: u32 = 0x04034b50;
 const kGpFlagEncrypted: u16 = 0x0001;
 const kGpFlagDataDescriptor: u16 = 0x0008;
+// Deflate back-references need a 32 KiB history window, and match copies can
+// request up to 258 bytes in one operation.
+const kDeflateMaxMatchLen: usize = 258;
+const kDeflateWriterBufLen: usize = std.compress.flate.history_len + kDeflateMaxMatchLen;
 
 fn readExact(file: *fs.File, buf: []u8) !void {
     var off: usize = 0;
@@ -329,8 +333,15 @@ fn extractDeflate(
         .sha_opt = sha_opt,
     };
     // `std.compress.flate.Decompress` in direct mode writes via `Writer.write*Preserve`,
-    // which requires a buffer large enough to preserve `flate.history_len` bytes.
-    const writer_buf = try allocator.alloc(u8, std.compress.flate.max_window_len);
+    // which requires preserving `flate.history_len` bytes plus the largest
+    // single match copy (`kDeflateMaxMatchLen`).
+    const writer_buf = allocator.alloc(u8, kDeflateWriterBufLen) catch |err| {
+        logInfo(
+            "zip: deflate writer alloc failed name={s} bytes={d} err={s}",
+            .{ entry_name, kDeflateWriterBufLen, @errorName(err) },
+        );
+        return err;
+    };
     defer allocator.free(writer_buf);
     writer.interface.buffer = writer_buf;
     const total = decomp.reader.streamRemaining(&writer.interface) catch |err| {
