@@ -10,7 +10,6 @@ const font_bytes = @embedFile("assets/Inter-Medium-32.vlw");
 const allocator = std.heap.wasm_allocator;
 
 const View = enum {
-    Home,
     Settings,
     DevServer,
 };
@@ -33,7 +32,7 @@ const UiLayout = struct {
     stop_btn: Rect,
 };
 
-var g_view: View = .Home;
+var g_view: View = .Settings;
 var g_layout: UiLayout = undefined;
 var g_font_handle: ?i32 = null;
 var g_status_buf: [96]u8 = [_]u8{0} ** 96;
@@ -59,34 +58,6 @@ fn setStatusFromLastError(prefix: []const u8) void {
     var out: [96]u8 = undefined;
     const text = std.fmt.bufPrintZ(&out, "{s}: {s}", .{ prefix, msg }) catch return;
     setStatusZ(text);
-}
-
-fn drawHome() Error!void {
-    g_view = .Home;
-    clearStatus();
-
-    const screen_w = display.width();
-    const screen_h = display.height();
-    if (screen_w <= 0 or screen_h <= 0) return Error.Internal;
-
-    if (g_font_handle) |font_handle| {
-        try display.vlw.use(font_handle);
-    }
-    try display.text.set_encoding_utf8();
-    try display.text.set_wrap(false, false);
-    try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
-    try display.text.set_size(0.8, 0.8);
-
-    const margin: i32 = 16;
-
-    try display.epd.set_mode(display.epd.QUALITY);
-    try display.start_write();
-    defer display.end_write() catch {};
-
-    try display.fill_rect(0, 0, screen_w, screen_h, display.colors.WHITE);
-    try display.text.draw("Settings", margin, margin);
-
-    try display.update_rect(0, 0, screen_w, screen_h);
 }
 
 fn drawSettings() Error!void {
@@ -224,9 +195,8 @@ pub export fn pp_free(ptr: i32, len: i32) void {
     allocator.free(buf);
 }
 
-pub export fn pp_init(api_version: i32, api_features: i64, screen_w: i32, screen_h: i32, args_ptr: i32, args_len: i32) i32 {
+pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: i32, args_len: i32) i32 {
     _ = api_version;
-    _ = api_features;
     _ = screen_w;
     _ = screen_h;
     _ = args_ptr;
@@ -261,12 +231,14 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
     _ = now_ms;
     _ = flags;
     if (kind == 1) {
-        if (g_view == .Home) {
-            // Home view doesn't have any interactive elements
-        } else if (g_view == .Settings) {
+        if (g_view == .Settings) {
             if (g_layout.back_btn.contains(x, y)) {
-                drawHome() catch {
-                    core.log.err("drawHome failed");
+                clearStatus();
+                core.exit_app() catch {
+                    setStatusFromLastError("exit failed");
+                    drawSettings() catch {
+                        core.log.err("drawSettings failed");
+                    };
                 };
                 return 0;
             }

@@ -32,6 +32,7 @@ static QueueHandle_t g_event_queue = nullptr;
 static pthread_t g_event_thread = {};
 static bool g_event_thread_started = false;
 static volatile bool g_event_loop_running = false;
+static volatile bool g_pending_app_exit = false;
 static volatile bool g_pending_app_switch = false;
 static char g_pending_app_id[64] = "";
 static char g_pending_app_args[256] = "";
@@ -174,7 +175,7 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
         if (!wasm->Instantiate(err, sizeof(err))) {
             return false;
         }
-        if (!wasm->CallInit(pp_contract::kContractVersion, 0, screen_w, screen_h, 0, 0)) {
+        if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
             return false;
         }
         return true;
@@ -202,7 +203,7 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
             return;
         }
 
-        if (!wasm->CallInit(pp_contract::kContractVersion, 0, screen_w, screen_h, 0, 0)) {
+        if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
             devserver::notify_server_error("pp_init failed");
             (void)reload_launcher();
             finish_dev_command(cmd, -2, "pp_init failed");
@@ -509,7 +510,7 @@ void maybe_recover_uploaded_crash(WasmController *wasm)
         return;
     }
 
-    if (!wasm->CallInit(pp_contract::kContractVersion, 0, screen_w, screen_h, 0, 0)) {
+    if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
         devserver::notify_server_error("crash recovery: launcher pp_init failed");
         devserver::notify_uploaded_stopped();
         return;
@@ -541,6 +542,12 @@ void host_event_loop_run(WasmController *wasm)
             maybe_recover_uploaded_crash(wasm);
         }
 
+        // App switch takes precedence over app exit if both are requested in one cycle.
+        if (g_pending_app_switch && g_pending_app_exit) {
+            ESP_LOGI(kTag, "Ignoring pending app exit because app switch is queued");
+            g_pending_app_exit = false;
+        }
+
         // Check for pending app switch on every loop iteration (after events are processed)
         if (g_pending_app_switch) {
             ESP_LOGI(kTag, "Processing pending app switch to '%s'", g_pending_app_id);
@@ -564,7 +571,7 @@ void host_event_loop_run(WasmController *wasm)
                     screen_h = paper_display().height();
                 }
 
-                return wasm->CallInit(pp_contract::kContractVersion, 0, screen_w, screen_h, 0, 0);
+                return wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0);
             };
 
             // Shutdown and unload current app
@@ -607,7 +614,7 @@ void host_event_loop_run(WasmController *wasm)
                         }
                     }
 
-                    wasm->CallInit(pp_contract::kContractVersion, 0, screen_w, screen_h, args_ptr, args_len);
+                    wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, args_ptr, args_len);
                     if (args_ptr > 0) {
                         wasm->CallFree(args_ptr, args_len);
                     }
@@ -629,6 +636,39 @@ void host_event_loop_run(WasmController *wasm)
             g_pending_app_switch = false;
             g_pending_app_id[0] = '\0';
             g_pending_app_args[0] = '\0';
+        } else if (g_pending_app_exit) {
+            ESP_LOGI(kTag, "Processing pending app exit");
+
+            // Shutdown and unload current app
+            if (wasm->IsReady()) {
+                wasm->CallShutdown();
+            }
+            wasm->UnloadModule();
+
+            // Relaunch launcher (SD override first, embedded fallback)
+            if (!wasm->LoadEntrypoint()) {
+                ESP_LOGE(kTag, "Failed to load launcher after app exit");
+            } else {
+                char err[256] = {};
+                if (!wasm->Instantiate(err, sizeof(err))) {
+                    ESP_LOGE(kTag, "Failed to instantiate launcher after app exit: %s", err);
+                } else {
+                    int32_t screen_w = 0;
+                    int32_t screen_h = 0;
+                    if (paper_display_ensure_init()) {
+                        screen_w = paper_display().width();
+                        screen_h = paper_display().height();
+                    }
+
+                    if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
+                        ESP_LOGE(kTag, "Launcher pp_init failed after app exit");
+                    } else {
+                        ESP_LOGI(kTag, "Returned to launcher after app exit");
+                    }
+                }
+            }
+
+            g_pending_app_exit = false;
         }
 
         const int32_t now = now_ms();
@@ -674,7 +714,7 @@ void *event_loop_thread(void *arg)
         screen_h = paper_display().height();
     }
 
-    if (!wasm->CallInit(pp_contract::kContractVersion, 0, screen_w, screen_h, 0, 0)) {
+    if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
         ESP_LOGE(kTag, "pp_init failed; continuing without wasm dispatch");
     }
 
@@ -763,6 +803,18 @@ void host_event_loop_restart(WasmController *wasm)
     ESP_LOGI(kTag, "Restarting event loop...");
     host_event_loop_start(wasm);
     ESP_LOGI(kTag, "Event loop restarted");
+}
+
+bool host_event_loop_request_app_exit()
+{
+    if (!g_event_thread_started) {
+        ESP_LOGE(kTag, "request_app_exit: event loop is not running");
+        return false;
+    }
+
+    ESP_LOGI(kTag, "Requesting app exit");
+    g_pending_app_exit = true;
+    return true;
 }
 
 bool host_event_loop_request_app_switch(const char *app_id, const char *arguments)

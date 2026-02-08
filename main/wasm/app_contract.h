@@ -17,7 +17,7 @@ constexpr const char *kExportAlloc = "pp_alloc";
 constexpr const char *kExportFree = "pp_free";
 
 // pp_init signature:
-//   int32_t pp_init(int32_t api_version, int64_t api_features, int32_t screen_w, int32_t screen_h,
+//   int32_t pp_init(int32_t api_version, int32_t screen_w, int32_t screen_h,
 //                  int32_t args_ptr, int32_t args_len)
 // Returns 0 on success, negative on failure.
 // - args_ptr: pointer to JSON string in wasm memory (null if no args)

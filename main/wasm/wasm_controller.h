@@ -61,7 +61,7 @@ public:
     void Shutdown();
 
     /** @brief Call `pp_init` in the WASM module. */
-    bool CallInit(int32_t api_version, int64_t api_features, int32_t screen_w, int32_t screen_h,
+    bool CallInit(int32_t api_version, int32_t screen_w, int32_t screen_h,
         int32_t args_ptr = 0, int32_t args_len = 0);
 
     /** @brief Call `pp_tick` in the WASM module. */

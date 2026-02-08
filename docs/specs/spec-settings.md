@@ -5,6 +5,7 @@ This file specifies the settings functionality of the launcher.
 ## Settings view
 
 Settings view can be opened from the main launcher interface by tapping the settings button at the top of the screen.
+Tapping `Back` exits the Settings app and returns to the launcher app.
 
 ### Settings menu
 

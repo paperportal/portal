@@ -362,8 +362,8 @@ int32_t fs_stat(wasm_exec_env_t exec_env, const char *path, uint8_t *out_ptr, in
         wasm_api_set_last_error(kWasmErrInvalidArgument, "fs_stat: out_ptr is null");
         return kWasmErrInvalidArgument;
     }
-    if (out_len < 16) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "fs_stat: out_len too small (need 16)");
+    if (out_len < 24) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "fs_stat: out_len too small (need 24)");
         return kWasmErrInvalidArgument;
     }
 
@@ -396,7 +396,9 @@ int32_t fs_stat(wasm_exec_env_t exec_env, const char *path, uint8_t *out_ptr, in
     out_ptr[13] = 0;
     out_ptr[14] = 0;
     out_ptr[15] = 0;
-    return 16;
+    const int64_t mtime_unix = (int64_t)st.st_mtime;
+    memcpy(out_ptr + 16, &mtime_unix, 8);
+    return 24;
 }
 
 int32_t fs_remove(wasm_exec_env_t exec_env, const char *path)

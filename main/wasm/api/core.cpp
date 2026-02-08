@@ -111,6 +111,19 @@ int32_t open_app(wasm_exec_env_t exec_env, const char *app_id, const char *argum
     return kWasmOk;
 }
 
+int32_t exit_app(wasm_exec_env_t exec_env)
+{
+    (void)exec_env;
+
+    bool ok = host_event_loop_request_app_exit();
+    if (!ok) {
+        wasm_api_set_last_error(kWasmErrNotReady, "exit_app: failed to request app exit");
+        return kWasmErrNotReady;
+    }
+
+    return kWasmOk;
+}
+
 /* clang-format off */
 #define REG_NATIVE_FUNC(func_name, signature) \
     { #func_name, (void *)func_name, signature, NULL }
@@ -123,6 +136,7 @@ static NativeSymbol g_core_native_symbols[] = {
     REG_NATIVE_FUNC(heap_check, "($i)i"),
     REG_NATIVE_FUNC(heap_log, "($)"),
     REG_NATIVE_FUNC(open_app, "($$)i"),
+    REG_NATIVE_FUNC(exit_app, "()i"),
 };
 /* clang-format on */
 

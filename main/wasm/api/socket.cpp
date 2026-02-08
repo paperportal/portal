@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <sys/time.h>
+#include <errno.h>
 
 #include "esp_log.h"
 #include "lwip/sockets.h"
@@ -62,6 +63,46 @@ static void sockaddr_to_wasm(const struct sockaddr_in *in, SocketAddr *out)
     memcpy(out->ip, &in->sin_addr.s_addr, 4);
     memset(out->_pad, 0, sizeof(out->_pad));
 }
+
+static bool is_would_block_errno(int err)
+{
+    return err == EWOULDBLOCK || err == EAGAIN;
+}
+
+static int32_t wait_socket_ready(int32_t sockfd, bool want_read, int32_t timeout_ms)
+{
+    if (timeout_ms < 0) {
+        return kWasmOk;
+    }
+
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(sockfd, &fds);
+
+    struct timeval tv;
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000;
+
+    struct timeval *tv_ptr = &tv;
+    int rc = lwip_select(sockfd + 1, want_read ? &fds : nullptr, want_read ? nullptr : &fds, nullptr, tv_ptr);
+    if (rc > 0) {
+        return kWasmOk;
+    }
+    if (rc == 0) {
+        wasm_api_set_last_error(kWasmErrNotReady, "socket: operation timed out");
+        return kWasmErrNotReady;
+    }
+
+    wasm_api_set_last_error(kWasmErrInternal, "socket: select failed");
+    return kWasmErrInternal;
+}
+
+int32_t sock_accept_with_timeout(
+    wasm_exec_env_t exec_env,
+    int32_t sockfd,
+    uint8_t *out_addr_ptr,
+    int32_t out_addr_len,
+    int32_t timeout_ms);
 
 int32_t sock_socket(wasm_exec_env_t exec_env, int32_t domain, int32_t type, int32_t protocol)
 {
@@ -142,6 +183,16 @@ int32_t sock_listen(wasm_exec_env_t exec_env, int32_t sockfd, int32_t backlog)
 
 int32_t sock_accept(wasm_exec_env_t exec_env, int32_t sockfd, uint8_t *out_addr_ptr, int32_t out_addr_len)
 {
+    return sock_accept_with_timeout(exec_env, sockfd, out_addr_ptr, out_addr_len, -1);
+}
+
+int32_t sock_accept_with_timeout(
+    wasm_exec_env_t exec_env,
+    int32_t sockfd,
+    uint8_t *out_addr_ptr,
+    int32_t out_addr_len,
+    int32_t timeout_ms)
+{
     (void)exec_env;
 
     if (!out_addr_ptr && out_addr_len != 0) {
@@ -154,11 +205,26 @@ int32_t sock_accept(wasm_exec_env_t exec_env, int32_t sockfd, uint8_t *out_addr_
         return kWasmErrInvalidArgument;
     }
 
+    const int32_t ready = wait_socket_ready(sockfd, true, timeout_ms);
+    if (ready != kWasmOk) {
+        return ready;
+    }
+
     struct sockaddr_in client_addr;
     socklen_t addr_len = sizeof(client_addr);
 
     int client_sock = lwip_accept(sockfd, (struct sockaddr *)&client_addr, &addr_len);
     if (client_sock < 0) {
+        const int err = errno;
+        if (is_would_block_errno(err)) {
+            wasm_api_set_last_error(kWasmErrNotReady, "sock_accept: no pending client");
+            return kWasmErrNotReady;
+        }
+        if (err == ETIMEDOUT) {
+            wasm_api_set_last_error(kWasmErrNotReady, "sock_accept: timed out");
+            return kWasmErrNotReady;
+        }
+        wasm_api_set_last_error(kWasmErrInternal, "sock_accept: lwip_accept failed");
         return kWasmErrInternal;
     }
 
@@ -180,15 +246,18 @@ int32_t sock_send(wasm_exec_env_t exec_env, int32_t sockfd, const uint8_t *buf_p
         return kWasmErrInvalidArgument;
     }
 
-    if (timeout_ms > 0) {
-        struct timeval tv;
-        tv.tv_sec = timeout_ms / 1000;
-        tv.tv_usec = (timeout_ms % 1000) * 1000;
-        lwip_setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    const int32_t ready = wait_socket_ready(sockfd, false, timeout_ms);
+    if (ready != kWasmOk) {
+        return ready;
     }
 
     int rc = lwip_send(sockfd, buf_ptr, buf_len, 0);
     if (rc < 0) {
+        const int err = errno;
+        if (is_would_block_errno(err) || err == ETIMEDOUT) {
+            wasm_api_set_last_error(kWasmErrNotReady, "sock_send: would block");
+            return kWasmErrNotReady;
+        }
         wasm_api_set_last_error(kWasmErrInternal, "sock_send: lwip_send failed");
         return kWasmErrInternal;
     }
@@ -205,15 +274,23 @@ int32_t sock_recv(wasm_exec_env_t exec_env, int32_t sockfd, uint8_t *buf_ptr, in
         return kWasmErrInvalidArgument;
     }
 
-    if (timeout_ms > 0) {
-        struct timeval tv;
-        tv.tv_sec = timeout_ms / 1000;
-        tv.tv_usec = (timeout_ms % 1000) * 1000;
-        lwip_setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    const int32_t ready = wait_socket_ready(sockfd, true, timeout_ms);
+    if (ready != kWasmOk) {
+        return ready;
     }
 
     int rc = lwip_recv(sockfd, buf_ptr, buf_len, 0);
     if (rc < 0) {
+        const int err = errno;
+        if (is_would_block_errno(err) || err == ETIMEDOUT) {
+            wasm_api_set_last_error(kWasmErrNotReady, "sock_recv: would block");
+            return kWasmErrNotReady;
+        }
+        if (err == ENOTCONN || err == ECONNRESET) {
+            wasm_api_set_last_error(kWasmErrNotReady, "sock_recv: closed");
+            return kWasmErrNotReady;
+        }
+        wasm_api_set_last_error(kWasmErrInternal, "sock_recv: lwip_recv failed");
         return kWasmErrInternal;
     }
 
@@ -238,6 +315,7 @@ static NativeSymbol g_socket_native_symbols[] = {
     REG_NATIVE_FUNC(sock_bind, "(i*i)i"),
     REG_NATIVE_FUNC(sock_listen, "(ii)i"),
     REG_NATIVE_FUNC(sock_accept, "(i*ii)i"),
+    REG_NATIVE_FUNC(sock_accept_with_timeout, "(i*ii)i"),
     REG_NATIVE_FUNC(sock_send, "(i*ii)i"),
     REG_NATIVE_FUNC(sock_recv, "(i*ii)i"),
     REG_NATIVE_FUNC(sock_close, "(i)i"),

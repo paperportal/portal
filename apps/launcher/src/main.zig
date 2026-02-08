@@ -77,9 +77,8 @@ pub export fn pp_free(ptr: i32, len: i32) void {
     allocator.free(buf);
 }
 
-pub export fn pp_init(api_version: i32, api_features: i64, screen_w: i32, screen_h: i32, args_ptr: i32, args_len: i32) i32 {
+pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: i32, args_len: i32) i32 {
     _ = api_version;
-    _ = api_features;
     _ = screen_w;
     _ = screen_h;
     _ = args_ptr;
