@@ -302,9 +302,6 @@ int32_t vlw_use(wasm_exec_env_t exec_env, int32_t handle)
 
 int32_t vlw_use_system(wasm_exec_env_t exec_env, int32_t font_id)
 {
-    (void)exec_env;
-    ESP_LOGI(kTag, "vlw_use_system called (font_id=%" PRId32 ")", font_id);
-
     auto *display = get_display_or_set_error();
     if (!display) {
         ESP_LOGI(kTag, "vlw_use_system aborted: display not ready");
@@ -331,7 +328,6 @@ int32_t vlw_use_system(wasm_exec_env_t exec_env, int32_t font_id)
         return kWasmErrInvalidArgument;
     }
 
-    ESP_LOGI(kTag, "vlw_use_system loading font '%s' (%u bytes)", font_name, (unsigned)font_bytes);
     display->unloadFont();
     bool ok = display->loadFont(font_ptr);
     if (!ok) {
@@ -339,7 +335,7 @@ int32_t vlw_use_system(wasm_exec_env_t exec_env, int32_t font_id)
         wasm_api_set_last_error(kWasmErrInternal, "vlw_use_system: loadFont failed");
         return kWasmErrInternal;
     }
-    ESP_LOGI(kTag, "vlw_use_system loaded font '%s' (font_id=%" PRId32 ")", font_name, font_id);
+    ESP_LOGI(kTag, "vlw_use_system loaded font '%s' (%u bytes, font_id=%" PRId32 ")", font_name, (unsigned)font_bytes, font_id);
     return kWasmOk;
 }
 

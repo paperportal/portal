@@ -12,6 +12,12 @@ const View = enum {
     DevServer,
 };
 
+const DevServerState = enum {
+    Stopped,
+    Starting,
+    Running,
+};
+
 const Rect = struct {
     x: i32,
     y: i32,
@@ -57,6 +63,25 @@ fn setStatusFromLastError(prefix: []const u8) void {
     setStatusZ(text);
 }
 
+fn readDevServerState() DevServerState {
+    if (devserver.is_running()) return .Running;
+    if (devserver.is_starting()) return .Starting;
+    return .Stopped;
+}
+
+fn setStatusFromDevServerError(prefix: []const u8) void {
+    var msg_buf: [128]u8 = undefined;
+    const msg = devserver.get_last_error(msg_buf[0..]) catch "";
+    if (msg.len == 0) {
+        setStatusFromLastError(prefix);
+        return;
+    }
+
+    var out: [96]u8 = undefined;
+    const text = std.fmt.bufPrintZ(&out, "{s}: {s}", .{ prefix, msg }) catch return;
+    setStatusZ(text);
+}
+
 fn drawSettings() Error!void {
     g_view = .Settings;
 
@@ -82,7 +107,12 @@ fn drawSettings() Error!void {
     g_layout.devserver_row = .{ .x = margin, .y = rows_y + row_h + row_gap, .w = screen_w - (2 * margin), .h = row_h };
     g_layout.stop_btn = .{ .x = margin, .y = screen_h - 56, .w = 120, .h = 40 };
 
-    const running = devserver.is_running();
+    const state = readDevServerState();
+    const state_text = switch (state) {
+        .Running => "ON",
+        .Starting => "STARTING",
+        .Stopped => "OFF",
+    };
 
     try display.epd.set_mode(display.epd.QUALITY);
     try display.start_write();
@@ -93,12 +123,16 @@ fn drawSettings() Error!void {
 
     try display.draw_rect(g_layout.devmode_row.x, g_layout.devmode_row.y, g_layout.devmode_row.w, g_layout.devmode_row.h, display.colors.BLACK);
     try display.text.draw("Developer Mode", g_layout.devmode_row.x + 12, g_layout.devmode_row.y + 18);
-    try display.text.draw(if (running) "ON" else "OFF", g_layout.devmode_row.x + g_layout.devmode_row.w - 64, g_layout.devmode_row.y + 18);
+    try display.text.draw(state_text, g_layout.devmode_row.x + g_layout.devmode_row.w - 140, g_layout.devmode_row.y + 18);
 
-    if (running) {
+    if (state != .Stopped) {
         try display.draw_rect(g_layout.devserver_row.x, g_layout.devserver_row.y, g_layout.devserver_row.w, g_layout.devserver_row.h, display.colors.BLACK);
         try display.text.draw("Dev Server", g_layout.devserver_row.x + 12, g_layout.devserver_row.y + 18);
-        try display.text.draw("Show", g_layout.devserver_row.x + g_layout.devserver_row.w - 72, g_layout.devserver_row.y + 18);
+        try display.text.draw(
+            if (state == .Running) "Show" else "Status",
+            g_layout.devserver_row.x + g_layout.devserver_row.w - 88,
+            g_layout.devserver_row.y + 18,
+        );
     }
 
     try display.draw_rect(g_layout.back_btn.x, g_layout.back_btn.y, g_layout.back_btn.w, g_layout.back_btn.h, display.colors.BLACK);
@@ -127,6 +161,12 @@ fn drawDevServer() Error!void {
     const margin: i32 = 16;
     g_layout.back_btn = .{ .x = margin, .y = screen_h - 56, .w = 120, .h = 40 };
     g_layout.stop_btn = .{ .x = screen_w - margin - 160, .y = screen_h - 56, .w = 160, .h = 40 };
+    const state = readDevServerState();
+    const state_text = switch (state) {
+        .Running => "Running",
+        .Starting => "Starting",
+        .Stopped => "Stopped",
+    };
 
     var url_buf: [96]u8 = undefined;
     const url = devserver.get_url(url_buf[0..]) catch "";
@@ -136,6 +176,8 @@ fn drawDevServer() Error!void {
 
     var pw_buf: [32]u8 = undefined;
     const pw = devserver.get_ap_password(pw_buf[0..]) catch "";
+    var err_buf: [128]u8 = undefined;
+    const last_err = devserver.get_last_error(err_buf[0..]) catch "";
 
     try display.epd.set_mode(display.epd.QUALITY);
     try display.start_write();
@@ -145,15 +187,28 @@ fn drawDevServer() Error!void {
     try display.text.draw("Dev Server", margin, margin);
 
     try display.text.set_size(0.5, 0.5);
-    try display.text.draw("Open this URL:", margin, 70);
-    try display.text.draw(url, margin, 96);
+    try display.text.draw("Status:", margin, 70);
+    try display.text.draw(state_text, margin + 90, 70);
 
-    if (ssid.len > 0) {
-        try display.text.draw("SoftAP:", margin, 140);
-        try display.text.draw(ssid, margin, 164);
-        if (pw.len > 0) {
-            try display.text.draw("Password:", margin, 200);
-            try display.text.draw(pw, margin, 224);
+    if (state == .Running) {
+        try display.text.draw("Open this URL:", margin, 96);
+        try display.text.draw(url, margin, 122);
+
+        if (ssid.len > 0) {
+            try display.text.draw("SoftAP:", margin, 160);
+            try display.text.draw(ssid, margin, 184);
+            if (pw.len > 0) {
+                try display.text.draw("Password:", margin, 220);
+                try display.text.draw(pw, margin, 244);
+            }
+        }
+    } else if (state == .Starting) {
+        try display.text.draw("Server is starting...", margin, 106);
+    } else {
+        try display.text.draw("Server is stopped.", margin, 106);
+        if (last_err.len > 0) {
+            try display.text.draw("Last error:", margin, 146);
+            try display.text.draw(last_err, margin, 170);
         }
     }
 
@@ -161,8 +216,10 @@ fn drawDevServer() Error!void {
     try display.text.set_size(0.6, 0.6);
     try display.text.draw("Back", g_layout.back_btn.x + 28, g_layout.back_btn.y + 10);
 
-    try display.draw_rect(g_layout.stop_btn.x, g_layout.stop_btn.y, g_layout.stop_btn.w, g_layout.stop_btn.h, display.colors.BLACK);
-    try display.text.draw("Stop", g_layout.stop_btn.x + 44, g_layout.stop_btn.y + 10);
+    if (state != .Stopped) {
+        try display.draw_rect(g_layout.stop_btn.x, g_layout.stop_btn.y, g_layout.stop_btn.w, g_layout.stop_btn.h, display.colors.BLACK);
+        try display.text.draw("Stop", g_layout.stop_btn.x + 44, g_layout.stop_btn.y + 10);
+    }
 
     try display.update_rect(0, 0, screen_w, screen_h);
 }
@@ -233,14 +290,25 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
 
             if (g_layout.devmode_row.contains(x, y)) {
                 clearStatus();
-                if (devserver.is_running()) {
+                const state = readDevServerState();
+                if (state != .Stopped) {
                     devserver.stop() catch {
                         setStatusFromLastError("stop failed");
+                        drawSettings() catch {
+                            core.log.err("drawSettings failed");
+                        };
+                        return 0;
                     };
+                    setStatusZ("Dev server stopped");
                 } else {
                     devserver.start() catch {
                         setStatusFromLastError("start failed");
+                        drawSettings() catch {
+                            core.log.err("drawSettings failed");
+                        };
+                        return 0;
                     };
+                    setStatusZ("Dev server starting...");
                 }
 
                 drawSettings() catch {
@@ -249,7 +317,7 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
                 return 0;
             }
 
-            if (devserver.is_running() and g_layout.devserver_row.contains(x, y)) {
+            if (readDevServerState() != .Stopped and g_layout.devserver_row.contains(x, y)) {
                 drawDevServer() catch {
                     core.log.err("drawDevServer failed");
                 };
@@ -265,8 +333,13 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
             if (g_layout.stop_btn.contains(x, y)) {
                 clearStatus();
                 devserver.stop() catch {
-                    setStatusFromLastError("stop failed");
+                    setStatusFromDevServerError("stop failed");
+                    drawSettings() catch {
+                        core.log.err("drawSettings failed");
+                    };
+                    return 0;
                 };
+                setStatusZ("Dev server stopped");
                 drawSettings() catch {
                     core.log.err("drawSettings failed");
                 };

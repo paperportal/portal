@@ -17,6 +17,7 @@ Developer mode allows developers to quickly test WebAssembly applications on the
 
 From settings view (when developer mode is enabled):
 - Tap "Dev Server" to start the development HTTP server
+- Startup is asynchronous: launcher UI remains responsive while server networking/HTTP setup runs in background
 - Screen displays:
   - QR code with server URL
   - Device IP address and port
@@ -57,7 +58,7 @@ The SDK must provide APIs for controlling the development server from launcher W
 ```zig
 // Development server control
 pub const devserver = struct {
-    // Start the development server
+    // Start the development server asynchronously
     fn start() Error!void;
 
     // Stop the development server
@@ -66,8 +67,14 @@ pub const devserver = struct {
     // Check if development server is running
     fn is_running() bool;
 
+    // Check if server startup is in progress
+    fn is_starting() bool;
+
     // Get the server URL
     fn get_url(buffer: []u8) Error![]const u8;
+
+    // Get the last startup/runtime server error text
+    fn get_last_error(buffer: []u8) Error![]const u8;
 };
 ```
 

@@ -33,6 +33,7 @@ constexpr size_t kLogCapacity = 256;
 constexpr size_t kLogLineMax = 200;
 constexpr int kSseBacklogLines = 40;
 constexpr int kSseTaskStack = 4 * 1024;
+constexpr int kStartTaskStack = 6 * 1024;
 
 struct LogEntry {
     uint32_t seq;
@@ -40,10 +41,20 @@ struct LogEntry {
     char line[kLogLineMax];
 };
 
+enum class ServerLifecycle : uint8_t {
+    Stopped = 0,
+    Starting = 1,
+    Running = 2,
+};
+
 struct State {
     std::mutex mutex;
 
-    bool running = false;
+    ServerLifecycle lifecycle = ServerLifecycle::Stopped;
+    bool start_cancel_requested = false;
+    uint32_t start_generation = 0;
+    TaskHandle_t start_task = nullptr;
+
     bool using_softap = false;
     bool started_softap = false;
 
@@ -108,6 +119,16 @@ static void set_server_error_locked(const char *msg)
         return;
     }
     snprintf(g_state.last_server_error, sizeof(g_state.last_server_error), "%s", msg);
+}
+
+static bool lifecycle_is_running_locked()
+{
+    return g_state.lifecycle == ServerLifecycle::Running;
+}
+
+static bool lifecycle_is_starting_locked()
+{
+    return g_state.lifecycle == ServerLifecycle::Starting;
 }
 
 static void log_append_locked(const char *line)
@@ -180,14 +201,16 @@ static void json_bool(char *out, size_t out_len, bool value)
 
 static esp_err_t handle_status(httpd_req_t *req)
 {
-    char json[512] = {};
+    char json[640] = {};
     char running[6] = {};
+    char starting[6] = {};
     char softap[6] = {};
     char uploaded[6] = {};
     char crashed[6] = {};
 
     std::lock_guard<std::mutex> lock(g_state.mutex);
-    json_bool(running, sizeof(running), g_state.running);
+    json_bool(running, sizeof(running), lifecycle_is_running_locked());
+    json_bool(starting, sizeof(starting), lifecycle_is_starting_locked());
     json_bool(softap, sizeof(softap), g_state.using_softap);
     json_bool(uploaded, sizeof(uploaded), g_state.uploaded_running);
     json_bool(crashed, sizeof(crashed), g_state.uploaded_crashed);
@@ -208,6 +231,7 @@ static esp_err_t handle_status(httpd_req_t *req)
     snprintf(json, sizeof(json),
         "{"
         "\"server_running\":%s,"
+        "\"server_starting\":%s,"
         "\"using_softap\":%s,"
         "\"url\":\"%.*s\","
         "\"ap_ssid\":\"%.*s\","
@@ -217,7 +241,7 @@ static esp_err_t handle_status(httpd_req_t *req)
         "\"crash_reason\":\"%.*s\","
         "\"last_error\":\"%.*s\""
         "}",
-        running, softap,
+        running, starting, softap,
         url_len, g_state.url,
         ssid_len, g_state.ap_ssid,
         pw_len, g_state.ap_password,
@@ -550,16 +574,32 @@ static esp_err_t handle_logs_sse(httpd_req_t *req)
     return ESP_OK;
 }
 
-static esp_err_t start_httpd_locked(void)
+struct StartupContext {
+    bool using_softap = false;
+    bool started_softap = false;
+    char url[96] = {};
+    char ap_ssid[33] = {};
+    char ap_password[17] = {};
+};
+
+struct StartTaskArgs {
+    uint32_t generation = 0;
+};
+
+static esp_err_t start_httpd(httpd_handle_t *out_server)
 {
+    if (!out_server) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = kPort;
     config.lru_purge_enable = true;
     config.max_uri_handlers = 8;
 
-    esp_err_t err = httpd_start(&g_state.server, &config);
+    httpd_handle_t server = nullptr;
+    esp_err_t err = httpd_start(&server, &config);
     if (err != ESP_OK) {
-        set_server_error_locked("httpd_start failed");
         return err;
     }
 
@@ -588,20 +628,24 @@ static esp_err_t start_httpd_locked(void)
     logs.method = HTTP_GET;
     logs.handler = handle_logs_sse;
 
-    httpd_register_uri_handler(g_state.server, &root);
-    httpd_register_uri_handler(g_state.server, &run);
-    httpd_register_uri_handler(g_state.server, &stop);
-    httpd_register_uri_handler(g_state.server, &status);
-    httpd_register_uri_handler(g_state.server, &logs);
+    httpd_register_uri_handler(server, &root);
+    httpd_register_uri_handler(server, &run);
+    httpd_register_uri_handler(server, &stop);
+    httpd_register_uri_handler(server, &status);
+    httpd_register_uri_handler(server, &logs);
 
+    *out_server = server;
     return ESP_OK;
 }
 
-static esp_err_t start_wifi_and_url_locked(void)
+static esp_err_t start_wifi_and_url(StartupContext *ctx)
 {
+    if (!ctx) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     esp_err_t err = wifi::init_once();
     if (err != ESP_OK) {
-        set_server_error_locked("wifi init failed");
         return err;
     }
 
@@ -642,18 +686,17 @@ static esp_err_t start_wifi_and_url_locked(void)
             esp_netif_ip_info_t ip = {};
             err = wifi::get_sta_ip_info(&ip);
             if (err != ESP_OK) {
-                set_server_error_locked("get sta ip failed");
                 return err;
             }
 
             char ip_str[32] = {};
             format_ip4(ip.ip, ip_str, sizeof(ip_str));
-            snprintf(g_state.url, sizeof(g_state.url), "http://%s:%u/", ip_str, (unsigned)kPort);
+            snprintf(ctx->url, sizeof(ctx->url), "http://%s:%u/", ip_str, (unsigned)kPort);
 
-            g_state.using_softap = false;
-            g_state.started_softap = false;
-            g_state.ap_ssid[0] = '\0';
-            g_state.ap_password[0] = '\0';
+            ctx->using_softap = false;
+            ctx->started_softap = false;
+            ctx->ap_ssid[0] = '\0';
+            ctx->ap_password[0] = '\0';
             return ESP_OK;
         }
     }
@@ -663,50 +706,47 @@ static esp_err_t start_wifi_and_url_locked(void)
         esp_netif_ip_info_t ip = {};
         err = wifi::get_sta_ip_info(&ip);
         if (err != ESP_OK) {
-            set_server_error_locked("get sta ip failed");
             return err;
         }
 
         char ip_str[32] = {};
         format_ip4(ip.ip, ip_str, sizeof(ip_str));
-        snprintf(g_state.url, sizeof(g_state.url), "http://%s:%u/", ip_str, (unsigned)kPort);
+        snprintf(ctx->url, sizeof(ctx->url), "http://%s:%u/", ip_str, (unsigned)kPort);
 
-        g_state.using_softap = false;
-        g_state.started_softap = false;
-        g_state.ap_ssid[0] = '\0';
-        g_state.ap_password[0] = '\0';
+        ctx->using_softap = false;
+        ctx->started_softap = false;
+        ctx->ap_ssid[0] = '\0';
+        ctx->ap_password[0] = '\0';
         return ESP_OK;
     }
 
     uint8_t mac[6] = {};
     err = wifi::get_sta_mac(mac);
     if (err != ESP_OK) {
-        set_server_error_locked("get mac failed");
         return err;
     }
 
-    snprintf(g_state.ap_ssid, sizeof(g_state.ap_ssid), "PaperPortal-DEV-%02X%02X%02X", mac[3], mac[4], mac[5]);
-    random_password(g_state.ap_password);
+    snprintf(ctx->ap_ssid, sizeof(ctx->ap_ssid), "PaperPortal-DEV-%02X%02X%02X", mac[3], mac[4], mac[5]);
+    random_password(ctx->ap_password);
 
-    err = wifi::start_softap(g_state.ap_ssid, g_state.ap_password);
+    err = wifi::start_softap(ctx->ap_ssid, ctx->ap_password);
     if (err != ESP_OK) {
-        set_server_error_locked("start softap failed");
         return err;
     }
+    ctx->started_softap = true;
 
     esp_netif_ip_info_t ip = {};
     err = wifi::get_softap_ip_info(&ip);
     if (err != ESP_OK) {
-        set_server_error_locked("get ap ip failed");
         return err;
     }
 
     char ip_str[32] = {};
     format_ip4(ip.ip, ip_str, sizeof(ip_str));
-    snprintf(g_state.url, sizeof(g_state.url), "http://%s:%u/", ip_str, (unsigned)kPort);
+    snprintf(ctx->url, sizeof(ctx->url), "http://%s:%u/", ip_str, (unsigned)kPort);
 
-    g_state.using_softap = true;
-    g_state.started_softap = true;
+    ctx->using_softap = true;
+    ctx->started_softap = true;
     return ESP_OK;
 }
 
@@ -728,67 +768,215 @@ static void maybe_init_mdns(void)
     }
 }
 
+static bool start_attempt_still_active_locked(uint32_t generation)
+{
+    return g_state.lifecycle == ServerLifecycle::Starting && !g_state.start_cancel_requested
+        && g_state.start_generation == generation;
+}
+
+static void finalize_start_failure(uint32_t generation, const char *reason)
+{
+    std::lock_guard<std::mutex> lock(g_state.mutex);
+    if (g_state.start_generation != generation || g_state.lifecycle != ServerLifecycle::Starting) {
+        return;
+    }
+    g_state.lifecycle = ServerLifecycle::Stopped;
+    g_state.start_cancel_requested = false;
+    g_state.start_task = nullptr;
+    g_state.using_softap = false;
+    g_state.started_softap = false;
+    g_state.url[0] = '\0';
+    g_state.ap_ssid[0] = '\0';
+    g_state.ap_password[0] = '\0';
+    set_server_error_locked(reason);
+    if (reason && reason[0] != '\0') {
+        char line[kLogLineMax] = {};
+        snprintf(line, sizeof(line), "devserver error: %s", reason);
+        log_append_locked(line);
+    }
+}
+
+static void finalize_start_success(uint32_t generation, httpd_handle_t server, const StartupContext &ctx)
+{
+    bool active = false;
+    {
+        std::lock_guard<std::mutex> lock(g_state.mutex);
+        active = start_attempt_still_active_locked(generation);
+        if (active) {
+            g_state.server = server;
+            g_state.lifecycle = ServerLifecycle::Running;
+            g_state.start_cancel_requested = false;
+            g_state.start_task = nullptr;
+            g_state.using_softap = ctx.using_softap;
+            g_state.started_softap = ctx.started_softap;
+            snprintf(g_state.url, sizeof(g_state.url), "%s", ctx.url);
+            snprintf(g_state.ap_ssid, sizeof(g_state.ap_ssid), "%s", ctx.ap_ssid);
+            snprintf(g_state.ap_password, sizeof(g_state.ap_password), "%s", ctx.ap_password);
+            set_server_error_locked(nullptr);
+            log_append_locked("devserver: started");
+        }
+    }
+    if (active) {
+        return;
+    }
+
+    if (server) {
+        httpd_stop(server);
+    }
+    if (ctx.started_softap) {
+        wifi::stop_softap();
+    }
+}
+
+static void start_task(void *arg)
+{
+    StartTaskArgs *args = static_cast<StartTaskArgs *>(arg);
+    const uint32_t generation = args ? args->generation : 0;
+    delete args;
+
+    StartupContext ctx = {};
+    httpd_handle_t server = nullptr;
+
+    esp_err_t err = start_wifi_and_url(&ctx);
+    if (err != ESP_OK) {
+        finalize_start_failure(generation, "wifi setup failed");
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    bool canceled = false;
+    {
+        std::lock_guard<std::mutex> lock(g_state.mutex);
+        if (!start_attempt_still_active_locked(generation)) {
+            g_state.start_task = nullptr;
+            canceled = true;
+        }
+    }
+    if (canceled) {
+        if (ctx.started_softap) {
+            wifi::stop_softap();
+        }
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    err = start_httpd(&server);
+    if (err != ESP_OK) {
+        if (ctx.started_softap) {
+            wifi::stop_softap();
+        }
+        finalize_start_failure(generation, "httpd_start failed");
+        vTaskDelete(nullptr);
+        return;
+    }
+
+    maybe_init_mdns();
+    finalize_start_success(generation, server, ctx);
+    vTaskDelete(nullptr);
+}
+
 } // namespace
 
 esp_err_t start(void)
 {
-    std::lock_guard<std::mutex> lock(g_state.mutex);
-    if (g_state.running) {
-        return ESP_OK;
-    }
-
-    set_server_error_locked(nullptr);
-
-    esp_err_t err = start_wifi_and_url_locked();
-    if (err != ESP_OK) {
-        return err;
-    }
-
-    err = start_httpd_locked();
-    if (err != ESP_OK) {
-        if (g_state.server) {
-            httpd_stop(g_state.server);
-            g_state.server = nullptr;
+    uint32_t generation = 0;
+    {
+        std::lock_guard<std::mutex> lock(g_state.mutex);
+        if (g_state.lifecycle == ServerLifecycle::Running || g_state.lifecycle == ServerLifecycle::Starting) {
+            return ESP_OK;
         }
-        if (g_state.started_softap) {
-            wifi::stop_softap();
-        }
-        return err;
+
+        g_state.lifecycle = ServerLifecycle::Starting;
+        g_state.start_cancel_requested = false;
+        g_state.start_generation += 1;
+        generation = g_state.start_generation;
+        g_state.server = nullptr;
+        g_state.using_softap = false;
+        g_state.started_softap = false;
+        g_state.url[0] = '\0';
+        g_state.ap_ssid[0] = '\0';
+        g_state.ap_password[0] = '\0';
+        set_server_error_locked(nullptr);
     }
 
-    maybe_init_mdns();
+    StartTaskArgs *args = new StartTaskArgs();
+    if (!args) {
+        finalize_start_failure(generation, "start task alloc failed");
+        return ESP_ERR_NO_MEM;
+    }
+    args->generation = generation;
 
-    g_state.running = true;
-    log_append_locked("devserver: started");
+    TaskHandle_t task = nullptr;
+    BaseType_t ok = xTaskCreate(start_task, "dev_start", kStartTaskStack, args, 5, &task);
+    if (ok != pdPASS) {
+        delete args;
+        finalize_start_failure(generation, "start task create failed");
+        return ESP_FAIL;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(g_state.mutex);
+        if (g_state.start_generation == generation && g_state.lifecycle == ServerLifecycle::Starting) {
+            g_state.start_task = task;
+        }
+    }
     return ESP_OK;
 }
 
 esp_err_t stop(void)
 {
-    std::lock_guard<std::mutex> lock(g_state.mutex);
-    if (!g_state.running) {
-        return ESP_OK;
+    httpd_handle_t server = nullptr;
+    bool started_softap = false;
+    bool should_log_stop = false;
+
+    {
+        std::lock_guard<std::mutex> lock(g_state.mutex);
+        if (g_state.lifecycle == ServerLifecycle::Stopped) {
+            return ESP_OK;
+        }
+
+        should_log_stop = true;
+        g_state.start_cancel_requested = true;
+        g_state.start_generation += 1;
+        g_state.lifecycle = ServerLifecycle::Stopped;
+
+        server = g_state.server;
+        started_softap = g_state.started_softap;
+
+        g_state.server = nullptr;
+        g_state.start_task = nullptr;
+        g_state.using_softap = false;
+        g_state.started_softap = false;
+        g_state.url[0] = '\0';
+        g_state.ap_ssid[0] = '\0';
+        g_state.ap_password[0] = '\0';
     }
 
-    if (g_state.server) {
-        httpd_stop(g_state.server);
-        g_state.server = nullptr;
-        }
+    if (server) {
+        httpd_stop(server);
+    }
 
-    if (g_state.started_softap) {
+    if (started_softap) {
         wifi::stop_softap();
-        g_state.started_softap = false;
-        }
+    }
 
-    g_state.running = false;
-    log_append_locked("devserver: stopped");
+    if (should_log_stop) {
+        std::lock_guard<std::mutex> lock(g_state.mutex);
+        log_append_locked("devserver: stopped");
+    }
     return ESP_OK;
 }
 
 bool is_running(void)
 {
     std::lock_guard<std::mutex> lock(g_state.mutex);
-    return g_state.running;
+    return lifecycle_is_running_locked();
+}
+
+bool is_starting(void)
+{
+    std::lock_guard<std::mutex> lock(g_state.mutex);
+    return lifecycle_is_starting_locked();
 }
 
 int get_url(char *out, size_t out_len)
@@ -835,6 +1023,22 @@ int get_ap_password(char *out, size_t out_len)
     }
     const size_t to_copy = (len < (out_len - 1)) ? len : (out_len - 1);
     memcpy(out, g_state.ap_password, to_copy);
+    out[to_copy] = '\0';
+    return (int)to_copy;
+}
+
+int get_last_error(char *out, size_t out_len)
+{
+    if (!out && out_len != 0) {
+        return kWasmErrInvalidArgument;
+    }
+    std::lock_guard<std::mutex> lock(g_state.mutex);
+    const size_t len = strnlen(g_state.last_server_error, sizeof(g_state.last_server_error));
+    if (out_len == 0) {
+        return 0;
+    }
+    const size_t to_copy = (len < (out_len - 1)) ? len : (out_len - 1);
+    memcpy(out, g_state.last_server_error, to_copy);
     out[to_copy] = '\0';
     return (int)to_copy;
 }

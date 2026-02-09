@@ -9,6 +9,7 @@ This file specifies how the launcher main interface works.
 
 ## Startup
 - Header of the launcher with paper portal logo shown immediately after launch to be very fast (see launcher interface section). After header is visible start setting up the environment and loading apps.
+- Dev server autostart must not block launcher startup: start launcher/event loop first, then enqueue dev server startup in background.
 - Maybe optimize startup further by saving image of the full launch page with apps and display that while loading -- must test how it works in practice.
 - Setup environment, SD, display, touch -- show clear error message if there are problems.
 - App packages (`.papp`) can be found from SD card folder `/portal/apps` (WASM-visible; maps to `/sdcard/portal/apps`).

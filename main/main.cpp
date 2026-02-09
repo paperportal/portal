@@ -20,19 +20,20 @@ void init_nvs() {
     ESP_ERROR_CHECK(err);
 }
 
-esp_err_t start_dev_server() {
+esp_err_t start_dev_server_autostart() {
     bool enabled = false;
     esp_err_t err = settings_service::get_developer_mode(&enabled);
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "[start_dev_server] NVS read failed (%s)", esp_err_to_name(err));
+        ESP_LOGE(kTag, "[start_dev_server_autostart] NVS read failed (%s)", esp_err_to_name(err));
         return err;
     }
     if (!enabled) {
         return ESP_OK;
     }
+    ESP_LOGI(kTag, "[start_dev_server_autostart] Enqueueing devserver startup.");
     err = devserver::start();
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "[start_dev_server] autostart failed (%s)", esp_err_to_name(err));
+        ESP_LOGE(kTag, "[start_dev_server_autostart] autostart enqueue failed (%s)", esp_err_to_name(err));
     }
     return err;
 }
@@ -49,8 +50,6 @@ extern "C" void app_main() {
     } else {
         ESP_LOGW(kTag, "[app_main] SD card mount failed or no card present.");
     }
-    ESP_LOGI(kTag, "[app_main] Starting devserver if enabled.");
-    start_dev_server();
     ESP_LOGI(kTag, "[app_main] Creating WASM controller.");
     static WasmController wasm;
     wasm_api_set_controller(&wasm);
@@ -60,6 +59,8 @@ extern "C" void app_main() {
         ESP_LOGE(kTag, "[app_main] Failed to start host event loop");
         return;
     }
+    ESP_LOGI(kTag, "[app_main] Event loop started. Starting devserver if enabled.");
+    start_dev_server_autostart();
     ESP_LOGI(kTag, "[app_main] Looping forever...");
     for (;;) { vTaskDelay(pdMS_TO_TICKS(1000)); }
 

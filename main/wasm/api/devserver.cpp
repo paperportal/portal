@@ -36,7 +36,7 @@ int32_t devserver_start(wasm_exec_env_t exec_env)
     err = devserver::start();
     if (err != ESP_OK) {
         (void)settings_service::set_developer_mode(prev_enabled);
-        wasm_api_set_last_error(kWasmErrInternal, "devserver_start: start failed");
+        wasm_api_set_last_error(kWasmErrInternal, "devserver_start: enqueue failed");
         return kWasmErrInternal;
     }
 
@@ -66,6 +66,12 @@ int32_t devserver_is_running(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return devserver::is_running() ? 1 : 0;
+}
+
+int32_t devserver_is_starting(wasm_exec_env_t exec_env)
+{
+    (void)exec_env;
+    return devserver::is_starting() ? 1 : 0;
 }
 
 int32_t devserver_get_url(wasm_exec_env_t exec_env, char *out, int32_t out_len)
@@ -110,6 +116,20 @@ int32_t devserver_get_ap_password(wasm_exec_env_t exec_env, char *out, int32_t o
     return devserver::get_ap_password(out, (size_t)out_len);
 }
 
+int32_t devserver_get_last_error(wasm_exec_env_t exec_env, char *out, int32_t out_len)
+{
+    (void)exec_env;
+    if (!out && out_len != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "devserver_get_last_error: out is null");
+        return kWasmErrInvalidArgument;
+    }
+    if (out_len < 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "devserver_get_last_error: out_len < 0");
+        return kWasmErrInvalidArgument;
+    }
+    return devserver::get_last_error(out, (size_t)out_len);
+}
+
 /* clang-format off */
 #define REG_NATIVE_FUNC(func_name, signature) \
     { #func_name, (void *)func_name, signature, NULL }
@@ -118,9 +138,11 @@ static NativeSymbol g_devserver_native_symbols[] = {
     REG_NATIVE_FUNC(devserver_start, "()i"),
     REG_NATIVE_FUNC(devserver_stop, "()i"),
     REG_NATIVE_FUNC(devserver_is_running, "()i"),
+    REG_NATIVE_FUNC(devserver_is_starting, "()i"),
     REG_NATIVE_FUNC(devserver_get_url, "(*~)i"),
     REG_NATIVE_FUNC(devserver_get_ap_ssid, "(*~)i"),
     REG_NATIVE_FUNC(devserver_get_ap_password, "(*~)i"),
+    REG_NATIVE_FUNC(devserver_get_last_error, "(*~)i"),
 };
 /* clang-format on */
 
