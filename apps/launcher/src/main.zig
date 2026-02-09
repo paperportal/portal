@@ -57,25 +57,6 @@ var g_font_handle: ?i32 = null;
 var g_initialized: bool = false;
 var g_controller: ?Controller = null;
 
-pub export fn pp_contract_version() i32 {
-    return 1;
-}
-
-pub export fn pp_alloc(len: i32) i32 {
-    if (len <= 0) return 0;
-    const size: usize = @intCast(len);
-    const buf = allocator.alloc(u8, size) catch return 0;
-    return @intCast(@intFromPtr(buf.ptr));
-}
-
-pub export fn pp_free(ptr: i32, len: i32) void {
-    if (ptr == 0 or len <= 0) return;
-    const size: usize = @intCast(len);
-    const addr: usize = @intCast(ptr);
-    const buf = @as([*]u8, @ptrFromInt(addr))[0..size];
-    allocator.free(buf);
-}
-
 pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: i32, args_len: i32) i32 {
     _ = api_version;
     _ = screen_w;

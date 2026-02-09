@@ -10,11 +10,11 @@ namespace pp_contract {
 constexpr int32_t kContractVersion = 1;
 
 // Exported handler names (required).
-constexpr const char *kExportContractVersion = "pp_contract_version";
+constexpr const char *kExportContractVersion = "portal_contract_version";
 constexpr const char *kExportInit = "pp_init";
 constexpr const char *kExportTick = "pp_tick";
-constexpr const char *kExportAlloc = "pp_alloc";
-constexpr const char *kExportFree = "pp_free";
+constexpr const char *kExportAlloc = "portal_alloc";
+constexpr const char *kExportFree = "portal_free";
 
 // pp_init signature:
 //   int32_t pp_init(int32_t api_version, int32_t screen_w, int32_t screen_h,
