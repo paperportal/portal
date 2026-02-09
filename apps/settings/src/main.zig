@@ -5,8 +5,6 @@ const display = sdk.display;
 const devserver = sdk.devserver;
 const Error = sdk.errors.Error;
 
-const font_bytes = @embedFile("assets/Inter-Medium-32.vlw");
-
 const allocator = std.heap.wasm_allocator;
 
 const View = enum {
@@ -34,7 +32,6 @@ const UiLayout = struct {
 
 var g_view: View = .Settings;
 var g_layout: UiLayout = undefined;
-var g_font_handle: ?i32 = null;
 var g_status_buf: [96]u8 = [_]u8{0} ** 96;
 var g_status_len: usize = 0;
 var g_initialized: bool = false;
@@ -67,9 +64,7 @@ fn drawSettings() Error!void {
     const screen_h = display.height();
     if (screen_w <= 0 or screen_h <= 0) return Error.Internal;
 
-    if (g_font_handle) |font_handle| {
-        try display.vlw.use(font_handle);
-    }
+    try display.vlw.use_system(display.vlw.SystemFont.inter);
     try display.text.set_encoding_utf8();
     try display.text.set_wrap(false, false);
     try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
@@ -123,9 +118,7 @@ fn drawDevServer() Error!void {
     const screen_h = display.height();
     if (screen_w <= 0 or screen_h <= 0) return Error.Internal;
 
-    if (g_font_handle) |font_handle| {
-        try display.vlw.use(font_handle);
-    }
+    try display.vlw.use_system(display.vlw.SystemFont.inter);
     try display.text.set_encoding_utf8();
     try display.text.set_wrap(false, false);
     try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
@@ -207,11 +200,6 @@ pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: 
 
     core.begin() catch {
         core.log.err("pp_init: core.begin failed");
-        return -1;
-    };
-
-    g_font_handle = display.vlw.register(font_bytes) catch {
-        core.log.err("pp_init: font register failed");
         return -1;
     };
 

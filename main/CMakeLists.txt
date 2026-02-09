@@ -44,3 +44,5 @@ idf_component_register(
 
 target_add_binary_data(${COMPONENT_LIB} "assets/entrypoint.wasm" BINARY)
 target_add_binary_data(${COMPONENT_LIB} "assets/settings.wasm" BINARY)
+target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_32.vlw" BINARY)
+target_add_binary_data(${COMPONENT_LIB} "assets/montserrat_light_20.vlw" BINARY)

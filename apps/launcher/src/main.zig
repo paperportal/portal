@@ -4,7 +4,6 @@ const core = sdk.core;
 const display = sdk.display;
 const Error = sdk.errors.Error;
 
-const font_bytes = @embedFile("assets/Inter-Medium-32.vlw");
 const header_png_bytes = @embedFile("assets/main-header.png");
 
 const allocator = std.heap.wasm_allocator;
@@ -92,13 +91,7 @@ pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: 
         return -1;
     };
 
-    g_font_handle = display.vlw.register(font_bytes) catch {
-        core.log.err("pp_init: font register failed");
-        return -1;
-    };
-    if (g_font_handle) |font_handle| {
-        display.vlw.use(font_handle) catch {};
-    }
+    display.vlw.use_system(display.vlw.SystemFont.inter) catch {};
 
     const header_h = drawHeader() catch {
         core.log.err("pp_init: drawHeader failed");

@@ -15,8 +15,15 @@
 
 namespace {
 
+extern const uint8_t _binary_inter_medium_32_vlw_start[] asm("_binary_inter_medium_32_vlw_start");
+extern const uint8_t _binary_inter_medium_32_vlw_end[] asm("_binary_inter_medium_32_vlw_end");
+extern const uint8_t _binary_montserrat_light_20_vlw_start[] asm("_binary_montserrat_light_20_vlw_start");
+extern const uint8_t _binary_montserrat_light_20_vlw_end[] asm("_binary_montserrat_light_20_vlw_end");
+
 constexpr const char *kTag = "wasm_api_display_text";
 constexpr size_t kMaxVlwBytes = 1024 * 1024;
+constexpr int32_t kVlwSystemFontInter = 0;
+constexpr int32_t kVlwSystemFontMontserrat = 1;
 
 struct FontBlob {
     uint8_t *data = nullptr;
@@ -293,6 +300,49 @@ int32_t vlw_use(wasm_exec_env_t exec_env, int32_t handle)
     return kWasmOk;
 }
 
+int32_t vlw_use_system(wasm_exec_env_t exec_env, int32_t font_id)
+{
+    (void)exec_env;
+    ESP_LOGI(kTag, "vlw_use_system called (font_id=%" PRId32 ")", font_id);
+
+    auto *display = get_display_or_set_error();
+    if (!display) {
+        ESP_LOGI(kTag, "vlw_use_system aborted: display not ready");
+        return kWasmErrNotReady;
+    }
+
+    const uint8_t *font_ptr = nullptr;
+    const char *font_name = nullptr;
+    size_t font_bytes = 0;
+    switch (font_id) {
+    case kVlwSystemFontInter:
+        font_ptr = _binary_inter_medium_32_vlw_start;
+        font_name = "inter_medium_32";
+        font_bytes = (size_t)(_binary_inter_medium_32_vlw_end - _binary_inter_medium_32_vlw_start);
+        break;
+    case kVlwSystemFontMontserrat:
+        font_ptr = _binary_montserrat_light_20_vlw_start;
+        font_name = "montserrat_light_20";
+        font_bytes = (size_t)(_binary_montserrat_light_20_vlw_end - _binary_montserrat_light_20_vlw_start);
+        break;
+    default:
+        ESP_LOGI(kTag, "vlw_use_system rejected invalid font_id=%" PRId32, font_id);
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlw_use_system: invalid font_id");
+        return kWasmErrInvalidArgument;
+    }
+
+    ESP_LOGI(kTag, "vlw_use_system loading font '%s' (%u bytes)", font_name, (unsigned)font_bytes);
+    display->unloadFont();
+    bool ok = display->loadFont(font_ptr);
+    if (!ok) {
+        ESP_LOGI(kTag, "vlw_use_system failed to load font '%s' (font_id=%" PRId32 ")", font_name, font_id);
+        wasm_api_set_last_error(kWasmErrInternal, "vlw_use_system: loadFont failed");
+        return kWasmErrInternal;
+    }
+    ESP_LOGI(kTag, "vlw_use_system loaded font '%s' (font_id=%" PRId32 ")", font_name, font_id);
+    return kWasmOk;
+}
+
 int32_t vlw_unload(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
@@ -342,6 +392,7 @@ static NativeSymbol g_display_text_native_symbols[] = {
     REG_NATIVE_FUNC(font_height, "()i"),
     REG_NATIVE_FUNC(vlw_register, "(*~)i"),
     REG_NATIVE_FUNC(vlw_use, "(i)i"),
+    REG_NATIVE_FUNC(vlw_use_system, "(i)i"),
     REG_NATIVE_FUNC(vlw_unload, "()i"),
     REG_NATIVE_FUNC(vlw_clear_all, "()i"),
 };
