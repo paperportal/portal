@@ -202,5 +202,6 @@ bool wasm_api_register_all(void)
         && wasm_api_register_socket()
         && wasm_api_register_speaker()
         && wasm_api_register_touch()
+        && wasm_api_register_gesture()
         ;
 }

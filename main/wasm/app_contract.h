@@ -38,6 +38,14 @@ enum PpGestureKind : int32_t {
     kGestureDragStart = 4,
     kGestureDragMove = 5,
     kGestureDragEnd = 6,
+    // Custom polyline gesture recognition (registered by the app via `m5_gesture`).
+    //
+    // For this kind:
+    // - `flags` is the winning gesture handle returned by `gestureRegisterPolyline`.
+    // - `x,y` are the Up coordinates.
+    // - `dx,dy` are Up minus Down.
+    // - `duration_ms` is the touch duration.
+    kGestureCustomPolyline = 100,
 };
 
 // Host-controlled gesture thresholds (v1). Values are in milliseconds or pixels.

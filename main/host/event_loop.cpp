@@ -15,6 +15,7 @@
 #include "services/devserver_service.h"
 #include "host/events.h"
 #include "host/httpd_host.h"
+#include "input/gesture_engine.h"
 #include "input/touch_tracker.h"
 #include "m5papers3_display.h"
 #include "services/wifi_service.h"
@@ -49,11 +50,17 @@ struct GestureState {
     int32_t start_ms = 0;
     int32_t last_x = 0;
     int32_t last_y = 0;
+    int32_t pointer_id = 0;
 };
 
 int32_t now_ms()
 {
     return (int32_t)(esp_timer_get_time() / 1000);
+}
+
+void clear_custom_gestures()
+{
+    gesture_engine().ClearAll();
 }
 
 void wifi_service_event_cb(const wifi::Event &event, void *user_ctx)
@@ -166,6 +173,7 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
 
     auto reload_launcher = [&]() -> bool {
         wasm->UnloadModule();
+        clear_custom_gestures();
 
         if (!wasm->LoadEntrypoint()) {
             return false;
@@ -188,6 +196,7 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
 
         wasm->CallShutdown();
         wasm->UnloadModule();
+        clear_custom_gestures();
 
         char err[256] = {};
         if (!wasm->LoadFromBytes(cmd->wasm_bytes, cmd->wasm_len, cmd->args, err, sizeof(err))) {
@@ -419,6 +428,15 @@ void process_touch(WasmController *wasm, GestureState &state, int32_t now)
         state.start_ms = (int32_t)det.base_msec;
         state.last_x = det.x;
         state.last_y = det.y;
+        state.pointer_id = det.id;
+
+        gesture_engine().ProcessTouchEvent({
+            .type = GestureEngine::TouchType::Down,
+            .pointer_id = (int)state.pointer_id,
+            .x = (float)det.x,
+            .y = (float)det.y,
+            .time_ms = (uint64_t)now,
+        });
         return;
     }
 
@@ -428,6 +446,16 @@ void process_touch(WasmController *wasm, GestureState &state, int32_t now)
         const int32_t duration = now - state.start_ms;
         const int32_t abs_dx = abs_i32(dx);
         const int32_t abs_dy = abs_i32(dy);
+
+        if (det.x != state.last_x || det.y != state.last_y) {
+            gesture_engine().ProcessTouchEvent({
+                .type = GestureEngine::TouchType::Move,
+                .pointer_id = (int)state.pointer_id,
+                .x = (float)det.x,
+                .y = (float)det.y,
+                .time_ms = (uint64_t)now,
+            });
+        }
 
         if (!state.long_press_sent && !state.dragging
             && duration >= pp_contract::kLongPressMinDurationMs
@@ -457,6 +485,19 @@ void process_touch(WasmController *wasm, GestureState &state, int32_t now)
         const int32_t duration = now - state.start_ms;
         const int32_t abs_dx = abs_i32(dx);
         const int32_t abs_dy = abs_i32(dy);
+
+        const int32_t custom_handle = gesture_engine().ProcessTouchEvent({
+            .type = GestureEngine::TouchType::Up,
+            .pointer_id = (int)state.pointer_id,
+            .x = (float)state.last_x,
+            .y = (float)state.last_y,
+            .time_ms = (uint64_t)now,
+        });
+
+        if (custom_handle > 0) {
+            emit_gesture(wasm, now, pp_contract::kGestureCustomPolyline, state.last_x, state.last_y, dx, dy, duration,
+                custom_handle);
+        }
 
         if (state.dragging) {
             emit_gesture(wasm, now, pp_contract::kGestureDragEnd, state.last_x, state.last_y, dx, dy, duration, 0);
@@ -497,6 +538,7 @@ void maybe_recover_uploaded_crash(WasmController *wasm)
     }
 
     wasm->UnloadModule();
+    clear_custom_gestures();
     if (!wasm->LoadEntrypoint()) {
         devserver::notify_server_error("crash recovery: reload launcher failed");
         devserver::notify_uploaded_stopped();
@@ -554,6 +596,7 @@ void host_event_loop_run(WasmController *wasm)
 
             auto reload_launcher = [&]() -> bool {
                 wasm->UnloadModule();
+                clear_custom_gestures();
 
                 if (!wasm->LoadEmbeddedEntrypoint()) {
                     return false;
@@ -579,6 +622,7 @@ void host_event_loop_run(WasmController *wasm)
                 wasm->CallShutdown();
             }
             wasm->UnloadModule();
+            clear_custom_gestures();
 
             // Load the requested app
             bool load_ok = false;
@@ -644,6 +688,7 @@ void host_event_loop_run(WasmController *wasm)
                 wasm->CallShutdown();
             }
             wasm->UnloadModule();
+            clear_custom_gestures();
 
             // Relaunch launcher (SD override first, embedded fallback)
             if (!wasm->LoadEntrypoint()) {

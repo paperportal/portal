@@ -55,7 +55,7 @@ pub fn verifyAndMaybePin(
     const msg = try message(allocator, m.id, m.checksum);
     defer allocator.free(msg);
 
-    sig.verifyStrict(msg, pk) catch return error.SignatureInvalid;
+    sig.verify(msg, pk) catch return error.SignatureInvalid;
 
     if (pinned_publisher_pubkey_b64 == null) {
         const enc = std.base64.standard.Encoder;

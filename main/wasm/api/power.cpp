@@ -27,8 +27,8 @@ namespace {
 
 constexpr const char *kTag = "wasm_api_power";
 
-extern const uint8_t _binary_assets_sleepimage_jpg_start[] asm("_binary_assets_sleepimage_jpg_start");
-extern const uint8_t _binary_assets_sleepimage_jpg_end[] asm("_binary_assets_sleepimage_jpg_end");
+extern const uint8_t _binary_sleepimage_jpg_start[] asm("_binary_sleepimage_jpg_start");
+extern const uint8_t _binary_sleepimage_jpg_end[] asm("_binary_sleepimage_jpg_end");
 
 static void show_sleep_image_best_effort(void)
 {
@@ -37,8 +37,8 @@ static void show_sleep_image_best_effort(void)
         return;
     }
 
-    const uint8_t *start = _binary_assets_sleepimage_jpg_start;
-    const uint8_t *end = _binary_assets_sleepimage_jpg_end;
+    const uint8_t *start = _binary_sleepimage_jpg_start;
+    const uint8_t *end = _binary_sleepimage_jpg_end;
     if (end <= start) {
         ESP_LOGW(kTag, "sleep image: missing/empty asset");
         return;

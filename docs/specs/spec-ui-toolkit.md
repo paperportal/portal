@@ -194,6 +194,15 @@ pub const Action = enum {
 };
 ```
 
+### Gesture callback contract
+
+Apps receive touch/gesture input via the host callback `ppOnGesture(kind, x, y, dx, dy, duration_ms, now_ms, flags)`.
+
+- Built-in kinds (tap/drag/long-press/flick) may be emitted as the touch sequence progresses.
+- Custom polyline gestures (registered via the `m5_gesture` WASM imports) emit **only on Up** when recognized:
+  - `kind = 100` (`kGestureCustomPolyline`)
+  - `flags` carries the winning gesture handle returned at registration
+
 ## Refresh strategy
 
 ### E-ink refresh modes
