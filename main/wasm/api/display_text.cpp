@@ -84,7 +84,7 @@ bool is_valid_text_datum(int32_t datum)
     }
 }
 
-int32_t set_cursor(wasm_exec_env_t exec_env, int32_t x, int32_t y)
+int32_t setCursor(wasm_exec_env_t exec_env, int32_t x, int32_t y)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -95,7 +95,7 @@ int32_t set_cursor(wasm_exec_env_t exec_env, int32_t x, int32_t y)
     return kWasmOk;
 }
 
-int32_t set_text_size(wasm_exec_env_t exec_env, float sx, float sy)
+int32_t setTextSize(wasm_exec_env_t exec_env, float sx, float sy)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -103,14 +103,14 @@ int32_t set_text_size(wasm_exec_env_t exec_env, float sx, float sy)
         return kWasmErrNotReady;
     }
     if (!(sx > 0.0f) || !(sy > 0.0f)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "set_text_size: sx/sy must be > 0");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "setTextSize: sx/sy must be > 0");
         return kWasmErrInvalidArgument;
     }
     display->setTextSize(sx, sy);
     return kWasmOk;
 }
 
-int32_t set_text_datum(wasm_exec_env_t exec_env, int32_t datum)
+int32_t setTextDatum(wasm_exec_env_t exec_env, int32_t datum)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -118,14 +118,14 @@ int32_t set_text_datum(wasm_exec_env_t exec_env, int32_t datum)
         return kWasmErrNotReady;
     }
     if (!is_valid_text_datum(datum)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "set_text_datum: invalid datum");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "setTextDatum: invalid datum");
         return kWasmErrInvalidArgument;
     }
     display->setTextDatum((uint8_t)datum);
     return kWasmOk;
 }
 
-int32_t set_text_color(wasm_exec_env_t exec_env, int32_t fg_rgb888, int32_t bg_rgb888, int32_t use_bg)
+int32_t setTextColor(wasm_exec_env_t exec_env, int32_t fg_rgb888, int32_t bg_rgb888, int32_t use_bg)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -143,7 +143,7 @@ int32_t set_text_color(wasm_exec_env_t exec_env, int32_t fg_rgb888, int32_t bg_r
     return kWasmOk;
 }
 
-int32_t set_text_wrap(wasm_exec_env_t exec_env, int32_t wrap_x, int32_t wrap_y)
+int32_t setTextWrap(wasm_exec_env_t exec_env, int32_t wrap_x, int32_t wrap_y)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -154,7 +154,7 @@ int32_t set_text_wrap(wasm_exec_env_t exec_env, int32_t wrap_x, int32_t wrap_y)
     return kWasmOk;
 }
 
-int32_t set_text_scroll(wasm_exec_env_t exec_env, int32_t scroll)
+int32_t setTextScroll(wasm_exec_env_t exec_env, int32_t scroll)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -165,7 +165,7 @@ int32_t set_text_scroll(wasm_exec_env_t exec_env, int32_t scroll)
     return kWasmOk;
 }
 
-int32_t set_text_font(wasm_exec_env_t exec_env, int32_t font_id)
+int32_t setTextFont(wasm_exec_env_t exec_env, int32_t font_id)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -178,13 +178,13 @@ int32_t set_text_font(wasm_exec_env_t exec_env, int32_t font_id)
     case 2: display->setFont(&fonts::AsciiFont24x48); break;
     case 3: display->setFont(&fonts::TomThumb); break;
     default:
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "set_text_font: unknown font_id");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "setTextFont: unknown font_id");
         return kWasmErrInvalidArgument;
     }
     return kWasmOk;
 }
 
-int32_t draw_string(wasm_exec_env_t exec_env, const char *s, int32_t x, int32_t y)
+int32_t drawString(wasm_exec_env_t exec_env, const char *s, int32_t x, int32_t y)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -192,18 +192,18 @@ int32_t draw_string(wasm_exec_env_t exec_env, const char *s, int32_t x, int32_t 
         return kWasmErrNotReady;
     }
     if (!s) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_string: s is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "drawString: s is null");
         return kWasmErrInvalidArgument;
     }
     const size_t w = display->drawString(s, x, y);
     if (w > (size_t)INT32_MAX) {
-        wasm_api_set_last_error(kWasmErrInternal, "draw_string: width overflow");
+        wasm_api_set_last_error(kWasmErrInternal, "drawString: width overflow");
         return kWasmErrInternal;
     }
     return (int32_t)w;
 }
 
-int32_t text_width(wasm_exec_env_t exec_env, const char *s)
+int32_t textWidth(wasm_exec_env_t exec_env, const char *s)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -211,19 +211,19 @@ int32_t text_width(wasm_exec_env_t exec_env, const char *s)
         return kWasmErrNotReady;
     }
     if (!s) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "text_width: s is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "textWidth: s is null");
         return kWasmErrInvalidArgument;
     }
 
     const int32_t w = (int32_t)display->textWidth(s);
     if (w < 0) {
-        wasm_api_set_last_error(kWasmErrInternal, "text_width: negative width");
+        wasm_api_set_last_error(kWasmErrInternal, "textWidth: negative width");
         return kWasmErrInternal;
     }
     return w;
 }
 
-int32_t font_height(wasm_exec_env_t exec_env)
+int32_t fontHeight(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -233,7 +233,7 @@ int32_t font_height(wasm_exec_env_t exec_env)
     return (int32_t)display->fontHeight();
 }
 
-int32_t set_text_encoding(wasm_exec_env_t exec_env, int32_t utf8_enable, int32_t cp437_enable)
+int32_t setTextEncoding(wasm_exec_env_t exec_env, int32_t utf8_enable, int32_t cp437_enable)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -245,25 +245,25 @@ int32_t set_text_encoding(wasm_exec_env_t exec_env, int32_t utf8_enable, int32_t
     return kWasmOk;
 }
 
-int32_t vlw_register(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t vlwRegister(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
     (void)exec_env;
     if (!ptr && len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlw_register: ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwRegister: ptr is null");
         return kWasmErrInvalidArgument;
     }
     if (len == 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlw_register: len is 0");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwRegister: len is 0");
         return kWasmErrInvalidArgument;
     }
     if (len > kMaxVlwBytes) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlw_register: len too large");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwRegister: len too large");
         return kWasmErrInvalidArgument;
     }
 
     uint8_t *copy = alloc_font_bytes(len);
     if (!copy) {
-        wasm_api_set_last_error(kWasmErrInternal, "vlw_register: alloc failed");
+        wasm_api_set_last_error(kWasmErrInternal, "vlwRegister: alloc failed");
         return kWasmErrInternal;
     }
     memcpy(copy, ptr, len);
@@ -274,7 +274,7 @@ int32_t vlw_register(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
     return handle;
 }
 
-int32_t vlw_use(wasm_exec_env_t exec_env, int32_t handle)
+int32_t vlwUse(wasm_exec_env_t exec_env, int32_t handle)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -283,28 +283,28 @@ int32_t vlw_use(wasm_exec_env_t exec_env, int32_t handle)
     }
     std::lock_guard<std::mutex> lock(g_font_mutex);
     if (handle < 0 || (size_t)handle >= g_fonts.size()) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlw_use: invalid handle");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwUse: invalid handle");
         return kWasmErrInvalidArgument;
     }
     FontBlob &blob = g_fonts[(size_t)handle];
     if (!blob.data || blob.len == 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlw_use: font empty");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwUse: font empty");
         return kWasmErrInvalidArgument;
     }
     display->unloadFont();
     bool ok = display->loadFont(blob.data);
     if (!ok) {
-        wasm_api_set_last_error(kWasmErrInternal, "vlw_use: loadFont failed");
+        wasm_api_set_last_error(kWasmErrInternal, "vlwUse: loadFont failed");
         return kWasmErrInternal;
     }
     return kWasmOk;
 }
 
-int32_t vlw_use_system(wasm_exec_env_t exec_env, int32_t font_id)
+int32_t vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id)
 {
     auto *display = get_display_or_set_error();
     if (!display) {
-        ESP_LOGI(kTag, "vlw_use_system aborted: display not ready");
+        ESP_LOGI(kTag, "vlwUseSystem aborted: display not ready");
         return kWasmErrNotReady;
     }
 
@@ -323,23 +323,23 @@ int32_t vlw_use_system(wasm_exec_env_t exec_env, int32_t font_id)
         font_bytes = (size_t)(_binary_montserrat_light_20_vlw_end - _binary_montserrat_light_20_vlw_start);
         break;
     default:
-        ESP_LOGI(kTag, "vlw_use_system rejected invalid font_id=%" PRId32, font_id);
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlw_use_system: invalid font_id");
+        ESP_LOGI(kTag, "vlwUseSystem rejected invalid font_id=%" PRId32, font_id);
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwUseSystem: invalid font_id");
         return kWasmErrInvalidArgument;
     }
 
     display->unloadFont();
     bool ok = display->loadFont(font_ptr);
     if (!ok) {
-        ESP_LOGI(kTag, "vlw_use_system failed to load font '%s' (font_id=%" PRId32 ")", font_name, font_id);
-        wasm_api_set_last_error(kWasmErrInternal, "vlw_use_system: loadFont failed");
+        ESP_LOGI(kTag, "vlwUseSystem failed to load font '%s' (font_id=%" PRId32 ")", font_name, font_id);
+        wasm_api_set_last_error(kWasmErrInternal, "vlwUseSystem: loadFont failed");
         return kWasmErrInternal;
     }
-    ESP_LOGI(kTag, "vlw_use_system loaded font '%s' (%u bytes, font_id=%" PRId32 ")", font_name, (unsigned)font_bytes, font_id);
+    ESP_LOGI(kTag, "vlwUseSystem loaded font '%s' (%u bytes, font_id=%" PRId32 ")", font_name, (unsigned)font_bytes, font_id);
     return kWasmOk;
 }
 
-int32_t vlw_unload(wasm_exec_env_t exec_env)
+int32_t vlwUnload(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -350,7 +350,7 @@ int32_t vlw_unload(wasm_exec_env_t exec_env)
     return kWasmOk;
 }
 
-int32_t vlw_clear_all(wasm_exec_env_t exec_env)
+int32_t vlwClearAll(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -371,26 +371,26 @@ int32_t vlw_clear_all(wasm_exec_env_t exec_env)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_display_text_native_symbols[] = {
-    REG_NATIVE_FUNC(set_cursor, "(ii)i"),
-    REG_NATIVE_FUNC(set_text_size, "(ff)i"),
-    REG_NATIVE_FUNC(set_text_datum, "(i)i"),
-    REG_NATIVE_FUNC(set_text_color, "(iii)i"),
-    REG_NATIVE_FUNC(set_text_wrap, "(ii)i"),
-    REG_NATIVE_FUNC(set_text_scroll, "(i)i"),
-    REG_NATIVE_FUNC(set_text_font, "(i)i"),
-    REG_NATIVE_FUNC(set_text_encoding, "(ii)i"),
-    REG_NATIVE_FUNC(draw_string, "(*ii)i"),
-    REG_NATIVE_FUNC(text_width, "(*)i"),
-    REG_NATIVE_FUNC(font_height, "()i"),
-    REG_NATIVE_FUNC(vlw_register, "(*~)i"),
-    REG_NATIVE_FUNC(vlw_use, "(i)i"),
-    REG_NATIVE_FUNC(vlw_use_system, "(i)i"),
-    REG_NATIVE_FUNC(vlw_unload, "()i"),
-    REG_NATIVE_FUNC(vlw_clear_all, "()i"),
+    REG_NATIVE_FUNC(setCursor, "(ii)i"),
+    REG_NATIVE_FUNC(setTextSize, "(ff)i"),
+    REG_NATIVE_FUNC(setTextDatum, "(i)i"),
+    REG_NATIVE_FUNC(setTextColor, "(iii)i"),
+    REG_NATIVE_FUNC(setTextWrap, "(ii)i"),
+    REG_NATIVE_FUNC(setTextScroll, "(i)i"),
+    REG_NATIVE_FUNC(setTextFont, "(i)i"),
+    REG_NATIVE_FUNC(setTextEncoding, "(ii)i"),
+    REG_NATIVE_FUNC(drawString, "(*ii)i"),
+    REG_NATIVE_FUNC(textWidth, "(*)i"),
+    REG_NATIVE_FUNC(fontHeight, "()i"),
+    REG_NATIVE_FUNC(vlwRegister, "(*~)i"),
+    REG_NATIVE_FUNC(vlwUse, "(i)i"),
+    REG_NATIVE_FUNC(vlwUseSystem, "(i)i"),
+    REG_NATIVE_FUNC(vlwUnload, "()i"),
+    REG_NATIVE_FUNC(vlwClearAll, "()i"),
 };
 /* clang-format on */
 

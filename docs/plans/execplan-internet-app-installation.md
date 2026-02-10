@@ -153,7 +153,7 @@ Firmware changes are analogous to the existing Settings app. First, embed `main/
 
 #### 7.2 Launcher grid tile and icon
 
-In the launcher app, add a tile after the installed apps list by appending `{ id_z = "app-installer", title = "Install Apps" }` in `/Users/mika/code/paperportal/portal/apps/launcher/src/apps/controller.zig` after iterating the installed-apps catalog. In the same file, update `Controller.onTap` to treat `"app-installer"` as a built-in app id and call `core.open_app("app-installer", null)`.
+In the launcher app, add a tile after the installed apps list by appending `{ id_z = "app-installer", title = "Install Apps" }` in `/Users/mika/code/paperportal/portal/apps/launcher/src/apps/controller.zig` after iterating the installed-apps catalog. In the same file, update `Controller.onTap` to treat `"app-installer"` as a built-in app id and call `core.openApp("app-installer", null)`.
 
 For the icon, add a PNG asset under `/Users/mika/code/paperportal/portal/apps/launcher/src/assets/` (for example `icon-install-apps.png`) and update `/Users/mika/code/paperportal/portal/apps/launcher/src/ui/grid.zig` to `@embedFile` it and draw it when the tapped cell id is `"app-installer"`.
 

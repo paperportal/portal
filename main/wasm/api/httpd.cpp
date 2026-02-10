@@ -95,7 +95,7 @@ static httpd_method_t wasm_method_to_httpd(int32_t method)
     }
 }
 
-int32_t httpd_start(wasm_exec_env_t exec_env, int32_t port)
+int32_t httpdStart(wasm_exec_env_t exec_env, int32_t port)
 {
     (void)exec_env;
     std::lock_guard<std::mutex> lock(g_httpd_mutex);
@@ -117,7 +117,7 @@ int32_t httpd_start(wasm_exec_env_t exec_env, int32_t port)
     return kWasmOk;
 }
 
-int32_t httpd_stop(wasm_exec_env_t exec_env)
+int32_t httpdStop(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     std::lock_guard<std::mutex> lock(g_httpd_mutex);
@@ -141,7 +141,7 @@ int32_t httpd_stop(wasm_exec_env_t exec_env)
     return kWasmOk;
 }
 
-int32_t httpd_register_handler(wasm_exec_env_t exec_env, const char *uri, int32_t method)
+int32_t httpdRegisterHandler(wasm_exec_env_t exec_env, const char *uri, int32_t method)
 {
     (void)exec_env;
     std::lock_guard<std::mutex> lock(g_httpd_mutex);
@@ -193,7 +193,7 @@ int32_t httpd_register_handler(wasm_exec_env_t exec_env, const char *uri, int32_
     return kWasmOk;
 }
 
-int32_t httpd_unregister_handler(wasm_exec_env_t exec_env, const char *uri, int32_t method)
+int32_t httpdUnregisterHandler(wasm_exec_env_t exec_env, const char *uri, int32_t method)
 {
     (void)exec_env;
     std::lock_guard<std::mutex> lock(g_httpd_mutex);
@@ -218,7 +218,7 @@ int32_t httpd_unregister_handler(wasm_exec_env_t exec_env, const char *uri, int3
     return kWasmOk;
 }
 
-int32_t httpd_poll(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len)
+int32_t httpdPoll(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     std::lock_guard<std::mutex> lock(g_httpd_mutex);
@@ -269,7 +269,7 @@ int32_t httpd_poll(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len)
     return 0;
 }
 
-int32_t httpd_respond(wasm_exec_env_t exec_env, int32_t req_id, int32_t status, const char *content_type,
+int32_t httpdRespond(wasm_exec_env_t exec_env, int32_t req_id, int32_t status, const char *content_type,
     const uint8_t *body_ptr, int32_t body_len)
 {
     (void)exec_env;
@@ -339,16 +339,16 @@ int32_t httpd_respond(wasm_exec_env_t exec_env, int32_t req_id, int32_t status, 
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_httpd_native_symbols[] = {
-    REG_NATIVE_FUNC(httpd_start, "(i)i"),
-    REG_NATIVE_FUNC(httpd_stop, "()i"),
-    REG_NATIVE_FUNC(httpd_register_handler, "(*i)i"),
-    REG_NATIVE_FUNC(httpd_unregister_handler, "(*i)i"),
-    REG_NATIVE_FUNC(httpd_poll, "(*i)i"),
-    REG_NATIVE_FUNC(httpd_respond, "(ii**i)i"),
+    REG_NATIVE_FUNC(httpdStart, "(i)i"),
+    REG_NATIVE_FUNC(httpdStop, "()i"),
+    REG_NATIVE_FUNC(httpdRegisterHandler, "(*i)i"),
+    REG_NATIVE_FUNC(httpdUnregisterHandler, "(*i)i"),
+    REG_NATIVE_FUNC(httpdPoll, "(*i)i"),
+    REG_NATIVE_FUNC(httpdRespond, "(ii**i)i"),
 };
 /* clang-format on */
 

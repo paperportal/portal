@@ -42,13 +42,13 @@ fn drawHeader() Error!i32 {
     const screen_w = display.width();
     const header_h: i32 = std.math.cast(i32, dims.h) orelse return Error.InvalidArgument;
 
-    try display.epd.set_mode(display.epd.FAST);
-    try display.start_write();
-    defer display.end_write() catch {};
+    try display.epd.setMode(display.epd.FAST);
+    try display.startWrite();
+    defer display.endWrite() catch {};
 
-    try display.fill_rect(0, 0, screen_w, header_h, display.colors.WHITE);
-    try display.image.draw_png(0, 0, header_png_bytes);
-    try display.update_rect(0, 0, screen_w, header_h);
+    try display.fillRect(0, 0, screen_w, header_h, display.colors.WHITE);
+    try display.image.drawPng(0, 0, header_png_bytes);
+    try display.updateRect(0, 0, screen_w, header_h);
     return header_h;
 }
 
@@ -57,7 +57,7 @@ var g_font_handle: ?i32 = null;
 var g_initialized: bool = false;
 var g_controller: ?Controller = null;
 
-pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: i32, args_len: i32) i32 {
+pub export fn ppInit(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: i32, args_len: i32) i32 {
     _ = api_version;
     _ = screen_w;
     _ = screen_h;
@@ -68,19 +68,19 @@ pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: 
     g_initialized = true;
 
     core.begin() catch {
-        core.log.err("pp_init: core.begin failed");
+        core.log.err("ppInit: core.begin failed");
         return -1;
     };
 
-    display.vlw.use_system(display.vlw.SystemFont.inter) catch {};
+    display.vlw.useSystem(display.vlw.SystemFont.inter) catch {};
 
     const header_h = drawHeader() catch {
-        core.log.err("pp_init: drawHeader failed");
+        core.log.err("ppInit: drawHeader failed");
         return -1;
     };
 
     g_controller = Controller.init(allocator, header_h) catch {
-        core.log.err("pp_init: controller init failed");
+        core.log.err("ppInit: controller init failed");
         return -1;
     };
 
@@ -88,14 +88,14 @@ pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: 
     return 0;
 }
 
-pub export fn pp_tick(now_ms: i32) i32 {
+pub export fn ppTick(now_ms: i32) i32 {
     if (g_controller) |*c| {
         c.tick(now_ms);
     }
     return 0;
 }
 
-pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duration_ms: i32, now_ms: i32, flags: i32) i32 {
+pub export fn ppOnGesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duration_ms: i32, now_ms: i32, flags: i32) i32 {
     _ = dx;
     _ = dy;
     _ = duration_ms;
@@ -109,10 +109,10 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
     return 0;
 }
 
-pub export fn pp_shutdown() void {
+pub export fn ppShutdown() void {
     if (g_controller) |*c| {
         c.deinit();
         g_controller = null;
     }
-    display.vlw.clear_all() catch {};
+    display.vlw.clearAll() catch {};
 }

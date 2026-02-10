@@ -60,25 +60,25 @@ public:
     /** @brief Destroy runtime state and free the WAMR heap pool if allocated. */
     void Shutdown();
 
-    /** @brief Call `pp_init` in the WASM module. */
+    /** @brief Call `ppInit` in the WASM module. */
     bool CallInit(int32_t api_version, int32_t screen_w, int32_t screen_h,
         int32_t args_ptr = 0, int32_t args_len = 0);
 
-    /** @brief Call `pp_tick` in the WASM module. */
+    /** @brief Call `ppTick` in the WASM module. */
     bool CallTick(int32_t now_ms);
 
-    /** @brief Call `pp_on_gesture` in the WASM module. */
+    /** @brief Call `ppOnGesture` in the WASM module. */
     bool CallOnGesture(int32_t kind, int32_t x, int32_t y, int32_t dx, int32_t dy, int32_t duration_ms,
         int32_t now_ms, int32_t flags);
 
-    /** @brief Call `pp_on_http_request` in the WASM module. */
+    /** @brief Call `ppOnHttpRequest` in the WASM module. */
     bool CallOnHttpRequest(int32_t req_id, int32_t method, int32_t uri_ptr, int32_t uri_len, int32_t body_ptr,
         int32_t body_len, int32_t content_len, int32_t now_ms, int32_t flags);
 
-    /** @brief Call `pp_on_wifi_event` in the WASM module. */
+    /** @brief Call `ppOnWifiEvent` in the WASM module. */
     bool CallOnWifiEvent(int32_t kind, int32_t now_ms, int32_t arg0, int32_t arg1);
 
-    /** @brief Call `pp_shutdown` in the WASM module. */
+    /** @brief Call `ppShutdown` in the WASM module. */
     bool CallShutdown();
 
     /** @brief Call the module's allocator export to reserve a region in app memory. */

@@ -28,29 +28,29 @@ constexpr int64_t kApiFeatures =
 int32_t g_last_error_code = 0;
 char g_last_error_message[128] = "";
 
-int32_t api_version(wasm_exec_env_t exec_env)
+int32_t apiVersion(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return kApiVersion;
 }
 
-int64_t api_features(wasm_exec_env_t exec_env)
+int64_t apiFeatures(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return kApiFeatures;
 }
 
-int32_t last_error_code(wasm_exec_env_t exec_env)
+int32_t lastErrorCode(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return wasm_api_get_last_error_code();
 }
 
-int32_t last_error_message(wasm_exec_env_t exec_env, char *out, size_t out_len)
+int32_t lastErrorMessage(wasm_exec_env_t exec_env, char *out, size_t out_len)
 {
     (void)exec_env;
     if (!out && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "last_error_message: out is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "lastErrorMessage: out is null");
         return kWasmErrInvalidArgument;
     }
 
@@ -67,7 +67,7 @@ int32_t last_error_message(wasm_exec_env_t exec_env, char *out, size_t out_len)
     return (int32_t)bytes_to_copy;
 }
 
-int32_t heap_check(wasm_exec_env_t exec_env, const char *label, int32_t print_errors)
+int32_t heapCheck(wasm_exec_env_t exec_env, const char *label, int32_t print_errors)
 {
     (void)exec_env;
     if (!label) {
@@ -80,7 +80,7 @@ int32_t heap_check(wasm_exec_env_t exec_env, const char *label, int32_t print_er
     return ok ? 1 : 0;
 }
 
-void heap_log(wasm_exec_env_t exec_env, const char *label)
+void heapLog(wasm_exec_env_t exec_env, const char *label)
 {
     (void)exec_env;
     if (!label) {
@@ -89,35 +89,35 @@ void heap_log(wasm_exec_env_t exec_env, const char *label)
     mem_utils::log_heap_brief(kTag, label);
 }
 
-int32_t open_app(wasm_exec_env_t exec_env, const char *app_id, const char *arguments)
+int32_t openApp(wasm_exec_env_t exec_env, const char *app_id, const char *arguments)
 {
     (void)exec_env;
-    mem_utils::log_heap(kTag, "open_app");
-    mem_utils::check_heap_integrity(kTag, "open_app");
+    mem_utils::log_heap(kTag, "openApp");
+    mem_utils::check_heap_integrity(kTag, "openApp");
 
     // Validate app_id
     if (!app_id) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "open_app: app_id is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "openApp: app_id is null");
         return kWasmErrInvalidArgument;
     }
 
     // Request the app switch (will be processed after current event dispatch completes)
     bool ok = host_event_loop_request_app_switch(app_id, arguments);
     if (!ok) {
-        wasm_api_set_last_error(kWasmErrNotFound, "open_app: failed to request app switch");
+        wasm_api_set_last_error(kWasmErrNotFound, "openApp: failed to request app switch");
         return kWasmErrNotFound;
     }
 
     return kWasmOk;
 }
 
-int32_t exit_app(wasm_exec_env_t exec_env)
+int32_t exitApp(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
 
     bool ok = host_event_loop_request_app_exit();
     if (!ok) {
-        wasm_api_set_last_error(kWasmErrNotReady, "exit_app: failed to request app exit");
+        wasm_api_set_last_error(kWasmErrNotReady, "exitApp: failed to request app exit");
         return kWasmErrNotReady;
     }
 
@@ -125,18 +125,18 @@ int32_t exit_app(wasm_exec_env_t exec_env)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_core_native_symbols[] = {
-    REG_NATIVE_FUNC(api_version, "()i"),
-    REG_NATIVE_FUNC(api_features, "()I"),
-    REG_NATIVE_FUNC(last_error_code, "()i"),
-    REG_NATIVE_FUNC(last_error_message, "(*~)i"),
-    REG_NATIVE_FUNC(heap_check, "($i)i"),
-    REG_NATIVE_FUNC(heap_log, "($)"),
-    REG_NATIVE_FUNC(open_app, "($$)i"),
-    REG_NATIVE_FUNC(exit_app, "()i"),
+    REG_NATIVE_FUNC(apiVersion, "()i"),
+    REG_NATIVE_FUNC(apiFeatures, "()I"),
+    REG_NATIVE_FUNC(lastErrorCode, "()i"),
+    REG_NATIVE_FUNC(lastErrorMessage, "(*~)i"),
+    REG_NATIVE_FUNC(heapCheck, "($i)i"),
+    REG_NATIVE_FUNC(heapLog, "($)"),
+    REG_NATIVE_FUNC(openApp, "($$)i"),
+    REG_NATIVE_FUNC(exitApp, "()i"),
 };
 /* clang-format on */
 

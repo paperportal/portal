@@ -54,7 +54,7 @@ fn setStatusZ(msg: [:0]const u8) void {
 
 fn setStatusFromLastError(prefix: []const u8) void {
     var msg_buf: [128]u8 = undefined;
-    const msg = core.last_error_message(msg_buf[0..]) catch "";
+    const msg = core.lastErrorMessage(msg_buf[0..]) catch "";
 
     var out: [96]u8 = undefined;
     const text = std.fmt.bufPrintZ(&out, "{s}: {s}", .{ prefix, msg }) catch return;
@@ -62,14 +62,14 @@ fn setStatusFromLastError(prefix: []const u8) void {
 }
 
 fn readDevServerState() DevServerState {
-    if (devserver.is_running()) return .Running;
-    if (devserver.is_starting()) return .Starting;
+    if (devserver.isRunning()) return .Running;
+    if (devserver.isStarting()) return .Starting;
     return .Stopped;
 }
 
 fn setStatusFromDevServerError(prefix: []const u8) void {
     var msg_buf: [128]u8 = undefined;
-    const msg = devserver.get_last_error(msg_buf[0..]) catch "";
+    const msg = devserver.getLastError(msg_buf[0..]) catch "";
     if (msg.len == 0) {
         setStatusFromLastError(prefix);
         return;
@@ -87,11 +87,11 @@ fn drawSettings() Error!void {
     const screen_h = display.height();
     if (screen_w <= 0 or screen_h <= 0) return Error.Internal;
 
-    try display.vlw.use_system(display.vlw.SystemFont.inter);
-    try display.text.set_encoding_utf8();
-    try display.text.set_wrap(false, false);
-    try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
-    try display.text.set_size(0.8, 0.8);
+    try display.vlw.useSystem(display.vlw.SystemFont.inter);
+    try display.text.setEncodingUtf8();
+    try display.text.setWrap(false, false);
+    try display.text.setColor(display.colors.BLACK, display.colors.WHITE);
+    try display.text.setSize(0.8, 0.8);
 
     const margin: i32 = 16;
     const row_h: i32 = 64;
@@ -112,19 +112,19 @@ fn drawSettings() Error!void {
         .Stopped => "OFF",
     };
 
-    try display.epd.set_mode(display.epd.QUALITY);
-    try display.start_write();
-    defer display.end_write() catch {};
+    try display.epd.setMode(display.epd.QUALITY);
+    try display.startWrite();
+    defer display.endWrite() catch {};
 
-    try display.fill_rect(0, 0, screen_w, screen_h, display.colors.WHITE);
+    try display.fillRect(0, 0, screen_w, screen_h, display.colors.WHITE);
     try display.text.draw("Settings", margin, title_y);
 
-    try display.draw_rect(g_layout.devmode_row.x, g_layout.devmode_row.y, g_layout.devmode_row.w, g_layout.devmode_row.h, display.colors.BLACK);
+    try display.drawRect(g_layout.devmode_row.x, g_layout.devmode_row.y, g_layout.devmode_row.w, g_layout.devmode_row.h, display.colors.BLACK);
     try display.text.draw("Developer Mode", g_layout.devmode_row.x + 12, g_layout.devmode_row.y + 18);
     try display.text.draw(state_text, g_layout.devmode_row.x + g_layout.devmode_row.w - 140, g_layout.devmode_row.y + 18);
 
     if (state != .Stopped) {
-        try display.draw_rect(g_layout.devserver_row.x, g_layout.devserver_row.y, g_layout.devserver_row.w, g_layout.devserver_row.h, display.colors.BLACK);
+        try display.drawRect(g_layout.devserver_row.x, g_layout.devserver_row.y, g_layout.devserver_row.w, g_layout.devserver_row.h, display.colors.BLACK);
         try display.text.draw("Dev Server", g_layout.devserver_row.x + 12, g_layout.devserver_row.y + 18);
         try display.text.draw(
             if (state == .Running) "Show" else "Status",
@@ -133,14 +133,14 @@ fn drawSettings() Error!void {
         );
     }
 
-    try display.draw_rect(g_layout.back_btn.x, g_layout.back_btn.y, g_layout.back_btn.w, g_layout.back_btn.h, display.colors.BLACK);
+    try display.drawRect(g_layout.back_btn.x, g_layout.back_btn.y, g_layout.back_btn.w, g_layout.back_btn.h, display.colors.BLACK);
     try display.text.draw("Back", g_layout.back_btn.x + 28, g_layout.back_btn.y + 10);
 
     if (g_status_len > 0) {
         try display.text.draw(g_status_buf[0..g_status_len], margin, screen_h - 90);
     }
 
-    try display.update_rect(0, 0, screen_w, screen_h);
+    try display.updateRect(0, 0, screen_w, screen_h);
 }
 
 fn drawDevServer() Error!void {
@@ -150,11 +150,11 @@ fn drawDevServer() Error!void {
     const screen_h = display.height();
     if (screen_w <= 0 or screen_h <= 0) return Error.Internal;
 
-    try display.vlw.use_system(display.vlw.SystemFont.inter);
-    try display.text.set_encoding_utf8();
-    try display.text.set_wrap(false, false);
-    try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
-    try display.text.set_size(0.6, 0.6);
+    try display.vlw.useSystem(display.vlw.SystemFont.inter);
+    try display.text.setEncodingUtf8();
+    try display.text.setWrap(false, false);
+    try display.text.setColor(display.colors.BLACK, display.colors.WHITE);
+    try display.text.setSize(0.6, 0.6);
 
     const margin: i32 = 16;
     g_layout.back_btn = .{ .x = margin, .y = screen_h - 56, .w = 120, .h = 40 };
@@ -167,24 +167,24 @@ fn drawDevServer() Error!void {
     };
 
     var url_buf: [96]u8 = undefined;
-    const url = devserver.get_url(url_buf[0..]) catch "";
+    const url = devserver.getUrl(url_buf[0..]) catch "";
 
     var ssid_buf: [64]u8 = undefined;
-    const ssid = devserver.get_ap_ssid(ssid_buf[0..]) catch "";
+    const ssid = devserver.getApSsid(ssid_buf[0..]) catch "";
 
     var pw_buf: [32]u8 = undefined;
-    const pw = devserver.get_ap_password(pw_buf[0..]) catch "";
+    const pw = devserver.getApPassword(pw_buf[0..]) catch "";
     var err_buf: [128]u8 = undefined;
-    const last_err = devserver.get_last_error(err_buf[0..]) catch "";
+    const last_err = devserver.getLastError(err_buf[0..]) catch "";
 
-    try display.epd.set_mode(display.epd.QUALITY);
-    try display.start_write();
-    defer display.end_write() catch {};
+    try display.epd.setMode(display.epd.QUALITY);
+    try display.startWrite();
+    defer display.endWrite() catch {};
 
-    try display.fill_rect(0, 0, screen_w, screen_h, display.colors.WHITE);
+    try display.fillRect(0, 0, screen_w, screen_h, display.colors.WHITE);
     try display.text.draw("Dev Server", margin, margin);
 
-    try display.text.set_size(0.5, 0.5);
+    try display.text.setSize(0.5, 0.5);
     try display.text.draw("Status:", margin, 70);
     try display.text.draw(state_text, margin + 90, 70);
 
@@ -210,21 +210,21 @@ fn drawDevServer() Error!void {
         }
     }
 
-    try display.draw_rect(g_layout.back_btn.x, g_layout.back_btn.y, g_layout.back_btn.w, g_layout.back_btn.h, display.colors.BLACK);
-    try display.text.set_size(0.6, 0.6);
+    try display.drawRect(g_layout.back_btn.x, g_layout.back_btn.y, g_layout.back_btn.w, g_layout.back_btn.h, display.colors.BLACK);
+    try display.text.setSize(0.6, 0.6);
     try display.text.draw("Back", g_layout.back_btn.x + 28, g_layout.back_btn.y + 10);
 
     if (state != .Stopped) {
-        try display.draw_rect(g_layout.stop_btn.x, g_layout.stop_btn.y, g_layout.stop_btn.w, g_layout.stop_btn.h, display.colors.BLACK);
+        try display.drawRect(g_layout.stop_btn.x, g_layout.stop_btn.y, g_layout.stop_btn.w, g_layout.stop_btn.h, display.colors.BLACK);
         try display.text.draw("Stop", g_layout.stop_btn.x + 44, g_layout.stop_btn.y + 10);
     }
 
-    try display.update_rect(0, 0, screen_w, screen_h);
+    try display.updateRect(0, 0, screen_w, screen_h);
 }
 
 pub fn main() void {}
 
-pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: i32, args_len: i32) i32 {
+pub export fn ppInit(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: i32, args_len: i32) i32 {
     _ = api_version;
     _ = screen_w;
     _ = screen_h;
@@ -235,12 +235,12 @@ pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: 
     g_initialized = true;
 
     core.begin() catch {
-        core.log.err("pp_init: core.begin failed");
+        core.log.err("ppInit: core.begin failed");
         return -1;
     };
 
     drawSettings() catch {
-        core.log.err("pp_init: drawSettings failed");
+        core.log.err("ppInit: drawSettings failed");
         return -1;
     };
 
@@ -248,7 +248,7 @@ pub export fn pp_init(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: 
     return 0;
 }
 
-pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duration_ms: i32, now_ms: i32, flags: i32) i32 {
+pub export fn ppOnGesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duration_ms: i32, now_ms: i32, flags: i32) i32 {
     _ = dx;
     _ = dy;
     _ = duration_ms;
@@ -258,7 +258,7 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
         if (g_view == .Settings) {
             if (g_layout.back_btn.contains(x, y)) {
                 clearStatus();
-                core.exit_app() catch {
+                core.exitApp() catch {
                     setStatusFromLastError("exit failed");
                     drawSettings() catch {
                         core.log.err("drawSettings failed");
@@ -329,6 +329,6 @@ pub export fn pp_on_gesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duratio
     return 0;
 }
 
-pub export fn pp_shutdown() void {
-    display.vlw.clear_all() catch {};
+pub export fn ppShutdown() void {
+    display.vlw.clearAll() catch {};
 }

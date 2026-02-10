@@ -17,7 +17,7 @@ fn logInfo(comptime fmt: []const u8, args: anytype) void {
     core.log.info(msg);
 }
 
-fn rm_rf(allocator: std.mem.Allocator, path_z: [:0]const u8) Error!void {
+fn rmRf(allocator: std.mem.Allocator, path_z: [:0]const u8) Error!void {
     const meta = fs.metadata(path_z) catch |err| switch (err) {
         Error.NotFound => return,
         else => return err,
@@ -35,7 +35,7 @@ fn rm_rf(allocator: std.mem.Allocator, path_z: [:0]const u8) Error!void {
 
     var name_buf: [96]u8 = undefined;
     while (true) {
-        const n_opt = d.read_name(name_buf[0..]) catch break;
+        const n_opt = d.readName(name_buf[0..]) catch break;
         if (n_opt == null) break;
         const n = n_opt.?;
         const name = name_buf[0..n];
@@ -43,7 +43,7 @@ fn rm_rf(allocator: std.mem.Allocator, path_z: [:0]const u8) Error!void {
 
         var child_buf: [256]u8 = undefined;
         const child_z = std.fmt.bufPrintZ(&child_buf, "{s}/{s}", .{ path_z, name }) catch continue;
-        try rm_rf(allocator, child_z);
+        try rmRf(allocator, child_z);
     }
 
     fs.Dir.rmdir(path_z) catch {};
@@ -72,7 +72,7 @@ fn checksumMatches(manifest_checksum: []const u8, digest: [32]u8) bool {
 ///   app directory does not exist, the backup is restored. If the app exists, the
 ///   backup is removed as it's no longer needed.
 pub fn recoverIncompleteInstalls(allocator: std.mem.Allocator) void {
-    if (!fs.is_mounted()) return;
+    if (!fs.isMounted()) return;
 
     logInfo("install: recover incomplete installs dir={s}", .{paths.apps_dir_z});
 
@@ -81,7 +81,7 @@ pub fn recoverIncompleteInstalls(allocator: std.mem.Allocator) void {
 
     var name_buf: [96]u8 = undefined;
     while (true) {
-        const n_opt = d.read_name(name_buf[0..]) catch break;
+        const n_opt = d.readName(name_buf[0..]) catch break;
         if (n_opt == null) break;
         const n = n_opt.?;
         const name = name_buf[0..n];
@@ -90,7 +90,7 @@ pub fn recoverIncompleteInstalls(allocator: std.mem.Allocator) void {
             var full_buf: [160]u8 = undefined;
             const full_z = std.fmt.bufPrintZ(&full_buf, "{s}/{s}", .{ paths.apps_dir_z, name }) catch continue;
             logInfo("install: removing leftover staging dir path={s}", .{full_z});
-            rm_rf(allocator, full_z) catch {};
+            rmRf(allocator, full_z) catch {};
             continue;
         }
 
@@ -100,25 +100,25 @@ pub fn recoverIncompleteInstalls(allocator: std.mem.Allocator) void {
                 var full_buf: [160]u8 = undefined;
                 const full_z = std.fmt.bufPrintZ(&full_buf, "{s}/{s}", .{ paths.apps_dir_z, name }) catch continue;
                 logInfo("install: removing invalid backup dir name={s} path={s}", .{ name, full_z });
-                rm_rf(allocator, full_z) catch {};
+                rmRf(allocator, full_z) catch {};
                 continue;
             };
 
             var app_buf: [96]u8 = undefined;
             var backup_buf: [96]u8 = undefined;
-            const app_root_z = paths.app_root_z(&app_buf, id);
-            const backup_root_z = paths.backup_root_z(&backup_buf, id);
+            const appRootZ = paths.appRootZ(&app_buf, id);
+            const backupRootZ = paths.backupRootZ(&backup_buf, id);
 
-            const app_exists = fs.metadata(app_root_z) catch |err| switch (err) {
+            const app_exists = fs.metadata(appRootZ) catch |err| switch (err) {
                 Error.NotFound => null,
                 else => null,
             };
             if (app_exists == null) {
-                logInfo("install: restoring backup id={s} from={s} to={s}", .{ id, backup_root_z, app_root_z });
-                fs.rename(backup_root_z, app_root_z) catch {};
+                logInfo("install: restoring backup id={s} from={s} to={s}", .{ id, backupRootZ, appRootZ });
+                fs.rename(backupRootZ, appRootZ) catch {};
             } else {
-                logInfo("install: removing leftover backup (app exists) id={s} path={s}", .{ id, backup_root_z });
-                rm_rf(allocator, backup_root_z) catch {};
+                logInfo("install: removing leftover backup (app exists) id={s} path={s}", .{ id, backupRootZ });
+                rmRf(allocator, backupRootZ) catch {};
             }
         }
     }
@@ -132,7 +132,7 @@ pub fn installOne(allocator: std.mem.Allocator, catalog: *catalog_mod.Catalog, p
         logInfo("install: ignoring dotfile path={s}", .{papp_path_z});
         return false;
     }
-    if (!fs.is_mounted()) {
+    if (!fs.isMounted()) {
         logInfo("install: fs not mounted; skipping path={s}", .{papp_path_z});
         return false;
     }
@@ -223,18 +223,18 @@ pub fn installOne(allocator: std.mem.Allocator, catalog: *catalog_mod.Catalog, p
     var staging_buf: [96]u8 = undefined;
     var backup_buf: [96]u8 = undefined;
     var app_buf: [96]u8 = undefined;
-    const staging_z = paths.staging_root_z(&staging_buf, m.id);
-    const backup_z = paths.backup_root_z(&backup_buf, m.id);
-    const app_root_z = paths.app_root_z(&app_buf, m.id);
+    const staging_z = paths.stagingRootZ(&staging_buf, m.id);
+    const backup_z = paths.backupRootZ(&backup_buf, m.id);
+    const appRootZ = paths.appRootZ(&app_buf, m.id);
 
     logInfo(
         "install: paths id={s} staging={s} backup={s} app_root={s}",
-        .{ m.id, staging_z, backup_z, app_root_z },
+        .{ m.id, staging_z, backup_z, appRootZ },
     );
 
     logInfo("install: clearing old staging/backup id={s}", .{m.id});
-    rm_rf(allocator, staging_z) catch {};
-    rm_rf(allocator, backup_z) catch {};
+    rmRf(allocator, staging_z) catch {};
+    rmRf(allocator, backup_z) catch {};
     logInfo("install: creating staging dir id={s} path={s}", .{ m.id, staging_z });
     fs.Dir.mkdir(staging_z) catch {};
 
@@ -247,7 +247,7 @@ pub fn installOne(allocator: std.mem.Allocator, catalog: *catalog_mod.Catalog, p
             .{ @errorName(err), m.id },
         ) catch "install: extraction failed";
         core.log.warn(msg);
-        rm_rf(allocator, staging_z) catch {};
+        rmRf(allocator, staging_z) catch {};
         return false;
     };
     {
@@ -264,14 +264,14 @@ pub fn installOne(allocator: std.mem.Allocator, catalog: *catalog_mod.Catalog, p
             .{ m.id, m.checksum, got_hex[0..] },
         ) catch "install: checksum mismatch";
         core.log.warn(msg);
-        rm_rf(allocator, staging_z) catch {};
+        rmRf(allocator, staging_z) catch {};
         return false;
     }
     logInfo("install: checksum ok id={s}", .{m.id});
 
     // Move existing app aside (best-effort).
     logInfo("install: backing up existing app (if present) id={s}", .{m.id});
-    fs.rename(app_root_z, backup_z) catch |err| switch (err) {
+    fs.rename(appRootZ, backup_z) catch |err| switch (err) {
         Error.NotFound => {},
         else => {
             var buf: [256]u8 = undefined;
@@ -281,13 +281,13 @@ pub fn installOne(allocator: std.mem.Allocator, catalog: *catalog_mod.Catalog, p
                 .{ @errorName(err), m.id },
             ) catch "install: failed to backup existing app";
             core.log.warn(msg);
-            rm_rf(allocator, staging_z) catch {};
+            rmRf(allocator, staging_z) catch {};
             return false;
         },
     };
 
     logInfo("install: activating staging dir id={s}", .{m.id});
-    fs.rename(staging_z, app_root_z) catch |err| {
+    fs.rename(staging_z, appRootZ) catch |err| {
         var buf: [256]u8 = undefined;
         const msg = std.fmt.bufPrintZ(
             &buf,
@@ -295,13 +295,13 @@ pub fn installOne(allocator: std.mem.Allocator, catalog: *catalog_mod.Catalog, p
             .{ @errorName(err), m.id },
         ) catch "install: failed to activate staging dir";
         core.log.warn(msg);
-        fs.rename(backup_z, app_root_z) catch {};
-        rm_rf(allocator, staging_z) catch {};
+        fs.rename(backup_z, appRootZ) catch {};
+        rmRf(allocator, staging_z) catch {};
         return false;
     };
 
     logInfo("install: removing backup dir id={s}", .{m.id});
-    rm_rf(allocator, backup_z) catch {};
+    rmRf(allocator, backup_z) catch {};
 
     // Upsert catalog entry, taking ownership of id/name/raw manifest JSON.
     const id_for_log = m.id;

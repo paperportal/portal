@@ -7,6 +7,10 @@ For accessing the hardware and some services a Zig SDK is used from GitHub.
 Source code of the SDK is available at /Users/mika/code/paperportal/zig-sdk so
 you can see the available APIs.
 
+## Naming conventions (Zig)
+
+Use `lowerCamelCase` for all functions, except functions that return a type (Zig), which use `PascalCase`.
+
 ## Specifications
 
 This section links to various spec files in the docs folder. The specs are used

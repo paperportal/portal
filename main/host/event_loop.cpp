@@ -204,9 +204,9 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
         }
 
         if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
-            devserver::notify_server_error("pp_init failed");
+            devserver::notify_server_error("ppInit failed");
             (void)reload_launcher();
-            finish_dev_command(cmd, -2, "pp_init failed");
+            finish_dev_command(cmd, -2, "ppInit failed");
             return;
         }
 
@@ -511,7 +511,7 @@ void maybe_recover_uploaded_crash(WasmController *wasm)
     }
 
     if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
-        devserver::notify_server_error("crash recovery: launcher pp_init failed");
+        devserver::notify_server_error("crash recovery: launcher ppInit failed");
         devserver::notify_uploaded_stopped();
         return;
     }
@@ -661,7 +661,7 @@ void host_event_loop_run(WasmController *wasm)
                     }
 
                     if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
-                        ESP_LOGE(kTag, "Launcher pp_init failed after app exit");
+                        ESP_LOGE(kTag, "Launcher ppInit failed after app exit");
                     } else {
                         ESP_LOGI(kTag, "Returned to launcher after app exit");
                     }
@@ -715,7 +715,7 @@ void *event_loop_thread(void *arg)
     }
 
     if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
-        ESP_LOGE(kTag, "pp_init failed; continuing without wasm dispatch");
+        ESP_LOGE(kTag, "ppInit failed; continuing without wasm dispatch");
     }
 
     host_event_loop_run(wasm);

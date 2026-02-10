@@ -48,17 +48,17 @@ static esp_err_t http_event_handler(esp_http_client_event_t *evt)
     return ESP_OK;
 }
 
-int32_t http_get(wasm_exec_env_t exec_env, const char *url, uint8_t *out_ptr, int32_t out_len, int32_t timeout_ms)
+int32_t httpGet(wasm_exec_env_t exec_env, const char *url, uint8_t *out_ptr, int32_t out_len, int32_t timeout_ms)
 {
     (void)exec_env;
 
     if (!url) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "http_get: url is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "httpGet: url is null");
         return kWasmErrInvalidArgument;
     }
 
     if (!out_ptr && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "http_get: out_ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "httpGet: out_ptr is null");
         return kWasmErrInvalidArgument;
     }
 
@@ -72,14 +72,14 @@ int32_t http_get(wasm_exec_env_t exec_env, const char *url, uint8_t *out_ptr, in
 
     g_req_ctx.client = esp_http_client_init(&config);
     if (!g_req_ctx.client) {
-        wasm_api_set_last_error(kWasmErrInternal, "http_get: esp_http_client_init failed");
+        wasm_api_set_last_error(kWasmErrInternal, "httpGet: esp_http_client_init failed");
         return kWasmErrInternal;
     }
 
     esp_err_t err = esp_http_client_set_method(g_req_ctx.client, HTTP_METHOD_GET);
     if (err != ESP_OK) {
         cleanup_client();
-        wasm_api_set_last_error(kWasmErrInternal, "http_get: esp_http_client_set_method failed");
+        wasm_api_set_last_error(kWasmErrInternal, "httpGet: esp_http_client_set_method failed");
         return kWasmErrInternal;
     }
 
@@ -90,7 +90,7 @@ int32_t http_get(wasm_exec_env_t exec_env, const char *url, uint8_t *out_ptr, in
     err = esp_http_client_perform(g_req_ctx.client);
     if (err != ESP_OK) {
         cleanup_client();
-        wasm_api_set_last_error(kWasmErrInternal, "http_get: esp_http_client_perform failed");
+        wasm_api_set_last_error(kWasmErrInternal, "httpGet: esp_http_client_perform failed");
         return kWasmErrInternal;
     }
 
@@ -108,7 +108,7 @@ int32_t http_get(wasm_exec_env_t exec_env, const char *url, uint8_t *out_ptr, in
         err = esp_http_client_read(g_req_ctx.client, (char *)out_ptr, to_read);
         if (err < 0) {
             cleanup_client();
-            wasm_api_set_last_error(kWasmErrInternal, "http_get: esp_http_client_read failed");
+            wasm_api_set_last_error(kWasmErrInternal, "httpGet: esp_http_client_read failed");
             return kWasmErrInternal;
         }
         bytes_read = err;
@@ -117,23 +117,23 @@ int32_t http_get(wasm_exec_env_t exec_env, const char *url, uint8_t *out_ptr, in
     return bytes_read;
 }
 
-int32_t http_post(wasm_exec_env_t exec_env, const char *url, const char *content_type, const uint8_t *body_ptr,
+int32_t httpPost(wasm_exec_env_t exec_env, const char *url, const char *content_type, const uint8_t *body_ptr,
     int32_t body_len, uint8_t *out_ptr, int32_t out_len, int32_t timeout_ms)
 {
     (void)exec_env;
 
     if (!url) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "http_post: url is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "httpPost: url is null");
         return kWasmErrInvalidArgument;
     }
 
     if (!body_ptr && body_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "http_post: body_ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "httpPost: body_ptr is null");
         return kWasmErrInvalidArgument;
     }
 
     if (!out_ptr && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "http_post: out_ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "httpPost: out_ptr is null");
         return kWasmErrInvalidArgument;
     }
 
@@ -147,14 +147,14 @@ int32_t http_post(wasm_exec_env_t exec_env, const char *url, const char *content
 
     g_req_ctx.client = esp_http_client_init(&config);
     if (!g_req_ctx.client) {
-        wasm_api_set_last_error(kWasmErrInternal, "http_post: esp_http_client_init failed");
+        wasm_api_set_last_error(kWasmErrInternal, "httpPost: esp_http_client_init failed");
         return kWasmErrInternal;
     }
 
     esp_err_t err = esp_http_client_set_method(g_req_ctx.client, HTTP_METHOD_POST);
     if (err != ESP_OK) {
         cleanup_client();
-        wasm_api_set_last_error(kWasmErrInternal, "http_post: esp_http_client_set_method failed");
+        wasm_api_set_last_error(kWasmErrInternal, "httpPost: esp_http_client_set_method failed");
         return kWasmErrInternal;
     }
 
@@ -169,14 +169,14 @@ int32_t http_post(wasm_exec_env_t exec_env, const char *url, const char *content
     err = esp_http_client_set_post_field(g_req_ctx.client, (const char *)body_ptr, body_len);
     if (err != ESP_OK) {
         cleanup_client();
-        wasm_api_set_last_error(kWasmErrInternal, "http_post: esp_http_client_set_post_field failed");
+        wasm_api_set_last_error(kWasmErrInternal, "httpPost: esp_http_client_set_post_field failed");
         return kWasmErrInternal;
     }
 
     err = esp_http_client_perform(g_req_ctx.client);
     if (err != ESP_OK) {
         cleanup_client();
-        wasm_api_set_last_error(kWasmErrInternal, "http_post: esp_http_client_perform failed");
+        wasm_api_set_last_error(kWasmErrInternal, "httpPost: esp_http_client_perform failed");
         return kWasmErrInternal;
     }
 
@@ -194,7 +194,7 @@ int32_t http_post(wasm_exec_env_t exec_env, const char *url, const char *content
         err = esp_http_client_read(g_req_ctx.client, (char *)out_ptr, to_read);
         if (err < 0) {
             cleanup_client();
-            wasm_api_set_last_error(kWasmErrInternal, "http_post: esp_http_client_read failed");
+            wasm_api_set_last_error(kWasmErrInternal, "httpPost: esp_http_client_read failed");
             return kWasmErrInternal;
         }
         bytes_read = err;
@@ -203,22 +203,22 @@ int32_t http_post(wasm_exec_env_t exec_env, const char *url, const char *content
     return bytes_read;
 }
 
-int32_t http_set_header(wasm_exec_env_t exec_env, const char *key, const char *value)
+int32_t httpSetHeader(wasm_exec_env_t exec_env, const char *key, const char *value)
 {
     (void)exec_env;
 
     if (!key) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "http_set_header: key is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "httpSetHeader: key is null");
         return kWasmErrInvalidArgument;
     }
 
     if (!value) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "http_set_header: value is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "httpSetHeader: value is null");
         return kWasmErrInvalidArgument;
     }
 
     if (g_req_ctx.num_headers >= kMaxHeaders) {
-        wasm_api_set_last_error(kWasmErrInternal, "http_set_header: too many headers");
+        wasm_api_set_last_error(kWasmErrInternal, "httpSetHeader: too many headers");
         return kWasmErrInternal;
     }
 
@@ -227,21 +227,21 @@ int32_t http_set_header(wasm_exec_env_t exec_env, const char *key, const char *v
     return kWasmOk;
 }
 
-int32_t http_get_status_code(wasm_exec_env_t exec_env)
+int32_t httpGetStatusCode(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return g_req_ctx.last_status_code;
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_http_native_symbols[] = {
-    REG_NATIVE_FUNC(http_get, "($*~i)i"),
-    REG_NATIVE_FUNC(http_post, "($$*~*~i)i"),
-    REG_NATIVE_FUNC(http_set_header, "($$)i"),
-    REG_NATIVE_FUNC(http_get_status_code, "()i"),
+    REG_NATIVE_FUNC(httpGet, "($*~i)i"),
+    REG_NATIVE_FUNC(httpPost, "($$*~*~i)i"),
+    REG_NATIVE_FUNC(httpSetHeader, "($$)i"),
+    REG_NATIVE_FUNC(httpGetStatusCode, "()i"),
 };
 /* clang-format on */
 

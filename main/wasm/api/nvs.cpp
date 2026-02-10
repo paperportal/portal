@@ -202,7 +202,7 @@ const char *normalize_namespace_filter(const char *namespace_name)
     return namespace_name;
 }
 
-int32_t nvs_open(wasm_exec_env_t exec_env, const char *namespace_name, int32_t mode)
+int32_t nvsOpen(wasm_exec_env_t exec_env, const char *namespace_name, int32_t mode)
 {
     (void)exec_env;
     if (!validate_non_empty(namespace_name, "nvs_open: namespace is empty")) {
@@ -234,7 +234,7 @@ int32_t nvs_open(wasm_exec_env_t exec_env, const char *namespace_name, int32_t m
     return slot;
 }
 
-int32_t nvs_close(wasm_exec_env_t exec_env, int32_t handle)
+int32_t nvsClose(wasm_exec_env_t exec_env, int32_t handle)
 {
     (void)exec_env;
     nvs_handle_t nvs_handle = get_nvs_handle(handle);
@@ -310,7 +310,7 @@ int32_t nvs_get_number(wasm_exec_env_t exec_env, int32_t handle, const char *key
     return (int32_t)sizeof(T);
 }
 
-int32_t nvs_set_i8(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
+int32_t nvsSetI8(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
 {
     if (value < INT8_MIN || value > INT8_MAX) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "nvs_set_i8: value out of range");
@@ -319,7 +319,7 @@ int32_t nvs_set_i8(wasm_exec_env_t exec_env, int32_t handle, const char *key, in
     return nvs_set_number(exec_env, handle, key, (int8_t)value, ::nvs_set_i8, "nvs_set_i8");
 }
 
-int32_t nvs_set_u8(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
+int32_t nvsSetU8(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
 {
     if (value < 0 || value > UINT8_MAX) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "nvs_set_u8: value out of range");
@@ -328,7 +328,7 @@ int32_t nvs_set_u8(wasm_exec_env_t exec_env, int32_t handle, const char *key, in
     return nvs_set_number(exec_env, handle, key, (uint8_t)value, ::nvs_set_u8, "nvs_set_u8");
 }
 
-int32_t nvs_set_i16(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
+int32_t nvsSetI16(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
 {
     if (value < INT16_MIN || value > INT16_MAX) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "nvs_set_i16: value out of range");
@@ -337,7 +337,7 @@ int32_t nvs_set_i16(wasm_exec_env_t exec_env, int32_t handle, const char *key, i
     return nvs_set_number(exec_env, handle, key, (int16_t)value, ::nvs_set_i16, "nvs_set_i16");
 }
 
-int32_t nvs_set_u16(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
+int32_t nvsSetU16(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
 {
     if (value < 0 || value > UINT16_MAX) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "nvs_set_u16: value out of range");
@@ -346,12 +346,12 @@ int32_t nvs_set_u16(wasm_exec_env_t exec_env, int32_t handle, const char *key, i
     return nvs_set_number(exec_env, handle, key, (uint16_t)value, ::nvs_set_u16, "nvs_set_u16");
 }
 
-int32_t nvs_set_i32(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
+int32_t nvsSetI32(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
 {
     return nvs_set_number(exec_env, handle, key, value, ::nvs_set_i32, "nvs_set_i32");
 }
 
-int32_t nvs_set_u32(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
+int32_t nvsSetU32(wasm_exec_env_t exec_env, int32_t handle, const char *key, int32_t value)
 {
     if (value < 0) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "nvs_set_u32: value out of range");
@@ -360,12 +360,12 @@ int32_t nvs_set_u32(wasm_exec_env_t exec_env, int32_t handle, const char *key, i
     return nvs_set_number(exec_env, handle, key, (uint32_t)value, ::nvs_set_u32, "nvs_set_u32");
 }
 
-int32_t nvs_set_i64(wasm_exec_env_t exec_env, int32_t handle, const char *key, int64_t value)
+int32_t nvsSetI64(wasm_exec_env_t exec_env, int32_t handle, const char *key, int64_t value)
 {
     return nvs_set_number(exec_env, handle, key, value, ::nvs_set_i64, "nvs_set_i64");
 }
 
-int32_t nvs_set_u64(wasm_exec_env_t exec_env, int32_t handle, const char *key, int64_t value)
+int32_t nvsSetU64(wasm_exec_env_t exec_env, int32_t handle, const char *key, int64_t value)
 {
     if (value < 0) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "nvs_set_u64: value out of range");
@@ -374,7 +374,7 @@ int32_t nvs_set_u64(wasm_exec_env_t exec_env, int32_t handle, const char *key, i
     return nvs_set_number(exec_env, handle, key, (uint64_t)value, ::nvs_set_u64, "nvs_set_u64");
 }
 
-int32_t nvs_set_str(wasm_exec_env_t exec_env, int32_t handle, const char *key, const char *value)
+int32_t nvsSetStr(wasm_exec_env_t exec_env, int32_t handle, const char *key, const char *value)
 {
     (void)exec_env;
     if (!validate_non_empty(key, "nvs_set_str: key is empty")) {
@@ -397,7 +397,7 @@ int32_t nvs_set_str(wasm_exec_env_t exec_env, int32_t handle, const char *key, c
     return kWasmOk;
 }
 
-int32_t nvs_set_blob(wasm_exec_env_t exec_env, int32_t handle, const char *key, const uint8_t *value, int32_t len)
+int32_t nvsSetBlob(wasm_exec_env_t exec_env, int32_t handle, const char *key, const uint8_t *value, int32_t len)
 {
     (void)exec_env;
     if (!validate_non_empty(key, "nvs_set_blob: key is empty")) {
@@ -424,47 +424,47 @@ int32_t nvs_set_blob(wasm_exec_env_t exec_env, int32_t handle, const char *key, 
     return kWasmOk;
 }
 
-int32_t nvs_get_i8(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetI8(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     return nvs_get_number<int8_t>(exec_env, handle, key, out_ptr, out_len, ::nvs_get_i8, "nvs_get_i8");
 }
 
-int32_t nvs_get_u8(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetU8(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     return nvs_get_number<uint8_t>(exec_env, handle, key, out_ptr, out_len, ::nvs_get_u8, "nvs_get_u8");
 }
 
-int32_t nvs_get_i16(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetI16(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     return nvs_get_number<int16_t>(exec_env, handle, key, out_ptr, out_len, ::nvs_get_i16, "nvs_get_i16");
 }
 
-int32_t nvs_get_u16(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetU16(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     return nvs_get_number<uint16_t>(exec_env, handle, key, out_ptr, out_len, ::nvs_get_u16, "nvs_get_u16");
 }
 
-int32_t nvs_get_i32(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetI32(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     return nvs_get_number<int32_t>(exec_env, handle, key, out_ptr, out_len, ::nvs_get_i32, "nvs_get_i32");
 }
 
-int32_t nvs_get_u32(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetU32(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     return nvs_get_number<uint32_t>(exec_env, handle, key, out_ptr, out_len, ::nvs_get_u32, "nvs_get_u32");
 }
 
-int32_t nvs_get_i64(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetI64(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     return nvs_get_number<int64_t>(exec_env, handle, key, out_ptr, out_len, ::nvs_get_i64, "nvs_get_i64");
 }
 
-int32_t nvs_get_u64(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetU64(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     return nvs_get_number<uint64_t>(exec_env, handle, key, out_ptr, out_len, ::nvs_get_u64, "nvs_get_u64");
 }
 
-int32_t nvs_get_str(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetStr(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!validate_non_empty(key, "nvs_get_str: key is empty")) {
@@ -497,7 +497,7 @@ int32_t nvs_get_str(wasm_exec_env_t exec_env, int32_t handle, const char *key, u
     return (int32_t)length;
 }
 
-int32_t nvs_get_blob(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetBlob(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!validate_non_empty(key, "nvs_get_blob: key is empty")) {
@@ -529,7 +529,7 @@ int32_t nvs_get_blob(wasm_exec_env_t exec_env, int32_t handle, const char *key, 
     return (int32_t)length;
 }
 
-int32_t nvs_find_key(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsFindKey(wasm_exec_env_t exec_env, int32_t handle, const char *key, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!validate_non_empty(key, "nvs_find_key: key is empty")) {
@@ -557,7 +557,7 @@ int32_t nvs_find_key(wasm_exec_env_t exec_env, int32_t handle, const char *key, 
     return (int32_t)sizeof(type_code);
 }
 
-int32_t nvs_erase_key(wasm_exec_env_t exec_env, int32_t handle, const char *key)
+int32_t nvsEraseKey(wasm_exec_env_t exec_env, int32_t handle, const char *key)
 {
     (void)exec_env;
     if (!validate_non_empty(key, "nvs_erase_key: key is empty")) {
@@ -576,7 +576,7 @@ int32_t nvs_erase_key(wasm_exec_env_t exec_env, int32_t handle, const char *key)
     return kWasmOk;
 }
 
-int32_t nvs_erase_all(wasm_exec_env_t exec_env, int32_t handle)
+int32_t nvsEraseAll(wasm_exec_env_t exec_env, int32_t handle)
 {
     (void)exec_env;
     nvs_handle_t nvs_handle = get_nvs_handle(handle);
@@ -592,7 +592,7 @@ int32_t nvs_erase_all(wasm_exec_env_t exec_env, int32_t handle)
     return kWasmOk;
 }
 
-int32_t nvs_commit(wasm_exec_env_t exec_env, int32_t handle)
+int32_t nvsCommit(wasm_exec_env_t exec_env, int32_t handle)
 {
     (void)exec_env;
     nvs_handle_t nvs_handle = get_nvs_handle(handle);
@@ -608,7 +608,7 @@ int32_t nvs_commit(wasm_exec_env_t exec_env, int32_t handle)
     return kWasmOk;
 }
 
-int32_t nvs_get_stats(wasm_exec_env_t exec_env, const char *part_name, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetStats(wasm_exec_env_t exec_env, const char *part_name, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!validate_out_buffer(out_ptr, out_len, sizeof(WasmNvsStats), "nvs_get_stats: out invalid")) {
@@ -639,7 +639,7 @@ int32_t nvs_get_stats(wasm_exec_env_t exec_env, const char *part_name, uint8_t *
     return (int32_t)sizeof(out);
 }
 
-int32_t nvs_get_used_entry_count(wasm_exec_env_t exec_env, int32_t handle, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsGetUsedEntryCount(wasm_exec_env_t exec_env, int32_t handle, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!validate_out_buffer(out_ptr, out_len, sizeof(uint32_t), "nvs_get_used_entry_count: out invalid")) {
@@ -666,7 +666,7 @@ int32_t nvs_get_used_entry_count(wasm_exec_env_t exec_env, int32_t handle, uint8
     return (int32_t)sizeof(used);
 }
 
-int32_t nvs_entry_find(wasm_exec_env_t exec_env, const char *part_name, const char *namespace_name, int32_t type)
+int32_t nvsEntryFind(wasm_exec_env_t exec_env, const char *part_name, const char *namespace_name, int32_t type)
 {
     (void)exec_env;
     const char *partition = normalize_partition(part_name);
@@ -690,7 +690,7 @@ int32_t nvs_entry_find(wasm_exec_env_t exec_env, const char *part_name, const ch
     return slot;
 }
 
-int32_t nvs_entry_find_in_handle(wasm_exec_env_t exec_env, int32_t handle, int32_t type)
+int32_t nvsEntryFindInHandle(wasm_exec_env_t exec_env, int32_t handle, int32_t type)
 {
     (void)exec_env;
     nvs_handle_t nvs_handle = get_nvs_handle(handle);
@@ -717,7 +717,7 @@ int32_t nvs_entry_find_in_handle(wasm_exec_env_t exec_env, int32_t handle, int32
     return slot;
 }
 
-int32_t nvs_entry_next(wasm_exec_env_t exec_env, int32_t iterator_handle)
+int32_t nvsEntryNext(wasm_exec_env_t exec_env, int32_t iterator_handle)
 {
     (void)exec_env;
     nvs_iterator_t it = get_iterator(iterator_handle);
@@ -744,7 +744,7 @@ int32_t nvs_entry_next(wasm_exec_env_t exec_env, int32_t iterator_handle)
     return 1;
 }
 
-int32_t nvs_entry_info(wasm_exec_env_t exec_env, int32_t iterator_handle, uint8_t *out_ptr, int32_t out_len)
+int32_t nvsEntryInfo(wasm_exec_env_t exec_env, int32_t iterator_handle, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!validate_out_buffer(out_ptr, out_len, sizeof(WasmNvsEntryInfo), "nvs_entry_info: out invalid")) {
@@ -773,7 +773,7 @@ int32_t nvs_entry_info(wasm_exec_env_t exec_env, int32_t iterator_handle, uint8_
     return (int32_t)sizeof(out);
 }
 
-int32_t nvs_release_iterator(wasm_exec_env_t exec_env, int32_t iterator_handle)
+int32_t nvsReleaseIterator(wasm_exec_env_t exec_env, int32_t iterator_handle)
 {
     (void)exec_env;
     nvs_iterator_t it = get_iterator(iterator_handle);
@@ -787,48 +787,48 @@ int32_t nvs_release_iterator(wasm_exec_env_t exec_env, int32_t iterator_handle)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_nvs_native_symbols[] = {
-    REG_NATIVE_FUNC(nvs_open, "($i)i"),
-    REG_NATIVE_FUNC(nvs_close, "(i)i"),
+    REG_NATIVE_FUNC(nvsOpen, "($i)i"),
+    REG_NATIVE_FUNC(nvsClose, "(i)i"),
 
-    REG_NATIVE_FUNC(nvs_set_i8, "(i$i)i"),
-    REG_NATIVE_FUNC(nvs_set_u8, "(i$i)i"),
-    REG_NATIVE_FUNC(nvs_set_i16, "(i$i)i"),
-    REG_NATIVE_FUNC(nvs_set_u16, "(i$i)i"),
-    REG_NATIVE_FUNC(nvs_set_i32, "(i$i)i"),
-    REG_NATIVE_FUNC(nvs_set_u32, "(i$i)i"),
-    REG_NATIVE_FUNC(nvs_set_i64, "(i$I)i"),
-    REG_NATIVE_FUNC(nvs_set_u64, "(i$I)i"),
-    REG_NATIVE_FUNC(nvs_set_str, "(i$$)i"),
-    REG_NATIVE_FUNC(nvs_set_blob, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsSetI8, "(i$i)i"),
+    REG_NATIVE_FUNC(nvsSetU8, "(i$i)i"),
+    REG_NATIVE_FUNC(nvsSetI16, "(i$i)i"),
+    REG_NATIVE_FUNC(nvsSetU16, "(i$i)i"),
+    REG_NATIVE_FUNC(nvsSetI32, "(i$i)i"),
+    REG_NATIVE_FUNC(nvsSetU32, "(i$i)i"),
+    REG_NATIVE_FUNC(nvsSetI64, "(i$I)i"),
+    REG_NATIVE_FUNC(nvsSetU64, "(i$I)i"),
+    REG_NATIVE_FUNC(nvsSetStr, "(i$$)i"),
+    REG_NATIVE_FUNC(nvsSetBlob, "(i$*i)i"),
 
-    REG_NATIVE_FUNC(nvs_get_i8, "(i$*i)i"),
-    REG_NATIVE_FUNC(nvs_get_u8, "(i$*i)i"),
-    REG_NATIVE_FUNC(nvs_get_i16, "(i$*i)i"),
-    REG_NATIVE_FUNC(nvs_get_u16, "(i$*i)i"),
-    REG_NATIVE_FUNC(nvs_get_i32, "(i$*i)i"),
-    REG_NATIVE_FUNC(nvs_get_u32, "(i$*i)i"),
-    REG_NATIVE_FUNC(nvs_get_i64, "(i$*i)i"),
-    REG_NATIVE_FUNC(nvs_get_u64, "(i$*i)i"),
-    REG_NATIVE_FUNC(nvs_get_str, "(i$*i)i"),
-    REG_NATIVE_FUNC(nvs_get_blob, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsGetI8, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsGetU8, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsGetI16, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsGetU16, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsGetI32, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsGetU32, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsGetI64, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsGetU64, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsGetStr, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsGetBlob, "(i$*i)i"),
 
-    REG_NATIVE_FUNC(nvs_find_key, "(i$*i)i"),
-    REG_NATIVE_FUNC(nvs_erase_key, "(i$)i"),
-    REG_NATIVE_FUNC(nvs_erase_all, "(i)i"),
-    REG_NATIVE_FUNC(nvs_commit, "(i)i"),
+    REG_NATIVE_FUNC(nvsFindKey, "(i$*i)i"),
+    REG_NATIVE_FUNC(nvsEraseKey, "(i$)i"),
+    REG_NATIVE_FUNC(nvsEraseAll, "(i)i"),
+    REG_NATIVE_FUNC(nvsCommit, "(i)i"),
 
-    REG_NATIVE_FUNC(nvs_get_stats, "($*i)i"),
-    REG_NATIVE_FUNC(nvs_get_used_entry_count, "(i*i)i"),
+    REG_NATIVE_FUNC(nvsGetStats, "($*i)i"),
+    REG_NATIVE_FUNC(nvsGetUsedEntryCount, "(i*i)i"),
 
-    REG_NATIVE_FUNC(nvs_entry_find, "($$i)i"),
-    REG_NATIVE_FUNC(nvs_entry_find_in_handle, "(ii)i"),
-    REG_NATIVE_FUNC(nvs_entry_next, "(i)i"),
-    REG_NATIVE_FUNC(nvs_entry_info, "(i*i)i"),
-    REG_NATIVE_FUNC(nvs_release_iterator, "(i)i"),
+    REG_NATIVE_FUNC(nvsEntryFind, "($$i)i"),
+    REG_NATIVE_FUNC(nvsEntryFindInHandle, "(ii)i"),
+    REG_NATIVE_FUNC(nvsEntryNext, "(i)i"),
+    REG_NATIVE_FUNC(nvsEntryInfo, "(i*i)i"),
+    REG_NATIVE_FUNC(nvsReleaseIterator, "(i)i"),
 };
 /* clang-format on */
 

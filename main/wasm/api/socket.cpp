@@ -97,33 +97,33 @@ static int32_t wait_socket_ready(int32_t sockfd, bool want_read, int32_t timeout
     return kWasmErrInternal;
 }
 
-int32_t sock_accept_with_timeout(
+int32_t sockAcceptWithTimeout(
     wasm_exec_env_t exec_env,
     int32_t sockfd,
     uint8_t *out_addr_ptr,
     int32_t out_addr_len,
     int32_t timeout_ms);
 
-int32_t sock_socket(wasm_exec_env_t exec_env, int32_t domain, int32_t type, int32_t protocol)
+int32_t sockSocket(wasm_exec_env_t exec_env, int32_t domain, int32_t type, int32_t protocol)
 {
     (void)exec_env;
 
     int sock = lwip_socket(lwip_family_from_wasm(domain), lwip_type_from_wasm(type), protocol);
     if (sock < 0) {
-        wasm_api_set_last_error(kWasmErrInternal, "sock_socket: lwip_socket failed");
+        wasm_api_set_last_error(kWasmErrInternal, "sockSocket: lwip_socket failed");
         return kWasmErrInternal;
     }
 
     return sock;
 }
 
-int32_t sock_connect(wasm_exec_env_t exec_env, int32_t sockfd, const uint8_t *addr_ptr, int32_t addr_len,
+int32_t sockConnect(wasm_exec_env_t exec_env, int32_t sockfd, const uint8_t *addr_ptr, int32_t addr_len,
     int32_t timeout_ms)
 {
     (void)exec_env;
 
     if (!addr_ptr || addr_len < (int32_t)sizeof(SocketAddr)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "sock_connect: invalid address");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "sockConnect: invalid address");
         return kWasmErrInvalidArgument;
     }
 
@@ -140,19 +140,19 @@ int32_t sock_connect(wasm_exec_env_t exec_env, int32_t sockfd, const uint8_t *ad
 
     int rc = lwip_connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
     if (rc < 0) {
-        wasm_api_set_last_error(kWasmErrInternal, "sock_connect: lwip_connect failed");
+        wasm_api_set_last_error(kWasmErrInternal, "sockConnect: lwip_connect failed");
         return kWasmErrInternal;
     }
 
     return kWasmOk;
 }
 
-int32_t sock_bind(wasm_exec_env_t exec_env, int32_t sockfd, const uint8_t *addr_ptr, int32_t addr_len)
+int32_t sockBind(wasm_exec_env_t exec_env, int32_t sockfd, const uint8_t *addr_ptr, int32_t addr_len)
 {
     (void)exec_env;
 
     if (!addr_ptr || addr_len < (int32_t)sizeof(SocketAddr)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "sock_bind: invalid address");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "sockBind: invalid address");
         return kWasmErrInvalidArgument;
     }
 
@@ -161,32 +161,32 @@ int32_t sock_bind(wasm_exec_env_t exec_env, int32_t sockfd, const uint8_t *addr_
 
     int rc = lwip_bind(sockfd, (struct sockaddr *)&addr, sizeof(addr));
     if (rc < 0) {
-        wasm_api_set_last_error(kWasmErrInternal, "sock_bind: lwip_bind failed");
+        wasm_api_set_last_error(kWasmErrInternal, "sockBind: lwip_bind failed");
         return kWasmErrInternal;
     }
 
     return kWasmOk;
 }
 
-int32_t sock_listen(wasm_exec_env_t exec_env, int32_t sockfd, int32_t backlog)
+int32_t sockListen(wasm_exec_env_t exec_env, int32_t sockfd, int32_t backlog)
 {
     (void)exec_env;
 
     int rc = lwip_listen(sockfd, (backlog > 0) ? backlog : 5);
     if (rc < 0) {
-        wasm_api_set_last_error(kWasmErrInternal, "sock_listen: lwip_listen failed");
+        wasm_api_set_last_error(kWasmErrInternal, "sockListen: lwip_listen failed");
         return kWasmErrInternal;
     }
 
     return kWasmOk;
 }
 
-int32_t sock_accept(wasm_exec_env_t exec_env, int32_t sockfd, uint8_t *out_addr_ptr, int32_t out_addr_len)
+int32_t sockAccept(wasm_exec_env_t exec_env, int32_t sockfd, uint8_t *out_addr_ptr, int32_t out_addr_len)
 {
-    return sock_accept_with_timeout(exec_env, sockfd, out_addr_ptr, out_addr_len, -1);
+    return sockAcceptWithTimeout(exec_env, sockfd, out_addr_ptr, out_addr_len, -1);
 }
 
-int32_t sock_accept_with_timeout(
+int32_t sockAcceptWithTimeout(
     wasm_exec_env_t exec_env,
     int32_t sockfd,
     uint8_t *out_addr_ptr,
@@ -196,12 +196,12 @@ int32_t sock_accept_with_timeout(
     (void)exec_env;
 
     if (!out_addr_ptr && out_addr_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "sock_accept: out_addr_ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "sockAccept: out_addr_ptr is null");
         return kWasmErrInvalidArgument;
     }
 
     if (out_addr_len > 0 && out_addr_len < (int32_t)sizeof(SocketAddr)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "sock_accept: out_addr_len too small");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "sockAccept: out_addr_len too small");
         return kWasmErrInvalidArgument;
     }
 
@@ -217,14 +217,14 @@ int32_t sock_accept_with_timeout(
     if (client_sock < 0) {
         const int err = errno;
         if (is_would_block_errno(err)) {
-            wasm_api_set_last_error(kWasmErrNotReady, "sock_accept: no pending client");
+            wasm_api_set_last_error(kWasmErrNotReady, "sockAccept: no pending client");
             return kWasmErrNotReady;
         }
         if (err == ETIMEDOUT) {
-            wasm_api_set_last_error(kWasmErrNotReady, "sock_accept: timed out");
+            wasm_api_set_last_error(kWasmErrNotReady, "sockAccept: timed out");
             return kWasmErrNotReady;
         }
-        wasm_api_set_last_error(kWasmErrInternal, "sock_accept: lwip_accept failed");
+        wasm_api_set_last_error(kWasmErrInternal, "sockAccept: lwip_accept failed");
         return kWasmErrInternal;
     }
 
@@ -237,12 +237,12 @@ int32_t sock_accept_with_timeout(
     return client_sock;
 }
 
-int32_t sock_send(wasm_exec_env_t exec_env, int32_t sockfd, const uint8_t *buf_ptr, int32_t buf_len, int32_t timeout_ms)
+int32_t sockSend(wasm_exec_env_t exec_env, int32_t sockfd, const uint8_t *buf_ptr, int32_t buf_len, int32_t timeout_ms)
 {
     (void)exec_env;
 
     if (!buf_ptr && buf_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "sock_send: buf_ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "sockSend: buf_ptr is null");
         return kWasmErrInvalidArgument;
     }
 
@@ -255,22 +255,22 @@ int32_t sock_send(wasm_exec_env_t exec_env, int32_t sockfd, const uint8_t *buf_p
     if (rc < 0) {
         const int err = errno;
         if (is_would_block_errno(err) || err == ETIMEDOUT) {
-            wasm_api_set_last_error(kWasmErrNotReady, "sock_send: would block");
+            wasm_api_set_last_error(kWasmErrNotReady, "sockSend: would block");
             return kWasmErrNotReady;
         }
-        wasm_api_set_last_error(kWasmErrInternal, "sock_send: lwip_send failed");
+        wasm_api_set_last_error(kWasmErrInternal, "sockSend: lwip_send failed");
         return kWasmErrInternal;
     }
 
     return rc;
 }
 
-int32_t sock_recv(wasm_exec_env_t exec_env, int32_t sockfd, uint8_t *buf_ptr, int32_t buf_len, int32_t timeout_ms)
+int32_t sockRecv(wasm_exec_env_t exec_env, int32_t sockfd, uint8_t *buf_ptr, int32_t buf_len, int32_t timeout_ms)
 {
     (void)exec_env;
 
     if (!buf_ptr && buf_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "sock_recv: buf_ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "sockRecv: buf_ptr is null");
         return kWasmErrInvalidArgument;
     }
 
@@ -283,21 +283,21 @@ int32_t sock_recv(wasm_exec_env_t exec_env, int32_t sockfd, uint8_t *buf_ptr, in
     if (rc < 0) {
         const int err = errno;
         if (is_would_block_errno(err) || err == ETIMEDOUT) {
-            wasm_api_set_last_error(kWasmErrNotReady, "sock_recv: would block");
+            wasm_api_set_last_error(kWasmErrNotReady, "sockRecv: would block");
             return kWasmErrNotReady;
         }
         if (err == ENOTCONN || err == ECONNRESET) {
-            wasm_api_set_last_error(kWasmErrNotReady, "sock_recv: closed");
+            wasm_api_set_last_error(kWasmErrNotReady, "sockRecv: closed");
             return kWasmErrNotReady;
         }
-        wasm_api_set_last_error(kWasmErrInternal, "sock_recv: lwip_recv failed");
+        wasm_api_set_last_error(kWasmErrInternal, "sockRecv: lwip_recv failed");
         return kWasmErrInternal;
     }
 
     return rc;
 }
 
-int32_t sock_close(wasm_exec_env_t exec_env, int32_t sockfd)
+int32_t sockClose(wasm_exec_env_t exec_env, int32_t sockfd)
 {
     (void)exec_env;
 
@@ -306,19 +306,19 @@ int32_t sock_close(wasm_exec_env_t exec_env, int32_t sockfd)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_socket_native_symbols[] = {
-    REG_NATIVE_FUNC(sock_socket, "(iii)i"),
-    REG_NATIVE_FUNC(sock_connect, "(i*ii)i"),
-    REG_NATIVE_FUNC(sock_bind, "(i*i)i"),
-    REG_NATIVE_FUNC(sock_listen, "(ii)i"),
-    REG_NATIVE_FUNC(sock_accept, "(i*ii)i"),
-    REG_NATIVE_FUNC(sock_accept_with_timeout, "(i*ii)i"),
-    REG_NATIVE_FUNC(sock_send, "(i*ii)i"),
-    REG_NATIVE_FUNC(sock_recv, "(i*ii)i"),
-    REG_NATIVE_FUNC(sock_close, "(i)i"),
+    REG_NATIVE_FUNC(sockSocket, "(iii)i"),
+    REG_NATIVE_FUNC(sockConnect, "(i*ii)i"),
+    REG_NATIVE_FUNC(sockBind, "(i*i)i"),
+    REG_NATIVE_FUNC(sockListen, "(ii)i"),
+    REG_NATIVE_FUNC(sockAccept, "(i*ii)i"),
+    REG_NATIVE_FUNC(sockAcceptWithTimeout, "(i*ii)i"),
+    REG_NATIVE_FUNC(sockSend, "(i*ii)i"),
+    REG_NATIVE_FUNC(sockRecv, "(i*ii)i"),
+    REG_NATIVE_FUNC(sockClose, "(i)i"),
 };
 /* clang-format on */
 

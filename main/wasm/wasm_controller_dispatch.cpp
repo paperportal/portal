@@ -45,7 +45,7 @@ bool WasmController::CallShutdown()
     uint32_t argv[1] = { 0 };
     if (!wasm_runtime_call_wasm(exec_env_, exports_.shutdown, 0, argv)) {
         const char *exception = wasm_runtime_get_exception(inst_);
-        ESP_LOGW(kTag, "pp_shutdown failed: %s", exception ? exception : "(no exception)");
+        ESP_LOGW(kTag, "ppShutdown failed: %s", exception ? exception : "(no exception)");
         return false;
     }
     return true;

@@ -13,36 +13,36 @@
 
 constexpr const char *kTag = "wasm";
 
-void log_info(wasm_exec_env_t exec_env, const char *msg)
+void logInfo(wasm_exec_env_t exec_env, const char *msg)
 {
     (void)exec_env;
     if (!msg) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "log_info: msg is null");
-        ESP_LOGW(kTag, "wasm log_info called with null msg");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "logInfo: msg is null");
+        ESP_LOGW(kTag, "wasm logInfo called with null msg");
         return;
     }
     ESP_LOGI(kTag, "%s", msg);
     devserver::log_pushf("I %s", msg);
 }
 
-void log_warn(wasm_exec_env_t exec_env, const char *msg)
+void logWarn(wasm_exec_env_t exec_env, const char *msg)
 {
     (void)exec_env;
     if (!msg) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "log_warn: msg is null");
-        ESP_LOGW(kTag, "wasm log_warn called with null msg");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "logWarn: msg is null");
+        ESP_LOGW(kTag, "wasm logWarn called with null msg");
         return;
     }
     ESP_LOGW(kTag, "%s", msg);
     devserver::log_pushf("W %s", msg);
 }
 
-void log_error(wasm_exec_env_t exec_env, const char *msg)
+void logError(wasm_exec_env_t exec_env, const char *msg)
 {
     (void)exec_env;
     if (!msg) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "log_error: msg is null");
-        ESP_LOGW(kTag, "wasm log_error called with null msg");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "logError: msg is null");
+        ESP_LOGW(kTag, "wasm logError called with null msg");
         return;
     }
     ESP_LOGE(kTag, "%s", msg);
@@ -50,13 +50,13 @@ void log_error(wasm_exec_env_t exec_env, const char *msg)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, nullptr }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, nullptr }
 
 static NativeSymbol g_log_native_symbols[] = {
-    REG_NATIVE_FUNC(log_info, "($)"),
-    REG_NATIVE_FUNC(log_warn, "($)"),
-    REG_NATIVE_FUNC(log_error, "($)"),
+    REG_NATIVE_FUNC(logInfo, "($)"),
+    REG_NATIVE_FUNC(logWarn, "($)"),
+    REG_NATIVE_FUNC(logError, "($)"),
 };
 /* clang-format on */
 

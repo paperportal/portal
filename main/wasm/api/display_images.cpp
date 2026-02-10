@@ -148,7 +148,7 @@ bool compute_expected_image_len(int32_t w, int32_t h, uint32_t bits, size_t *out
     return true;
 }
 
-int32_t push_image_rgb565(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *ptr,
+int32_t pushImageRgb565(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *ptr,
     size_t len)
 {
     (void)exec_env;
@@ -183,7 +183,7 @@ int32_t push_image_rgb565(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_
     return kWasmOk;
 }
 
-int32_t push_image(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *data_ptr,
+int32_t pushImage(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *data_ptr,
     size_t data_len, int32_t depth_raw, const uint8_t *palette_ptr, size_t palette_len)
 {
     (void)exec_env;
@@ -255,7 +255,7 @@ int32_t push_image(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, in
     return kWasmOk;
 }
 
-int32_t push_image_gray8(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *ptr,
+int32_t pushImageGray8(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *ptr,
     size_t len)
 {
     (void)exec_env;
@@ -288,7 +288,7 @@ int32_t push_image_gray8(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t
     return kWasmOk;
 }
 
-int32_t read_rect_rgb565(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, uint8_t *out,
+int32_t readRectRgb565(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, uint8_t *out,
     size_t out_len)
 {
     (void)exec_env;
@@ -331,7 +331,7 @@ int32_t read_rect_rgb565(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t
     return (int32_t)expected_len;
 }
 
-int32_t draw_png(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y)
+int32_t drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -362,7 +362,7 @@ int32_t draw_png(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32
     return kWasmOk;
 }
 
-int32_t draw_xth_centered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t drawXthCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -389,7 +389,7 @@ int32_t draw_xth_centered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t l
     return kWasmOk;
 }
 
-int32_t draw_xtg_centered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t drawXtgCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -416,7 +416,7 @@ int32_t draw_xtg_centered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t l
     return kWasmOk;
 }
 
-int32_t draw_jpg_fit(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w,
+int32_t drawJpgFit(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w,
     int32_t max_h)
 {
     (void)exec_env;
@@ -448,7 +448,7 @@ int32_t draw_jpg_fit(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, i
     return kWasmOk;
 }
 
-int32_t draw_png_fit(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w,
+int32_t drawPngFit(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w,
     int32_t max_h)
 {
     (void)exec_env;
@@ -480,7 +480,7 @@ int32_t draw_png_fit(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, i
     return kWasmOk;
 }
 
-int32_t draw_jpg_file(wasm_exec_env_t exec_env, const char *path, int32_t x, int32_t y, int32_t max_w, int32_t max_h)
+int32_t drawJpgFile(wasm_exec_env_t exec_env, const char *path, int32_t x, int32_t y, int32_t max_w, int32_t max_h)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -507,7 +507,7 @@ int32_t draw_jpg_file(wasm_exec_env_t exec_env, const char *path, int32_t x, int
     return kWasmOk;
 }
 
-int32_t draw_png_file(wasm_exec_env_t exec_env, const char *path, int32_t x, int32_t y, int32_t max_w, int32_t max_h)
+int32_t drawPngFile(wasm_exec_env_t exec_env, const char *path, int32_t x, int32_t y, int32_t max_w, int32_t max_h)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -535,21 +535,21 @@ int32_t draw_png_file(wasm_exec_env_t exec_env, const char *path, int32_t x, int
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_display_images_native_symbols[] = {
-    REG_NATIVE_FUNC(push_image_rgb565, "(iiii*~)i"),
-    REG_NATIVE_FUNC(push_image, "(iiii*~i*~)i"),
-    REG_NATIVE_FUNC(push_image_gray8, "(iiii*~)i"),
-    REG_NATIVE_FUNC(read_rect_rgb565, "(iiii*~)i"),
-    REG_NATIVE_FUNC(draw_png, "(*~ii)i"),
-    REG_NATIVE_FUNC(draw_xth_centered, "(*~)i"),
-    REG_NATIVE_FUNC(draw_xtg_centered, "(*~)i"),
-    REG_NATIVE_FUNC(draw_jpg_fit, "(*~iiii)i"),
-    REG_NATIVE_FUNC(draw_png_fit, "(*~iiii)i"),
-    REG_NATIVE_FUNC(draw_jpg_file, "(*iiii)i"),
-    REG_NATIVE_FUNC(draw_png_file, "(*iiii)i"),
+    REG_NATIVE_FUNC(pushImageRgb565, "(iiii*~)i"),
+    REG_NATIVE_FUNC(pushImage, "(iiii*~i*~)i"),
+    REG_NATIVE_FUNC(pushImageGray8, "(iiii*~)i"),
+    REG_NATIVE_FUNC(readRectRgb565, "(iiii*~)i"),
+    REG_NATIVE_FUNC(drawPng, "(*~ii)i"),
+    REG_NATIVE_FUNC(drawXthCentered, "(*~)i"),
+    REG_NATIVE_FUNC(drawXtgCentered, "(*~)i"),
+    REG_NATIVE_FUNC(drawJpgFit, "(*~iiii)i"),
+    REG_NATIVE_FUNC(drawPngFit, "(*~iiii)i"),
+    REG_NATIVE_FUNC(drawJpgFile, "(*iiii)i"),
+    REG_NATIVE_FUNC(drawPngFile, "(*iiii)i"),
 };
 /* clang-format on */
 

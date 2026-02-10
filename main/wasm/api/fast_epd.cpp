@@ -47,7 +47,7 @@ uint8_t map_optional_color_to_fastepd(int32_t color)
     return (uint8_t)(color < 0 ? BBEP_TRANSPARENT : color);
 }
 
-int32_t epd_init_panel(wasm_exec_env_t exec_env, int32_t panel_type, int32_t speed)
+int32_t epdInitPanel(wasm_exec_env_t exec_env, int32_t panel_type, int32_t speed)
 {
     (void)exec_env;
     if (panel_type < 0 || panel_type >= BB_PANEL_COUNT) {
@@ -57,7 +57,7 @@ int32_t epd_init_panel(wasm_exec_env_t exec_env, int32_t panel_type, int32_t spe
     return g_fastept.initPanel(panel_type, (uint32_t)speed);
 }
 
-int32_t epd_init_lights(wasm_exec_env_t exec_env, int32_t led1, int32_t led2)
+int32_t epdInitLights(wasm_exec_env_t exec_env, int32_t led1, int32_t led2)
 {
     (void)exec_env;
     if (led1 < 0 || led1 > 255) {
@@ -72,7 +72,7 @@ int32_t epd_init_lights(wasm_exec_env_t exec_env, int32_t led1, int32_t led2)
     return kWasmOk;
 }
 
-int32_t epd_set_brightness(wasm_exec_env_t exec_env, int32_t led1, int32_t led2)
+int32_t epdSetBrightness(wasm_exec_env_t exec_env, int32_t led1, int32_t led2)
 {
     (void)exec_env;
     if (led1 < 0 || led1 > 255) {
@@ -87,7 +87,7 @@ int32_t epd_set_brightness(wasm_exec_env_t exec_env, int32_t led1, int32_t led2)
     return kWasmOk;
 }
 
-int32_t epd_set_mode(wasm_exec_env_t exec_env, int32_t mode)
+int32_t epdSetMode(wasm_exec_env_t exec_env, int32_t mode)
 {
     (void)exec_env;
     if (mode < BB_MODE_NONE || mode > BB_MODE_4BPP) {
@@ -97,7 +97,7 @@ int32_t epd_set_mode(wasm_exec_env_t exec_env, int32_t mode)
     return g_fastept.setMode(mode);
 }
 
-int32_t epd_set_panel_size_preset(wasm_exec_env_t exec_env, int32_t panel_id)
+int32_t epdSetPanelSizePreset(wasm_exec_env_t exec_env, int32_t panel_id)
 {
     (void)exec_env;
     if (panel_id < 0 || panel_id >= BB_PANEL_COUNT) {
@@ -107,7 +107,7 @@ int32_t epd_set_panel_size_preset(wasm_exec_env_t exec_env, int32_t panel_id)
     return g_fastept.setPanelSize(panel_id);
 }
 
-int32_t epd_set_panel_size(wasm_exec_env_t exec_env, int32_t width, int32_t height, int32_t flags, int32_t vcom_mv)
+int32_t epdSetPanelSize(wasm_exec_env_t exec_env, int32_t width, int32_t height, int32_t flags, int32_t vcom_mv)
 {
     (void)exec_env;
     if (width <= 0 || height <= 0) {
@@ -117,7 +117,7 @@ int32_t epd_set_panel_size(wasm_exec_env_t exec_env, int32_t width, int32_t heig
     return g_fastept.setPanelSize(width, height, flags, vcom_mv);
 }
 
-int32_t epd_set_custom_matrix(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t epdSetCustomMatrix(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
     (void)exec_env;
     if (!ptr) {
@@ -154,31 +154,31 @@ int32_t epd_set_custom_matrix(wasm_exec_env_t exec_env, const uint8_t *ptr, size
     return rc;
 }
 
-int32_t epd_get_mode(wasm_exec_env_t exec_env)
+int32_t epdGetMode(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return g_fastept.getMode();
 }
 
-int32_t epd_width(wasm_exec_env_t exec_env)
+int32_t epdWidth(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return g_fastept.width();
 }
 
-int32_t epd_height(wasm_exec_env_t exec_env)
+int32_t epdHeight(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return g_fastept.height();
 }
 
-int32_t epd_get_rotation(wasm_exec_env_t exec_env)
+int32_t epdGetRotation(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return g_fastept.getRotation();
 }
 
-int32_t epd_set_rotation(wasm_exec_env_t exec_env, int32_t rotation)
+int32_t epdSetRotation(wasm_exec_env_t exec_env, int32_t rotation)
 {
     (void)exec_env;
     if (rotation < 0 || rotation > 3) {
@@ -188,7 +188,7 @@ int32_t epd_set_rotation(wasm_exec_env_t exec_env, int32_t rotation)
     return g_fastept.setRotation(rotation);
 }
 
-int32_t epd_fill_screen(wasm_exec_env_t exec_env, int32_t color)
+int32_t epdFillScreen(wasm_exec_env_t exec_env, int32_t color)
 {
     (void)exec_env;
     int32_t rc = validate_grayscale_color(color, "epd_fill_screen: color out of range (0-255)");
@@ -197,7 +197,7 @@ int32_t epd_fill_screen(wasm_exec_env_t exec_env, int32_t color)
     return kWasmOk;
 }
 
-int32_t epd_draw_pixel(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t color)
+int32_t epdDrawPixel(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t color)
 {
     (void)exec_env;
     int32_t rc = validate_grayscale_color(color, "epd_draw_pixel: color out of range (0-255)");
@@ -206,7 +206,7 @@ int32_t epd_draw_pixel(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t c
     return kWasmOk;
 }
 
-int32_t epd_draw_pixel_fast(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t color)
+int32_t epdDrawPixelFast(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t color)
 {
     (void)exec_env;
     int32_t rc = validate_grayscale_color(color, "epd_draw_pixel_fast: color out of range (0-255)");
@@ -221,7 +221,7 @@ int32_t epd_draw_pixel_fast(wasm_exec_env_t exec_env, int32_t x, int32_t y, int3
     return kWasmOk;
 }
 
-int32_t epd_draw_line(wasm_exec_env_t exec_env, int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t color)
+int32_t epdDrawLine(wasm_exec_env_t exec_env, int32_t x1, int32_t y1, int32_t x2, int32_t y2, int32_t color)
 {
     (void)exec_env;
     int32_t rc = validate_grayscale_color(color, "epd_draw_line: color out of range (0-255)");
@@ -230,7 +230,7 @@ int32_t epd_draw_line(wasm_exec_env_t exec_env, int32_t x1, int32_t y1, int32_t 
     return kWasmOk;
 }
 
-int32_t epd_draw_rect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, int32_t color)
+int32_t epdDrawRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, int32_t color)
 {
     (void)exec_env;
     if (w < 0 || h < 0) {
@@ -243,7 +243,7 @@ int32_t epd_draw_rect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w,
     return kWasmOk;
 }
 
-int32_t epd_fill_rect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, int32_t color)
+int32_t epdFillRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, int32_t color)
 {
     (void)exec_env;
     if (w < 0 || h < 0) {
@@ -256,7 +256,7 @@ int32_t epd_fill_rect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w,
     return kWasmOk;
 }
 
-int32_t epd_draw_circle(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t r, int32_t color)
+int32_t epdDrawCircle(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t r, int32_t color)
 {
     (void)exec_env;
     int32_t rc = validate_grayscale_color(color, "epd_draw_circle: color out of range (0-255)");
@@ -265,7 +265,7 @@ int32_t epd_draw_circle(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t 
     return kWasmOk;
 }
 
-int32_t epd_fill_circle(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t r, int32_t color)
+int32_t epdFillCircle(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t r, int32_t color)
 {
     (void)exec_env;
     int32_t rc = validate_grayscale_color(color, "epd_fill_circle: color out of range (0-255)");
@@ -274,7 +274,7 @@ int32_t epd_fill_circle(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t 
     return kWasmOk;
 }
 
-int32_t epd_draw_round_rect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, int32_t color)
+int32_t epdDrawRoundRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, int32_t color)
 {
     (void)exec_env;
     if (w < 0 || h < 0) {
@@ -287,7 +287,7 @@ int32_t epd_draw_round_rect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int3
     return kWasmOk;
 }
 
-int32_t epd_fill_round_rect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, int32_t color)
+int32_t epdFillRoundRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, int32_t r, int32_t color)
 {
     (void)exec_env;
     if (w < 0 || h < 0) {
@@ -300,7 +300,7 @@ int32_t epd_fill_round_rect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int3
     return kWasmOk;
 }
 
-int32_t epd_draw_triangle(
+int32_t epdDrawTriangle(
     wasm_exec_env_t exec_env,
     int32_t x0,
     int32_t y0,
@@ -319,7 +319,7 @@ int32_t epd_draw_triangle(
     return kWasmOk;
 }
 
-int32_t epd_fill_triangle(
+int32_t epdFillTriangle(
     wasm_exec_env_t exec_env,
     int32_t x0,
     int32_t y0,
@@ -340,7 +340,7 @@ int32_t epd_fill_triangle(
     return kWasmOk;
 }
 
-int32_t epd_set_text_color(wasm_exec_env_t exec_env, int32_t fg, int32_t bg)
+int32_t epdSetTextColor(wasm_exec_env_t exec_env, int32_t fg, int32_t bg)
 {
     (void)exec_env;
     int32_t rc = validate_grayscale_color(fg, "epd_set_text_color: fg out of range (0-255)");
@@ -351,14 +351,14 @@ int32_t epd_set_text_color(wasm_exec_env_t exec_env, int32_t fg, int32_t bg)
     return kWasmOk;
 }
 
-int32_t epd_set_cursor(wasm_exec_env_t exec_env, int32_t x, int32_t y)
+int32_t epdSetCursor(wasm_exec_env_t exec_env, int32_t x, int32_t y)
 {
     (void)exec_env;
     g_fastept.setCursor(x, y);
     return kWasmOk;
 }
 
-int32_t epd_set_font(wasm_exec_env_t exec_env, int32_t font)
+int32_t epdSetFont(wasm_exec_env_t exec_env, int32_t font)
 {
     (void)exec_env;
     if (font < 0 || font >= FONT_COUNT) {
@@ -369,14 +369,14 @@ int32_t epd_set_font(wasm_exec_env_t exec_env, int32_t font)
     return kWasmOk;
 }
 
-int32_t epd_set_text_wrap(wasm_exec_env_t exec_env, int32_t wrap)
+int32_t epdSetTextWrap(wasm_exec_env_t exec_env, int32_t wrap)
 {
     (void)exec_env;
     g_fastept.setTextWrap(wrap != 0);
     return kWasmOk;
 }
 
-int32_t epd_draw_string(wasm_exec_env_t exec_env, const char *text, int32_t x, int32_t y)
+int32_t epdDrawString(wasm_exec_env_t exec_env, const char *text, int32_t x, int32_t y)
 {
     (void)exec_env;
     if (!text) {
@@ -388,7 +388,7 @@ int32_t epd_draw_string(wasm_exec_env_t exec_env, const char *text, int32_t x, i
     return kWasmOk;
 }
 
-int32_t epd_get_string_box(wasm_exec_env_t exec_env, const char *text, uint8_t *out, int32_t out_len)
+int32_t epdGetStringBox(wasm_exec_env_t exec_env, const char *text, uint8_t *out, int32_t out_len)
 {
     (void)exec_env;
     if (!text) {
@@ -419,7 +419,7 @@ int32_t epd_get_string_box(wasm_exec_env_t exec_env, const char *text, uint8_t *
     return (int32_t)sizeof(rect);
 }
 
-int32_t epd_full_update(wasm_exec_env_t exec_env, int32_t clear_mode, int32_t keep_on)
+int32_t epdFullUpdate(wasm_exec_env_t exec_env, int32_t clear_mode, int32_t keep_on)
 {
     (void)exec_env;
     if (clear_mode < CLEAR_NONE || clear_mode > CLEAR_BLACK) {
@@ -429,7 +429,7 @@ int32_t epd_full_update(wasm_exec_env_t exec_env, int32_t clear_mode, int32_t ke
     return g_fastept.fullUpdate(clear_mode, keep_on != 0);
 }
 
-int32_t epd_full_update_rect(wasm_exec_env_t exec_env, int32_t clear_mode, int32_t keep_on, int32_t x, int32_t y, int32_t w, int32_t h)
+int32_t epdFullUpdateRect(wasm_exec_env_t exec_env, int32_t clear_mode, int32_t keep_on, int32_t x, int32_t y, int32_t w, int32_t h)
 {
     (void)exec_env;
     if (clear_mode < CLEAR_NONE || clear_mode > CLEAR_BLACK) {
@@ -444,13 +444,13 @@ int32_t epd_full_update_rect(wasm_exec_env_t exec_env, int32_t clear_mode, int32
     return g_fastept.fullUpdate(clear_mode, keep_on != 0, &rect);
 }
 
-int32_t epd_partial_update(wasm_exec_env_t exec_env, int32_t keep_on, int32_t start_row, int32_t end_row)
+int32_t epdPartialUpdate(wasm_exec_env_t exec_env, int32_t keep_on, int32_t start_row, int32_t end_row)
 {
     (void)exec_env;
     return g_fastept.partialUpdate(keep_on != 0, start_row, end_row);
 }
 
-int32_t epd_smooth_update(wasm_exec_env_t exec_env, int32_t keep_on, int32_t color)
+int32_t epdSmoothUpdate(wasm_exec_env_t exec_env, int32_t keep_on, int32_t color)
 {
     (void)exec_env;
     int32_t rc = validate_grayscale_color(color, "epd_smooth_update: color out of range (0-255)");
@@ -458,26 +458,26 @@ int32_t epd_smooth_update(wasm_exec_env_t exec_env, int32_t keep_on, int32_t col
     return g_fastept.smoothUpdate(keep_on != 0, (uint8_t)color);
 }
 
-int32_t epd_clear_white(wasm_exec_env_t exec_env, int32_t keep_on)
+int32_t epdClearWhite(wasm_exec_env_t exec_env, int32_t keep_on)
 {
     (void)exec_env;
     return g_fastept.clearWhite(keep_on != 0);
 }
 
-int32_t epd_clear_black(wasm_exec_env_t exec_env, int32_t keep_on)
+int32_t epdClearBlack(wasm_exec_env_t exec_env, int32_t keep_on)
 {
     (void)exec_env;
     return g_fastept.clearBlack(keep_on != 0);
 }
 
-int32_t epd_backup_plane(wasm_exec_env_t exec_env)
+int32_t epdBackupPlane(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     g_fastept.backupPlane();
     return kWasmOk;
 }
 
-int32_t epd_invert_rect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h)
+int32_t epdInvertRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h)
 {
     (void)exec_env;
     if (w < 0 || h < 0) {
@@ -488,7 +488,7 @@ int32_t epd_invert_rect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t 
     return kWasmOk;
 }
 
-int32_t epd_io_pin_mode(wasm_exec_env_t exec_env, int32_t pin, int32_t mode)
+int32_t epdIoPinMode(wasm_exec_env_t exec_env, int32_t pin, int32_t mode)
 {
     (void)exec_env;
     if (pin < 0 || pin > 255) {
@@ -503,7 +503,7 @@ int32_t epd_io_pin_mode(wasm_exec_env_t exec_env, int32_t pin, int32_t mode)
     return kWasmOk;
 }
 
-int32_t epd_io_write(wasm_exec_env_t exec_env, int32_t pin, int32_t value)
+int32_t epdIoWrite(wasm_exec_env_t exec_env, int32_t pin, int32_t value)
 {
     (void)exec_env;
     if (pin < 0 || pin > 255) {
@@ -518,7 +518,7 @@ int32_t epd_io_write(wasm_exec_env_t exec_env, int32_t pin, int32_t value)
     return kWasmOk;
 }
 
-int32_t epd_io_read(wasm_exec_env_t exec_env, int32_t pin)
+int32_t epdIoRead(wasm_exec_env_t exec_env, int32_t pin)
 {
     (void)exec_env;
     if (pin < 0 || pin > 255) {
@@ -528,13 +528,13 @@ int32_t epd_io_read(wasm_exec_env_t exec_env, int32_t pin)
     return (int32_t)g_fastept.ioRead((uint8_t)pin);
 }
 
-int32_t epd_eink_power(wasm_exec_env_t exec_env, int32_t on)
+int32_t epdEinkPower(wasm_exec_env_t exec_env, int32_t on)
 {
     (void)exec_env;
     return g_fastept.einkPower(on != 0);
 }
 
-int32_t epd_load_bmp(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t fg, int32_t bg)
+int32_t epdLoadBmp(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t fg, int32_t bg)
 {
     (void)exec_env;
     if (!ptr) {
@@ -582,7 +582,7 @@ int32_t epd_load_bmp(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, i
     return g_fastept.loadBMP(ptr, x, y, (int)map_optional_color_to_fastepd(fg), (int)map_optional_color_to_fastepd(bg));
 }
 
-int32_t epd_load_g5_image(
+int32_t epdLoadG5Image(
     wasm_exec_env_t exec_env,
     const uint8_t *ptr,
     size_t len,
@@ -635,7 +635,7 @@ int32_t epd_load_g5_image(
         scale);
 }
 
-int32_t epd_set_passes(wasm_exec_env_t exec_env, int32_t partial_passes, int32_t full_passes)
+int32_t epdSetPasses(wasm_exec_env_t exec_env, int32_t partial_passes, int32_t full_passes)
 {
     (void)exec_env;
     if (partial_passes < 0 || partial_passes > 255) {
@@ -650,7 +650,7 @@ int32_t epd_set_passes(wasm_exec_env_t exec_env, int32_t partial_passes, int32_t
     return kWasmOk;
 }
 
-int32_t epd_deinit(wasm_exec_env_t exec_env)
+int32_t epdDeinit(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     g_fastept.deInit();
@@ -664,56 +664,56 @@ int32_t epd_deinit(wasm_exec_env_t exec_env)
     return kWasmOk;
 }
 
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_fast_epd_native_symbols[] = {
-    REG_NATIVE_FUNC(epd_init_panel, "(ii)i"),
-    REG_NATIVE_FUNC(epd_init_lights, "(ii)i"),
-    REG_NATIVE_FUNC(epd_set_brightness, "(ii)i"),
-    REG_NATIVE_FUNC(epd_set_mode, "(i)i"),
-    REG_NATIVE_FUNC(epd_get_mode, "()i"),
-    REG_NATIVE_FUNC(epd_set_panel_size_preset, "(i)i"),
-    REG_NATIVE_FUNC(epd_set_panel_size, "(iiii)i"),
-    REG_NATIVE_FUNC(epd_set_custom_matrix, "(*~)i"),
-    REG_NATIVE_FUNC(epd_width, "()i"),
-    REG_NATIVE_FUNC(epd_height, "()i"),
-    REG_NATIVE_FUNC(epd_get_rotation, "()i"),
-    REG_NATIVE_FUNC(epd_set_rotation, "(i)i"),
-    REG_NATIVE_FUNC(epd_fill_screen, "(i)i"),
-    REG_NATIVE_FUNC(epd_draw_pixel, "(iii)i"),
-    REG_NATIVE_FUNC(epd_draw_pixel_fast, "(iii)i"),
-    REG_NATIVE_FUNC(epd_draw_line, "(iiiii)i"),
-    REG_NATIVE_FUNC(epd_draw_rect, "(iiiii)i"),
-    REG_NATIVE_FUNC(epd_fill_rect, "(iiiii)i"),
-    REG_NATIVE_FUNC(epd_draw_circle, "(iiii)i"),
-    REG_NATIVE_FUNC(epd_fill_circle, "(iiii)i"),
-    REG_NATIVE_FUNC(epd_draw_round_rect, "(iiiiii)i"),
-    REG_NATIVE_FUNC(epd_fill_round_rect, "(iiiiii)i"),
-    REG_NATIVE_FUNC(epd_draw_triangle, "(iiiiiii)i"),
-    REG_NATIVE_FUNC(epd_fill_triangle, "(iiiiiii)i"),
-    REG_NATIVE_FUNC(epd_set_text_color, "(ii)i"),
-    REG_NATIVE_FUNC(epd_set_cursor, "(ii)i"),
-    REG_NATIVE_FUNC(epd_set_font, "(i)i"),
-    REG_NATIVE_FUNC(epd_set_text_wrap, "(i)i"),
-    REG_NATIVE_FUNC(epd_draw_string, "(*ii)i"),
-    REG_NATIVE_FUNC(epd_get_string_box, "($*i)i"),
-    REG_NATIVE_FUNC(epd_full_update, "(ii)i"),
-    REG_NATIVE_FUNC(epd_full_update_rect, "(iiiiii)i"),
-    REG_NATIVE_FUNC(epd_partial_update, "(iii)i"),
-    REG_NATIVE_FUNC(epd_smooth_update, "(ii)i"),
-    REG_NATIVE_FUNC(epd_clear_white, "(i)i"),
-    REG_NATIVE_FUNC(epd_clear_black, "(i)i"),
-    REG_NATIVE_FUNC(epd_backup_plane, "()i"),
-    REG_NATIVE_FUNC(epd_invert_rect, "(iiii)i"),
-    REG_NATIVE_FUNC(epd_io_pin_mode, "(ii)i"),
-    REG_NATIVE_FUNC(epd_io_write, "(ii)i"),
-    REG_NATIVE_FUNC(epd_io_read, "(i)i"),
-    REG_NATIVE_FUNC(epd_eink_power, "(i)i"),
-    REG_NATIVE_FUNC(epd_load_bmp, "(*~iiii)i"),
-    REG_NATIVE_FUNC(epd_load_g5_image, "(*~iiiif)i"),
-    REG_NATIVE_FUNC(epd_set_passes, "(ii)i"),
-    REG_NATIVE_FUNC(epd_deinit, "()i"),
+    REG_NATIVE_FUNC(epdInitPanel, "(ii)i"),
+    REG_NATIVE_FUNC(epdInitLights, "(ii)i"),
+    REG_NATIVE_FUNC(epdSetBrightness, "(ii)i"),
+    REG_NATIVE_FUNC(epdSetMode, "(i)i"),
+    REG_NATIVE_FUNC(epdGetMode, "()i"),
+    REG_NATIVE_FUNC(epdSetPanelSizePreset, "(i)i"),
+    REG_NATIVE_FUNC(epdSetPanelSize, "(iiii)i"),
+    REG_NATIVE_FUNC(epdSetCustomMatrix, "(*~)i"),
+    REG_NATIVE_FUNC(epdWidth, "()i"),
+    REG_NATIVE_FUNC(epdHeight, "()i"),
+    REG_NATIVE_FUNC(epdGetRotation, "()i"),
+    REG_NATIVE_FUNC(epdSetRotation, "(i)i"),
+    REG_NATIVE_FUNC(epdFillScreen, "(i)i"),
+    REG_NATIVE_FUNC(epdDrawPixel, "(iii)i"),
+    REG_NATIVE_FUNC(epdDrawPixelFast, "(iii)i"),
+    REG_NATIVE_FUNC(epdDrawLine, "(iiiii)i"),
+    REG_NATIVE_FUNC(epdDrawRect, "(iiiii)i"),
+    REG_NATIVE_FUNC(epdFillRect, "(iiiii)i"),
+    REG_NATIVE_FUNC(epdDrawCircle, "(iiii)i"),
+    REG_NATIVE_FUNC(epdFillCircle, "(iiii)i"),
+    REG_NATIVE_FUNC(epdDrawRoundRect, "(iiiiii)i"),
+    REG_NATIVE_FUNC(epdFillRoundRect, "(iiiiii)i"),
+    REG_NATIVE_FUNC(epdDrawTriangle, "(iiiiiii)i"),
+    REG_NATIVE_FUNC(epdFillTriangle, "(iiiiiii)i"),
+    REG_NATIVE_FUNC(epdSetTextColor, "(ii)i"),
+    REG_NATIVE_FUNC(epdSetCursor, "(ii)i"),
+    REG_NATIVE_FUNC(epdSetFont, "(i)i"),
+    REG_NATIVE_FUNC(epdSetTextWrap, "(i)i"),
+    REG_NATIVE_FUNC(epdDrawString, "(*ii)i"),
+    REG_NATIVE_FUNC(epdGetStringBox, "($*i)i"),
+    REG_NATIVE_FUNC(epdFullUpdate, "(ii)i"),
+    REG_NATIVE_FUNC(epdFullUpdateRect, "(iiiiii)i"),
+    REG_NATIVE_FUNC(epdPartialUpdate, "(iii)i"),
+    REG_NATIVE_FUNC(epdSmoothUpdate, "(ii)i"),
+    REG_NATIVE_FUNC(epdClearWhite, "(i)i"),
+    REG_NATIVE_FUNC(epdClearBlack, "(i)i"),
+    REG_NATIVE_FUNC(epdBackupPlane, "()i"),
+    REG_NATIVE_FUNC(epdInvertRect, "(iiii)i"),
+    REG_NATIVE_FUNC(epdIoPinMode, "(ii)i"),
+    REG_NATIVE_FUNC(epdIoWrite, "(ii)i"),
+    REG_NATIVE_FUNC(epdIoRead, "(i)i"),
+    REG_NATIVE_FUNC(epdEinkPower, "(i)i"),
+    REG_NATIVE_FUNC(epdLoadBmp, "(*~iiii)i"),
+    REG_NATIVE_FUNC(epdLoadG5Image, "(*~iiiif)i"),
+    REG_NATIVE_FUNC(epdSetPasses, "(ii)i"),
+    REG_NATIVE_FUNC(epdDeinit, "()i"),
 };
 
 }

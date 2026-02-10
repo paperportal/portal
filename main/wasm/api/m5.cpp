@@ -38,12 +38,12 @@ int32_t begin(wasm_exec_env_t exec_env)
 // Args:
 //   ms: Delay duration in milliseconds. Must be non-negative.
 // Returns kWasmOk on success, or kWasmErrInvalidArgument if ms is negative.
-int32_t delay_ms(wasm_exec_env_t exec_env, int32_t ms)
+int32_t delayMs(wasm_exec_env_t exec_env, int32_t ms)
 {
     (void)exec_env;
     if (ms < 0) {
-        ESP_LOGE(kTag, "delay_ms: invalid delay ms=%" PRId32 ", must be non-negative", ms);
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "delay_ms: ms < 0");
+        ESP_LOGE(kTag, "delayMs: invalid delay ms=%" PRId32 ", must be non-negative", ms);
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "delayMs: ms < 0");
         return kWasmErrInvalidArgument;
     }
     if (ms == 0) {
@@ -78,12 +78,12 @@ int32_t board(wasm_exec_env_t exec_env)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_m5_native_symbols[] = {
     REG_NATIVE_FUNC(begin, "()i"),
-    REG_NATIVE_FUNC(delay_ms, "(i)i"),
+    REG_NATIVE_FUNC(delayMs, "(i)i"),
     REG_NATIVE_FUNC(millis, "()i"),
     REG_NATIVE_FUNC(micros, "()I"),
     REG_NATIVE_FUNC(board, "()i"),

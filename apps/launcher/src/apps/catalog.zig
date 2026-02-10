@@ -183,7 +183,7 @@ fn writeAll(file: *fs.File, bytes: []const u8) !void {
 }
 
 fn lastHostErrorMessage(buf: []u8) []const u8 {
-    return core.last_error_message(buf) catch "";
+    return core.lastErrorMessage(buf) catch "";
 }
 
 fn sortAppsByNameThenId(apps: []AppEntry) void {

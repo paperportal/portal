@@ -496,7 +496,7 @@ bool imu_update_internal(void)
     }
 }
 
-int32_t imu_begin(wasm_exec_env_t exec_env)
+int32_t imuBegin(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (g_imu.type != ImuType::None) {
@@ -505,8 +505,8 @@ int32_t imu_begin(wasm_exec_env_t exec_env)
 
     esp_err_t err = ensure_i2c_initialized();
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "imu_begin: i2c init failed: %s", esp_err_to_name(err));
-        wasm_api_set_last_error(kWasmErrInternal, "imu_begin: i2c init failed");
+        ESP_LOGE(kTag, "imuBegin: i2c init failed: %s", esp_err_to_name(err));
+        wasm_api_set_last_error(kWasmErrInternal, "imuBegin: i2c init failed");
         return kWasmErrInternal;
     }
 
@@ -534,40 +534,40 @@ int32_t imu_begin(wasm_exec_env_t exec_env)
         return kWasmOk;
     }
 
-    wasm_api_set_last_error(kWasmErrNotFound, "imu_begin: no supported IMU detected");
+    wasm_api_set_last_error(kWasmErrNotFound, "imuBegin: no supported IMU detected");
     return kWasmErrNotFound;
 }
 
-int32_t imu_is_enabled(wasm_exec_env_t exec_env)
+int32_t imuIsEnabled(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return (int32_t)(g_imu.type != ImuType::None);
 }
 
-int32_t imu_update(wasm_exec_env_t exec_env)
+int32_t imuUpdate(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (g_imu.type == ImuType::None) {
-        wasm_api_set_last_error(kWasmErrNotReady, "imu_update: IMU not enabled");
+        wasm_api_set_last_error(kWasmErrNotReady, "imuUpdate: IMU not enabled");
         return kWasmErrNotReady;
     }
     bool ok = imu_update_internal();
     return ok ? (kSensorMaskAccel | kSensorMaskGyro) : 0;
 }
 
-int32_t imu_get_accel(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
+int32_t imuGetAccel(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
 {
     (void)exec_env;
     if (!out && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "imu_get_accel: out is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "imuGetAccel: out is null");
         return kWasmErrInvalidArgument;
     }
     if (out_len < sizeof(Vec3)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "imu_get_accel: out_len too small");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "imuGetAccel: out_len too small");
         return kWasmErrInvalidArgument;
     }
     if (g_imu.type == ImuType::None) {
-        wasm_api_set_last_error(kWasmErrNotReady, "imu_get_accel: IMU not enabled");
+        wasm_api_set_last_error(kWasmErrNotReady, "imuGetAccel: IMU not enabled");
         return kWasmErrNotReady;
     }
 
@@ -585,19 +585,19 @@ int32_t imu_get_accel(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
     return (int32_t)sizeof(v);
 }
 
-int32_t imu_get_gyro(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
+int32_t imuGetGyro(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
 {
     (void)exec_env;
     if (!out && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "imu_get_gyro: out is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "imuGetGyro: out is null");
         return kWasmErrInvalidArgument;
     }
     if (out_len < sizeof(Vec3)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "imu_get_gyro: out_len too small");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "imuGetGyro: out_len too small");
         return kWasmErrInvalidArgument;
     }
     if (g_imu.type == ImuType::None) {
-        wasm_api_set_last_error(kWasmErrNotReady, "imu_get_gyro: IMU not enabled");
+        wasm_api_set_last_error(kWasmErrNotReady, "imuGetGyro: IMU not enabled");
         return kWasmErrNotReady;
     }
 
@@ -615,19 +615,19 @@ int32_t imu_get_gyro(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
     return (int32_t)sizeof(v);
 }
 
-int32_t imu_get_temp(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
+int32_t imuGetTemp(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
 {
     (void)exec_env;
     if (!out && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "imu_get_temp: out is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "imuGetTemp: out is null");
         return kWasmErrInvalidArgument;
     }
     if (out_len < sizeof(Temp)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "imu_get_temp: out_len too small");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "imuGetTemp: out_len too small");
         return kWasmErrInvalidArgument;
     }
     if (g_imu.type == ImuType::None) {
-        wasm_api_set_last_error(kWasmErrNotReady, "imu_get_temp: IMU not enabled");
+        wasm_api_set_last_error(kWasmErrNotReady, "imuGetTemp: IMU not enabled");
         return kWasmErrNotReady;
     }
 
@@ -642,16 +642,16 @@ int32_t imu_get_temp(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_imu_native_symbols[] = {
-    REG_NATIVE_FUNC(imu_begin, "()i"),
-    REG_NATIVE_FUNC(imu_is_enabled, "()i"),
-    REG_NATIVE_FUNC(imu_update, "()i"),
-    REG_NATIVE_FUNC(imu_get_accel, "(*~)i"),
-    REG_NATIVE_FUNC(imu_get_gyro, "(*~)i"),
-    REG_NATIVE_FUNC(imu_get_temp, "(*~)i"),
+    REG_NATIVE_FUNC(imuBegin, "()i"),
+    REG_NATIVE_FUNC(imuIsEnabled, "()i"),
+    REG_NATIVE_FUNC(imuUpdate, "()i"),
+    REG_NATIVE_FUNC(imuGetAccel, "(*~)i"),
+    REG_NATIVE_FUNC(imuGetGyro, "(*~)i"),
+    REG_NATIVE_FUNC(imuGetTemp, "(*~)i"),
 };
 /* clang-format on */
 

@@ -115,7 +115,7 @@ Runner must reject install/update if any of these checks fail:
 Runner must compute SHA-256 over the exact (uncompressed) `app.wasm` bytes and compare to
 `manifest.json.checksum`. On mismatch, reject install/update.
 
-Runner should also validate the module’s exported host contract at load time (e.g. via `portal_contract_version()`).
+Runner should also validate the module’s exported host contract at load time (e.g. via `portalContractVersion()`).
 
 ### Example
 

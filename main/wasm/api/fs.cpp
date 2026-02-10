@@ -201,13 +201,13 @@ int32_t translate_open_flags(int32_t guest_flags)
     return mode;
 }
 
-int32_t fs_is_mounted(wasm_exec_env_t exec_env)
+int32_t fsIsMounted(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return sd_card_is_mounted() ? 1 : 0;
 }
 
-int32_t fs_mount(wasm_exec_env_t exec_env)
+int32_t fsMount(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (sd_card_is_mounted()) {
@@ -220,14 +220,14 @@ int32_t fs_mount(wasm_exec_env_t exec_env)
     return kWasmOk;
 }
 
-int32_t fs_unmount(wasm_exec_env_t exec_env)
+int32_t fsUnmount(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     sd_card_unmount();
     return kWasmOk;
 }
 
-int32_t fs_open(wasm_exec_env_t exec_env, const char *path, int32_t flags)
+int32_t fsOpen(wasm_exec_env_t exec_env, const char *path, int32_t flags)
 {
     (void)exec_env;
     if (!sd_card_is_mounted()) {
@@ -267,13 +267,13 @@ int32_t fs_open(wasm_exec_env_t exec_env, const char *path, int32_t flags)
     return (int32_t)handle;
 }
 
-int32_t fs_close(wasm_exec_env_t exec_env, int32_t handle)
+int32_t fsClose(wasm_exec_env_t exec_env, int32_t handle)
 {
     (void)exec_env;
     return close_file_handle(handle);
 }
 
-int32_t fs_read(wasm_exec_env_t exec_env, int32_t handle, uint8_t *out_ptr, int32_t out_len)
+int32_t fsRead(wasm_exec_env_t exec_env, int32_t handle, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!out_ptr && out_len != 0) {
@@ -299,7 +299,7 @@ int32_t fs_read(wasm_exec_env_t exec_env, int32_t handle, uint8_t *out_ptr, int3
     return (int32_t)n;
 }
 
-int32_t fs_write(wasm_exec_env_t exec_env, int32_t handle, const uint8_t *ptr, int32_t len)
+int32_t fsWrite(wasm_exec_env_t exec_env, int32_t handle, const uint8_t *ptr, int32_t len)
 {
     (void)exec_env;
     if (!ptr && len != 0) {
@@ -325,7 +325,7 @@ int32_t fs_write(wasm_exec_env_t exec_env, int32_t handle, const uint8_t *ptr, i
     return (int32_t)n;
 }
 
-int32_t fs_seek(wasm_exec_env_t exec_env, int32_t handle, int32_t offset, int32_t whence)
+int32_t fsSeek(wasm_exec_env_t exec_env, int32_t handle, int32_t offset, int32_t whence)
 {
     (void)exec_env;
     const int fd = get_file_fd(handle);
@@ -351,7 +351,7 @@ int32_t fs_seek(wasm_exec_env_t exec_env, int32_t handle, int32_t offset, int32_
     return (int32_t)pos;
 }
 
-int32_t fs_stat(wasm_exec_env_t exec_env, const char *path, uint8_t *out_ptr, int32_t out_len)
+int32_t fsStat(wasm_exec_env_t exec_env, const char *path, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!sd_card_is_mounted()) {
@@ -401,7 +401,7 @@ int32_t fs_stat(wasm_exec_env_t exec_env, const char *path, uint8_t *out_ptr, in
     return 24;
 }
 
-int32_t fs_remove(wasm_exec_env_t exec_env, const char *path)
+int32_t fsRemove(wasm_exec_env_t exec_env, const char *path)
 {
     (void)exec_env;
     if (!sd_card_is_mounted()) {
@@ -427,7 +427,7 @@ int32_t fs_remove(wasm_exec_env_t exec_env, const char *path)
     return kWasmOk;
 }
 
-int32_t fs_rename(wasm_exec_env_t exec_env, const char *from, const char *to)
+int32_t fsRename(wasm_exec_env_t exec_env, const char *from, const char *to)
 {
     (void)exec_env;
     if (!sd_card_is_mounted()) {
@@ -458,7 +458,7 @@ int32_t fs_rename(wasm_exec_env_t exec_env, const char *from, const char *to)
     return kWasmOk;
 }
 
-int32_t fs_mkdir(wasm_exec_env_t exec_env, const char *path)
+int32_t fsMkdir(wasm_exec_env_t exec_env, const char *path)
 {
     (void)exec_env;
     if (!sd_card_is_mounted()) {
@@ -484,7 +484,7 @@ int32_t fs_mkdir(wasm_exec_env_t exec_env, const char *path)
     return kWasmOk;
 }
 
-int32_t fs_rmdir(wasm_exec_env_t exec_env, const char *path)
+int32_t fsRmdir(wasm_exec_env_t exec_env, const char *path)
 {
     (void)exec_env;
     if (!sd_card_is_mounted()) {
@@ -511,7 +511,7 @@ int32_t fs_rmdir(wasm_exec_env_t exec_env, const char *path)
     return kWasmOk;
 }
 
-int32_t fs_opendir(wasm_exec_env_t exec_env, const char *path)
+int32_t fsOpendir(wasm_exec_env_t exec_env, const char *path)
 {
     (void)exec_env;
     if (!sd_card_is_mounted()) {
@@ -546,7 +546,7 @@ int32_t fs_opendir(wasm_exec_env_t exec_env, const char *path)
     return (int32_t)handle;
 }
 
-int32_t fs_readdir(wasm_exec_env_t exec_env, int32_t handle, uint8_t *out_ptr, int32_t out_len)
+int32_t fsReaddir(wasm_exec_env_t exec_env, int32_t handle, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!out_ptr && out_len != 0) {
@@ -582,13 +582,13 @@ int32_t fs_readdir(wasm_exec_env_t exec_env, int32_t handle, uint8_t *out_ptr, i
     return (int32_t)to_copy;
 }
 
-int32_t fs_closedir(wasm_exec_env_t exec_env, int32_t handle)
+int32_t fsClosedir(wasm_exec_env_t exec_env, int32_t handle)
 {
     (void)exec_env;
     return close_dir_handle(handle);
 }
 
-int32_t fs_card_info(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len)
+int32_t fsCardInfo(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!out_ptr && out_len != 0) {
@@ -629,30 +629,30 @@ int32_t fs_card_info(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_fs_native_symbols[] = {
-    REG_NATIVE_FUNC(fs_is_mounted, "()i"),
-    REG_NATIVE_FUNC(fs_mount, "()i"),
-    REG_NATIVE_FUNC(fs_unmount, "()i"),
+    REG_NATIVE_FUNC(fsIsMounted, "()i"),
+    REG_NATIVE_FUNC(fsMount, "()i"),
+    REG_NATIVE_FUNC(fsUnmount, "()i"),
 
-    REG_NATIVE_FUNC(fs_open, "($i)i"),
-    REG_NATIVE_FUNC(fs_close, "(i)i"),
-    REG_NATIVE_FUNC(fs_read, "(i*i)i"),
-    REG_NATIVE_FUNC(fs_write, "(i*i)i"),
-    REG_NATIVE_FUNC(fs_seek, "(iii)i"),
+    REG_NATIVE_FUNC(fsOpen, "($i)i"),
+    REG_NATIVE_FUNC(fsClose, "(i)i"),
+    REG_NATIVE_FUNC(fsRead, "(i*i)i"),
+    REG_NATIVE_FUNC(fsWrite, "(i*i)i"),
+    REG_NATIVE_FUNC(fsSeek, "(iii)i"),
 
-    REG_NATIVE_FUNC(fs_stat, "($*i)i"),
-    REG_NATIVE_FUNC(fs_remove, "($)i"),
-    REG_NATIVE_FUNC(fs_rename, "($$)i"),
-    REG_NATIVE_FUNC(fs_mkdir, "($)i"),
-    REG_NATIVE_FUNC(fs_rmdir, "($)i"),
+    REG_NATIVE_FUNC(fsStat, "($*i)i"),
+    REG_NATIVE_FUNC(fsRemove, "($)i"),
+    REG_NATIVE_FUNC(fsRename, "($$)i"),
+    REG_NATIVE_FUNC(fsMkdir, "($)i"),
+    REG_NATIVE_FUNC(fsRmdir, "($)i"),
 
-    REG_NATIVE_FUNC(fs_opendir, "($)i"),
-    REG_NATIVE_FUNC(fs_readdir, "(i*i)i"),
-    REG_NATIVE_FUNC(fs_closedir, "(i)i"),
-    REG_NATIVE_FUNC(fs_card_info, "(*i)i"),
+    REG_NATIVE_FUNC(fsOpendir, "($)i"),
+    REG_NATIVE_FUNC(fsReaddir, "(i*i)i"),
+    REG_NATIVE_FUNC(fsClosedir, "(i)i"),
+    REG_NATIVE_FUNC(fsCardInfo, "(*i)i"),
 };
 /* clang-format on */
 

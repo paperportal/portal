@@ -165,7 +165,7 @@ int weekday_from_date(int32_t year, int32_t month, int32_t day)
     return (year + (year >> 2) - ydiv100 + (ydiv100 >> 2) + (13 * month + 8) / 5 + day) % 7;
 }
 
-int32_t rtc_begin(wasm_exec_env_t exec_env)
+int32_t rtcBegin(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
 
@@ -175,8 +175,8 @@ int32_t rtc_begin(wasm_exec_env_t exec_env)
 
     esp_err_t err = ensure_i2c_initialized();
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "rtc_begin: i2c init failed: %s", esp_err_to_name(err));
-        wasm_api_set_last_error(kWasmErrInternal, "rtc_begin: i2c init failed");
+        ESP_LOGE(kTag, "rtcBegin: i2c init failed: %s", esp_err_to_name(err));
+        wasm_api_set_last_error(kWasmErrInternal, "rtcBegin: i2c init failed");
         return kWasmErrInternal;
     }
 
@@ -184,12 +184,12 @@ int32_t rtc_begin(wasm_exec_env_t exec_env)
     // logs just because the demo tries to init it.
     err = paper_i2c_probe(kRtcI2cAddr, kRtcI2cTimeoutMs);
     if (err == ESP_ERR_NOT_FOUND) {
-        wasm_api_set_last_error(kWasmErrNotFound, "rtc_begin: RTC not detected");
+        wasm_api_set_last_error(kWasmErrNotFound, "rtcBegin: RTC not detected");
         return kWasmErrNotFound;
     }
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "rtc_begin: probe failed: %s", esp_err_to_name(err));
-        wasm_api_set_last_error(kWasmErrInternal, "rtc_begin: probe failed");
+        ESP_LOGE(kTag, "rtcBegin: probe failed: %s", esp_err_to_name(err));
+        wasm_api_set_last_error(kWasmErrInternal, "rtcBegin: probe failed");
         return kWasmErrInternal;
     }
 
@@ -204,8 +204,8 @@ int32_t rtc_begin(wasm_exec_env_t exec_env)
         err = write_reg8(0x0E, 0x03);
     }
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "rtc_begin: RTC init failed: %s", esp_err_to_name(err));
-        wasm_api_set_last_error(kWasmErrInternal, "rtc_begin: RTC init failed");
+        ESP_LOGE(kTag, "rtcBegin: RTC init failed: %s", esp_err_to_name(err));
+        wasm_api_set_last_error(kWasmErrInternal, "rtcBegin: RTC init failed");
         g_rtc_enabled = false;
         return kWasmErrInternal;
     }
@@ -220,34 +220,34 @@ int32_t rtc_begin(wasm_exec_env_t exec_env)
     return kWasmOk;
 }
 
-int32_t rtc_is_enabled(wasm_exec_env_t exec_env)
+int32_t rtcIsEnabled(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return (int32_t)g_rtc_enabled;
 }
 
-int32_t rtc_get_datetime(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
+int32_t rtcGetDatetime(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
 {
     (void)exec_env;
     if (!out && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtc_get_datetime: out is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtcGetDatetime: out is null");
         return kWasmErrInvalidArgument;
     }
     if (out_len < sizeof(RtcDateTime)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtc_get_datetime: out_len too small");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtcGetDatetime: out_len too small");
         return kWasmErrInvalidArgument;
     }
 
     if (!g_rtc_enabled) {
-        wasm_api_set_last_error(kWasmErrNotReady, "rtc_get_datetime: RTC not enabled");
+        wasm_api_set_last_error(kWasmErrNotReady, "rtcGetDatetime: RTC not enabled");
         return kWasmErrNotReady;
     }
 
     uint8_t buf[7] = {0};
     esp_err_t err = read_reg(0x02, buf, sizeof(buf));
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "rtc_get_datetime: read failed: %s", esp_err_to_name(err));
-        wasm_api_set_last_error(kWasmErrInternal, "rtc_get_datetime: read failed");
+        ESP_LOGE(kTag, "rtcGetDatetime: read failed: %s", esp_err_to_name(err));
+        wasm_api_set_last_error(kWasmErrInternal, "rtcGetDatetime: read failed");
         return kWasmErrInternal;
     }
 
@@ -274,20 +274,20 @@ int32_t rtc_get_datetime(wasm_exec_env_t exec_env, uint8_t *out, size_t out_len)
     return (int32_t)sizeof(dt);
 }
 
-int32_t rtc_set_datetime(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t rtcSetDatetime(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
     (void)exec_env;
     if (!ptr) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtc_set_datetime: ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtcSetDatetime: ptr is null");
         return kWasmErrInvalidArgument;
     }
     if (len < sizeof(RtcDateTime)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtc_set_datetime: len too small");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtcSetDatetime: len too small");
         return kWasmErrInvalidArgument;
     }
 
     if (!g_rtc_enabled) {
-        wasm_api_set_last_error(kWasmErrNotReady, "rtc_set_datetime: RTC not enabled");
+        wasm_api_set_last_error(kWasmErrNotReady, "rtcSetDatetime: RTC not enabled");
         return kWasmErrNotReady;
     }
 
@@ -309,30 +309,30 @@ int32_t rtc_set_datetime(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t le
 
     esp_err_t err = write_reg(0x02, buf, sizeof(buf));
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "rtc_set_datetime: write failed: %s", esp_err_to_name(err));
-        wasm_api_set_last_error(kWasmErrInternal, "rtc_set_datetime: write failed");
+        ESP_LOGE(kTag, "rtcSetDatetime: write failed: %s", esp_err_to_name(err));
+        wasm_api_set_last_error(kWasmErrInternal, "rtcSetDatetime: write failed");
         return kWasmErrInternal;
     }
     return kWasmOk;
 }
 
-int32_t rtc_set_timer_irq(wasm_exec_env_t exec_env, int32_t ms)
+int32_t rtcSetTimerIrq(wasm_exec_env_t exec_env, int32_t ms)
 {
     (void)exec_env;
     if (!g_rtc_enabled) {
-        wasm_api_set_last_error(kWasmErrNotReady, "rtc_set_timer_irq: RTC not enabled");
+        wasm_api_set_last_error(kWasmErrNotReady, "rtcSetTimerIrq: RTC not enabled");
         return kWasmErrNotReady;
     }
     if (ms < 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtc_set_timer_irq: ms < 0");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtcSetTimerIrq: ms < 0");
         return kWasmErrInvalidArgument;
     }
 
     uint8_t reg_value = 0;
     esp_err_t err = read_reg8(0x01, &reg_value);
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "rtc_set_timer_irq: read reg failed: %s", esp_err_to_name(err));
-        wasm_api_set_last_error(kWasmErrInternal, "rtc_set_timer_irq: read failed");
+        ESP_LOGE(kTag, "rtcSetTimerIrq: read reg failed: %s", esp_err_to_name(err));
+        wasm_api_set_last_error(kWasmErrInternal, "rtcSetTimerIrq: read failed");
         return kWasmErrInternal;
     }
     reg_value = (uint8_t)(reg_value & ~0x0C); // clear flag bits
@@ -345,8 +345,8 @@ int32_t rtc_set_timer_irq(wasm_exec_env_t exec_env, int32_t ms)
             err = write_reg8(0x0E, 0x03);
         }
         if (err != ESP_OK) {
-            ESP_LOGE(kTag, "rtc_set_timer_irq: disable failed: %s", esp_err_to_name(err));
-            wasm_api_set_last_error(kWasmErrInternal, "rtc_set_timer_irq: disable failed");
+            ESP_LOGE(kTag, "rtcSetTimerIrq: disable failed: %s", esp_err_to_name(err));
+            wasm_api_set_last_error(kWasmErrInternal, "rtcSetTimerIrq: disable failed");
             return kWasmErrInternal;
         }
         return 0;
@@ -375,19 +375,19 @@ int32_t rtc_set_timer_irq(wasm_exec_env_t exec_env, int32_t ms)
         err = write_reg8(0x01, (uint8_t)((reg_value | 0x01) & ~0x80));
     }
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "rtc_set_timer_irq: set failed: %s", esp_err_to_name(err));
-        wasm_api_set_last_error(kWasmErrInternal, "rtc_set_timer_irq: set failed");
+        ESP_LOGE(kTag, "rtcSetTimerIrq: set failed: %s", esp_err_to_name(err));
+        wasm_api_set_last_error(kWasmErrInternal, "rtcSetTimerIrq: set failed");
         return kWasmErrInternal;
     }
 
     return (int32_t)(after_seconds * div * 1000);
 }
 
-int32_t rtc_clear_irq(wasm_exec_env_t exec_env)
+int32_t rtcClearIrq(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (!g_rtc_enabled) {
-        wasm_api_set_last_error(kWasmErrNotReady, "rtc_clear_irq: RTC not enabled");
+        wasm_api_set_last_error(kWasmErrNotReady, "rtcClearIrq: RTC not enabled");
         return kWasmErrNotReady;
     }
 
@@ -398,29 +398,29 @@ int32_t rtc_clear_irq(wasm_exec_env_t exec_env)
         err = write_reg8(0x01, reg_value);
     }
     if (err != ESP_OK) {
-        ESP_LOGE(kTag, "rtc_clear_irq: failed: %s", esp_err_to_name(err));
-        wasm_api_set_last_error(kWasmErrInternal, "rtc_clear_irq: failed");
+        ESP_LOGE(kTag, "rtcClearIrq: failed: %s", esp_err_to_name(err));
+        wasm_api_set_last_error(kWasmErrInternal, "rtcClearIrq: failed");
         return kWasmErrInternal;
     }
     return kWasmOk;
 }
 
-int32_t rtc_set_alarm_irq(wasm_exec_env_t exec_env, int32_t seconds)
+int32_t rtcSetAlarmIrq(wasm_exec_env_t exec_env, int32_t seconds)
 {
     (void)exec_env;
     if (!g_rtc_enabled) {
-        wasm_api_set_last_error(kWasmErrNotReady, "rtc_set_alarm_irq: RTC not enabled");
+        wasm_api_set_last_error(kWasmErrNotReady, "rtcSetAlarmIrq: RTC not enabled");
         return kWasmErrNotReady;
     }
     if (seconds < 0 || seconds > 86400) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtc_set_alarm_irq: seconds out of range (0..86400)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "rtcSetAlarmIrq: seconds out of range (0..86400)");
         return kWasmErrInvalidArgument;
     }
 
     // In M5Unified, setAlarmIRQ(int afterSeconds) is a deprecated wrapper that
     // delegates to setTimerIRQ(afterSeconds * 1000). Keep that behavior for
     // wasm apps that expect a relative wake timer.
-    int32_t res = rtc_set_timer_irq(exec_env, seconds * 1000);
+    int32_t res = rtcSetTimerIrq(exec_env, seconds * 1000);
     if (res < 0) {
         return res;
     }
@@ -428,17 +428,17 @@ int32_t rtc_set_alarm_irq(wasm_exec_env_t exec_env, int32_t seconds)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_rtc_native_symbols[] = {
-    REG_NATIVE_FUNC(rtc_begin, "()i"),
-    REG_NATIVE_FUNC(rtc_is_enabled, "()i"),
-    REG_NATIVE_FUNC(rtc_get_datetime, "(*~)i"),
-    REG_NATIVE_FUNC(rtc_set_datetime, "(*~)i"),
-    REG_NATIVE_FUNC(rtc_set_timer_irq, "(i)i"),
-    REG_NATIVE_FUNC(rtc_clear_irq, "()i"),
-    REG_NATIVE_FUNC(rtc_set_alarm_irq, "(i)i"),
+    REG_NATIVE_FUNC(rtcBegin, "()i"),
+    REG_NATIVE_FUNC(rtcIsEnabled, "()i"),
+    REG_NATIVE_FUNC(rtcGetDatetime, "(*~)i"),
+    REG_NATIVE_FUNC(rtcSetDatetime, "(*~)i"),
+    REG_NATIVE_FUNC(rtcSetTimerIrq, "(i)i"),
+    REG_NATIVE_FUNC(rtcClearIrq, "()i"),
+    REG_NATIVE_FUNC(rtcSetAlarmIrq, "(i)i"),
 };
 /* clang-format on */
 

@@ -10,14 +10,14 @@ namespace pp_contract {
 constexpr int32_t kContractVersion = 1;
 
 // Exported handler names (required).
-constexpr const char *kExportContractVersion = "portal_contract_version";
-constexpr const char *kExportInit = "pp_init";
-constexpr const char *kExportTick = "pp_tick";
-constexpr const char *kExportAlloc = "portal_alloc";
-constexpr const char *kExportFree = "portal_free";
+constexpr const char *kExportContractVersion = "portalContractVersion";
+constexpr const char *kExportInit = "ppInit";
+constexpr const char *kExportTick = "ppTick";
+constexpr const char *kExportAlloc = "portalAlloc";
+constexpr const char *kExportFree = "portalFree";
 
-// pp_init signature:
-//   int32_t pp_init(int32_t api_version, int32_t screen_w, int32_t screen_h,
+// ppInit signature:
+//   int32_t ppInit(int32_t api_version, int32_t screen_w, int32_t screen_h,
 //                  int32_t args_ptr, int32_t args_len)
 // Returns 0 on success, negative on failure.
 // - args_ptr: pointer to JSON string in wasm memory (null if no args)
@@ -25,12 +25,12 @@ constexpr const char *kExportFree = "portal_free";
 // The JSON string is NOT null-terminated; use args_len for bounds checking.
 
 // Exported handler names (optional).
-constexpr const char *kExportOnGesture = "pp_on_gesture";
-constexpr const char *kExportOnHttpRequest = "pp_on_http_request";
-constexpr const char *kExportOnWifiEvent = "pp_on_wifi_event";
-constexpr const char *kExportShutdown = "pp_shutdown";
+constexpr const char *kExportOnGesture = "ppOnGesture";
+constexpr const char *kExportOnHttpRequest = "ppOnHttpRequest";
+constexpr const char *kExportOnWifiEvent = "ppOnWifiEvent";
+constexpr const char *kExportShutdown = "ppShutdown";
 
-// Gesture kinds (pp_on_gesture kind argument).
+// Gesture kinds (ppOnGesture kind argument).
 enum PpGestureKind : int32_t {
     kGestureTap = 1,
     kGestureLongPress = 2,
@@ -47,13 +47,13 @@ constexpr int32_t kLongPressMinDurationMs = 500;
 constexpr int32_t kFlickMinDistancePx = 24;
 constexpr int32_t kFlickMaxDurationMs = 250;
 
-// HTTP flags for pp_on_http_request.
+// HTTP flags for ppOnHttpRequest.
 constexpr int32_t kHttpFlagBodyTruncated = 1 << 0;
 
-// Maximum request body bytes to copy into wasm memory for pp_on_http_request.
+// Maximum request body bytes to copy into wasm memory for ppOnHttpRequest.
 constexpr int32_t kHttpMaxBodyBytes = 8 * 1024;
 
-// Wi-Fi event kinds (pp_on_wifi_event kind argument).
+// Wi-Fi event kinds (ppOnWifiEvent kind argument).
 enum PpWifiEventKind : int32_t {
     kWifiEventStaStart = 1,
     kWifiEventStaDisconnected = 2,

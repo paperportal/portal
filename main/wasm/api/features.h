@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-// Bitset returned by `m5::api_features()`.
+// Bitset returned by `m5::apiFeatures()`.
 // Keep this mapping stable; new capabilities should take new bits.
 enum wasm_api_feature_bits : uint64_t {
     kWasmFeatureCore = 1ULL << 0, // Category 0: Infrastructure

@@ -36,22 +36,22 @@ pub fn draw() Error!void {
     const x: i32 = @divTrunc(screen_w - popup_w, 2);
     const y: i32 = @divTrunc(screen_h - popup_h, 2);
 
-    try display.text.set_encoding_utf8();
-    try display.text.set_wrap(false, false);
-    try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
-    try display.text.set_size(0.8, 0.8);
+    try display.text.setEncodingUtf8();
+    try display.text.setWrap(false, false);
+    try display.text.setColor(display.colors.BLACK, display.colors.WHITE);
+    try display.text.setSize(0.8, 0.8);
 
-    try display.epd.set_mode(display.epd.TEXT);
-    try display.start_write();
-    defer display.end_write() catch {};
+    try display.epd.setMode(display.epd.TEXT);
+    try display.startWrite();
+    defer display.endWrite() catch {};
 
-    try display.fill_rect(x, y, popup_w, popup_h, display.colors.WHITE);
-    try display.draw_rect(x, y, popup_w, popup_h, display.colors.BLACK);
+    try display.fillRect(x, y, popup_w, popup_h, display.colors.WHITE);
+    try display.drawRect(x, y, popup_w, popup_h, display.colors.BLACK);
 
     if (g_msg_len > 0) {
         try display.text.draw(g_msg_buf[0..g_msg_len], x + 20, y + 50);
     }
 
-    try display.update_rect(x, y, popup_w, popup_h);
+    try display.updateRect(x, y, popup_w, popup_h);
 }
 

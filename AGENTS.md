@@ -35,6 +35,7 @@ Prereq: ESP-IDF installed and exported (so `IDF_PATH` and `idf.py` are available
 - Indentation: 4 spaces; avoid tabs.
 - C++ style: keep braces and spacing consistent with nearby code (K&R-like).
 - Naming: `PascalCase` for types, `snake_case` for C-style/ABI functions, `kConstant` for constants, `g_` for globals (follow existing WASM API patterns).
+- Zig naming (for `apps/`): `lowerCamelCase` for all functions, except functions that return a type (Zig), which use `PascalCase`.
 - When changing WASM APIs, keep signatures stable and update native symbol registration in the relevant `main/wasm/api/*.cpp`.
 
 ## Paper Portal SDK

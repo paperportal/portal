@@ -42,7 +42,7 @@ int32_t update_touch_or_return_error(void)
  *
  * WebAssembly import:
  * - Module: `m5_touch`
- * - Name: `touch_get_count`
+ * - Name: `touchGetCount`
  * - Signature: `()i`
  *
  * Notes:
@@ -52,7 +52,7 @@ int32_t update_touch_or_return_error(void)
  * @param exec_env WAMR execution environment (unused).
  * @return Non-negative touch point count.
  */
-int32_t touch_get_count(wasm_exec_env_t exec_env)
+int32_t touchGetCount(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     const int32_t rc = update_touch_or_return_error();
@@ -67,7 +67,7 @@ int32_t touch_get_count(wasm_exec_env_t exec_env)
  *
  * WebAssembly import:
  * - Module: `m5_touch`
- * - Name: `touch_get_raw`
+ * - Name: `touchGetRaw`
  * - Signature: `(i*~)i`
  *
  * Buffer format (`TouchPointRaw`, 8 bytes, little-endian):
@@ -81,12 +81,12 @@ int32_t touch_get_count(wasm_exec_env_t exec_env)
  *   message via `wasm_api_set_last_error()`.
  *
  * @param exec_env WAMR execution environment (unused).
- * @param index Touch point index in `[0, touch_get_count())`.
+ * @param index Touch point index in `[0, touchGetCount())`.
  * @param out Guest output buffer pointer (may be null only if `out_len == 0`).
  * @param out_len Length of `out` in bytes; must be at least `sizeof(TouchPointRaw)`.
  * @return `8` on success, otherwise a negative `kWasmErr*` value.
  */
-int32_t touch_get_raw(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, size_t out_len)
+int32_t touchGetRaw(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, size_t out_len)
 {
     (void)exec_env;
     const int32_t rc = update_touch_or_return_error();
@@ -94,20 +94,20 @@ int32_t touch_get_raw(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, siz
         return rc;
     }
     if (index < 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "touch_get_raw: index < 0");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "touchGetRaw: index < 0");
         return kWasmErrInvalidArgument;
     }
     const uint8_t count = g_touch.getCount();
     if ((uint32_t)index >= (uint32_t)count) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "touch_get_raw: index out of range");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "touchGetRaw: index out of range");
         return kWasmErrInvalidArgument;
     }
     if (!out && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "touch_get_raw: out is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "touchGetRaw: out is null");
         return kWasmErrInvalidArgument;
     }
     if (out_len < sizeof(TouchPointRaw)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "touch_get_raw: out_len too small");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "touchGetRaw: out_len too small");
         return kWasmErrInvalidArgument;
     }
 
@@ -127,7 +127,7 @@ int32_t touch_get_raw(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, siz
  *
  * WebAssembly import:
  * - Module: `m5_touch`
- * - Name: `touch_get_detail`
+ * - Name: `touchGetDetail`
  * - Signature: `(i*~)i`
  *
  * Buffer format (`TouchDetail`, 24 bytes, little-endian):
@@ -146,12 +146,12 @@ int32_t touch_get_raw(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, siz
  *   message via `wasm_api_set_last_error()`.
  *
  * @param exec_env WAMR execution environment (unused).
- * @param index Touch point index in `[0, touch_get_count())`.
+ * @param index Touch point index in `[0, touchGetCount())`.
  * @param out Guest output buffer pointer (may be null only if `out_len == 0`).
  * @param out_len Length of `out` in bytes; must be at least `sizeof(TouchDetail)`.
  * @return `24` on success, otherwise a negative `kWasmErr*` value.
  */
-int32_t touch_get_detail(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, size_t out_len)
+int32_t touchGetDetail(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, size_t out_len)
 {
     (void)exec_env;
     const int32_t rc = update_touch_or_return_error();
@@ -159,20 +159,20 @@ int32_t touch_get_detail(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, 
         return rc;
     }
     if (index < 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "touch_get_detail: index < 0");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "touchGetDetail: index < 0");
         return kWasmErrInvalidArgument;
     }
     const uint8_t count = g_touch.getCount();
     if ((uint32_t)index >= (uint32_t)count) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "touch_get_detail: index out of range");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "touchGetDetail: index out of range");
         return kWasmErrInvalidArgument;
     }
     if (!out && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "touch_get_detail: out is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "touchGetDetail: out is null");
         return kWasmErrInvalidArgument;
     }
     if (out_len < sizeof(TouchDetail)) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "touch_get_detail: out_len too small");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "touchGetDetail: out_len too small");
         return kWasmErrInvalidArgument;
     }
 
@@ -201,18 +201,18 @@ int32_t touch_get_detail(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, 
  *
  * WebAssembly import:
  * - Module: `m5_touch`
- * - Name: `touch_set_hold_thresh`
+ * - Name: `touchSetHoldThresh`
  * - Signature: `(i)i`
  *
  * @param exec_env WAMR execution environment (unused).
  * @param ms Threshold in milliseconds. Must be within `0..=65535`.
  * @return `kWasmOk` on success, otherwise a negative `kWasmErr*` value.
  */
-int32_t touch_set_hold_thresh(wasm_exec_env_t exec_env, int32_t ms)
+int32_t touchSetHoldThresh(wasm_exec_env_t exec_env, int32_t ms)
 {
     (void)exec_env;
     if (ms < 0 || ms > (int32_t)UINT16_MAX) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "touch_set_hold_thresh: ms out of range (0..65535)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "touchSetHoldThresh: ms out of range (0..65535)");
         return kWasmErrInvalidArgument;
     }
     g_touch.setHoldThresh((uint16_t)ms);
@@ -224,18 +224,18 @@ int32_t touch_set_hold_thresh(wasm_exec_env_t exec_env, int32_t ms)
  *
  * WebAssembly import:
  * - Module: `m5_touch`
- * - Name: `touch_set_flick_thresh`
+ * - Name: `touchSetFlickThresh`
  * - Signature: `(i)i`
  *
  * @param exec_env WAMR execution environment (unused).
  * @param distance Threshold distance in pixels. Must be within `0..=65535`.
  * @return `kWasmOk` on success, otherwise a negative `kWasmErr*` value.
  */
-int32_t touch_set_flick_thresh(wasm_exec_env_t exec_env, int32_t distance)
+int32_t touchSetFlickThresh(wasm_exec_env_t exec_env, int32_t distance)
 {
     (void)exec_env;
     if (distance < 0 || distance > (int32_t)UINT16_MAX) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "touch_set_flick_thresh: distance out of range (0..65535)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "touchSetFlickThresh: distance out of range (0..65535)");
         return kWasmErrInvalidArgument;
     }
     g_touch.setFlickThresh((uint16_t)distance);
@@ -243,15 +243,15 @@ int32_t touch_set_flick_thresh(wasm_exec_env_t exec_env, int32_t distance)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, nullptr }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, nullptr }
 
 static NativeSymbol g_touch_native_symbols[] = {
-    REG_NATIVE_FUNC(touch_get_count, "()i"),
-    REG_NATIVE_FUNC(touch_get_raw, "(i*~)i"),
-    REG_NATIVE_FUNC(touch_get_detail, "(i*~)i"),
-    REG_NATIVE_FUNC(touch_set_hold_thresh, "(i)i"),
-    REG_NATIVE_FUNC(touch_set_flick_thresh, "(i)i"),
+    REG_NATIVE_FUNC(touchGetCount, "()i"),
+    REG_NATIVE_FUNC(touchGetRaw, "(i*~)i"),
+    REG_NATIVE_FUNC(touchGetDetail, "(i*~)i"),
+    REG_NATIVE_FUNC(touchSetHoldThresh, "(i)i"),
+    REG_NATIVE_FUNC(touchSetFlickThresh, "(i)i"),
 };
 /* clang-format on */
 
@@ -261,7 +261,7 @@ static NativeSymbol g_touch_native_symbols[] = {
  * @brief Register `m5_touch` host functions with WAMR.
  *
  * This registers all touch-related native symbols defined in this translation
- * unit (e.g. `touch_get_count`, `touch_get_raw`, ... ) under the module name
+ * unit (e.g. `touchGetCount`, `touchGetRaw`, ... ) under the module name
  * `m5_touch` so wasm modules can import them.
  *
  * On failure, this sets the global last-error to `kWasmErrInternal`.

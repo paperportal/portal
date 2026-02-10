@@ -17,7 +17,7 @@ fn logWarn(comptime fmt: []const u8, args: anytype) void {
 }
 
 fn lastHostErrorMessage(buf: []u8) []const u8 {
-    return core.last_error_message(buf) catch "";
+    return core.lastErrorMessage(buf) catch "";
 }
 
 pub const Rect = struct {
@@ -70,12 +70,12 @@ pub fn draw(allocator: std.mem.Allocator, apps: []const UiApp, header_h: i32) !G
     const total_gap_x = gap_x * (columns - 1);
     const col_w: i32 = @divTrunc(screen_w - (2 * side_margin) - total_gap_x, columns);
 
-    try display.text.set_encoding_utf8();
-    try display.text.set_size(title_scale, title_scale);
-    try display.text.set_wrap(false, false);
-    try display.text.set_color(display.colors.BLACK, display.colors.WHITE);
+    try display.text.setEncodingUtf8();
+    try display.text.setSize(title_scale, title_scale);
+    try display.text.setWrap(false, false);
+    try display.text.setColor(display.colors.BLACK, display.colors.WHITE);
 
-    const title_h: i32 = display.text.font_height();
+    const title_h: i32 = display.text.fontHeight();
     const cell_h: i32 = icon_size + icon_title_gap + title_h;
 
     const avail_h = content_h - top_margin - bottom_margin;
@@ -87,11 +87,11 @@ pub fn draw(allocator: std.mem.Allocator, apps: []const UiApp, header_h: i32) !G
     const max_cells: usize = @intCast(@max(0, max_cells_i32));
     const draw_count: usize = @min(apps.len, max_cells);
 
-    try display.epd.set_mode(display.epd.QUALITY);
-    try display.start_write();
-    defer display.end_write() catch {};
+    try display.epd.setMode(display.epd.QUALITY);
+    try display.startWrite();
+    defer display.endWrite() catch {};
 
-    try display.fill_rect(0, content_y, screen_w, content_h, display.colors.WHITE);
+    try display.fillRect(0, content_y, screen_w, content_h, display.colors.WHITE);
 
     var cells = try allocator.alloc(Cell, draw_count);
     errdefer allocator.free(cells);
@@ -110,10 +110,10 @@ pub fn draw(allocator: std.mem.Allocator, apps: []const UiApp, header_h: i32) !G
         const icon_rect: Rect = .{ .x = icon_x, .y = icon_y, .w = icon_size, .h = icon_size };
 
         if (std.mem.eql(u8, app.id_z, "settings")) {
-            try display.image.draw_png(icon_x, icon_y, settings_icon_png_bytes);
+            try display.image.drawPng(icon_x, icon_y, settings_icon_png_bytes);
         } else {
             var icon_path_buf: [256]u8 = undefined;
-            const icon_path_z = paths.app_icon_path_z(&icon_path_buf, app.id_z);
+            const icon_path_z = paths.appIconPathZ(&icon_path_buf, app.id_z);
 
             const meta = fs.metadata(icon_path_z) catch |err| blk: {
                 var host_buf: [192]u8 = undefined;
@@ -127,20 +127,20 @@ pub fn draw(allocator: std.mem.Allocator, apps: []const UiApp, header_h: i32) !G
 
             const ok = if (meta) |m| (!m.is_dir and m.size != 0) else false;
             if (ok) {
-                display.fill_rect(icon_x, icon_y, icon_size, icon_size, display.colors.WHITE) catch {};
-                display.image.draw_png_file(icon_path_z, icon_x, icon_y, icon_size, icon_size) catch |err| {
+                display.fillRect(icon_x, icon_y, icon_size, icon_size, display.colors.WHITE) catch {};
+                display.image.drawPngFile(icon_path_z, icon_x, icon_y, icon_size, icon_size) catch |err| {
                     var host_buf: [192]u8 = undefined;
                     const host_msg = lastHostErrorMessage(host_buf[0..]);
                     logWarn(
                         "launcher: icon draw failed id={s} path={s} size={d} err={s} host={s}\n",
                         .{ app.id_z, icon_path_z, meta.?.size, @errorName(err), host_msg },
                     );
-                    display.fill_rect(icon_x, icon_y, icon_size, icon_size, display.colors.LIGHT_GRAY) catch {};
-                    display.draw_rect(icon_x, icon_y, icon_size, icon_size, display.colors.BLACK) catch {};
+                    display.fillRect(icon_x, icon_y, icon_size, icon_size, display.colors.LIGHT_GRAY) catch {};
+                    display.drawRect(icon_x, icon_y, icon_size, icon_size, display.colors.BLACK) catch {};
                 };
             } else {
-                display.fill_rect(icon_x, icon_y, icon_size, icon_size, display.colors.LIGHT_GRAY) catch {};
-                display.draw_rect(icon_x, icon_y, icon_size, icon_size, display.colors.BLACK) catch {};
+                display.fillRect(icon_x, icon_y, icon_size, icon_size, display.colors.LIGHT_GRAY) catch {};
+                display.drawRect(icon_x, icon_y, icon_size, icon_size, display.colors.BLACK) catch {};
             }
         }
 
@@ -150,7 +150,7 @@ pub fn draw(allocator: std.mem.Allocator, apps: []const UiApp, header_h: i32) !G
             const max_copy = @min(app.title.len, buf.len - 1);
             std.mem.copyForwards(u8, buf[0..max_copy], app.title[0..max_copy]);
             buf[max_copy] = 0;
-            break :blk try display.text.text_width(buf[0..max_copy :0]);
+            break :blk try display.text.textWidth(buf[0..max_copy :0]);
         };
 
         const title_x: i32 = cell_x + @divTrunc(col_w - text_w, 2);
@@ -160,7 +160,7 @@ pub fn draw(allocator: std.mem.Allocator, apps: []const UiApp, header_h: i32) !G
         cells[idx_usize] = .{ .id_z = app.id_z, .rect = icon_rect, .title = app.title };
     }
 
-    try display.update_rect(0, content_y, screen_w, content_h);
+    try display.updateRect(0, content_y, screen_w, content_h);
 
     return .{ .cells = cells, .header_h = header_h };
 }

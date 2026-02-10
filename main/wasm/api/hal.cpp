@@ -41,7 +41,7 @@ void ext_task(void *arg)
     }
 }
 
-int32_t ext_port_test_start(wasm_exec_env_t exec_env)
+int32_t extPortTestStart(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (g_ext_started) {
@@ -58,7 +58,7 @@ int32_t ext_port_test_start(wasm_exec_env_t exec_env)
 
     BaseType_t ok = xTaskCreate(ext_task, "ext_port", 1024 * 4, NULL, 5, NULL);
     if (ok != pdPASS) {
-        wasm_api_set_last_error(kWasmErrInternal, "ext_port_test_start: task create failed");
+        wasm_api_set_last_error(kWasmErrInternal, "extPortTestStart: task create failed");
         return kWasmErrInternal;
     }
 
@@ -67,11 +67,11 @@ int32_t ext_port_test_start(wasm_exec_env_t exec_env)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_hal_native_symbols[] = {
-    REG_NATIVE_FUNC(ext_port_test_start, "()i"),
+    REG_NATIVE_FUNC(extPortTestStart, "()i"),
 };
 /* clang-format on */
 

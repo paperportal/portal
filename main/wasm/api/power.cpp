@@ -134,7 +134,7 @@ int32_t get_battery_level_percent(void)
     return (level < 0) ? 0 : (level >= 100) ? 100 : level;
 }
 
-int32_t power_begin(wasm_exec_env_t exec_env)
+int32_t powerBegin(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     ensure_charge_status_pin_configured();
@@ -143,49 +143,49 @@ int32_t power_begin(wasm_exec_env_t exec_env)
     return kWasmOk;
 }
 
-int32_t power_battery_level(wasm_exec_env_t exec_env)
+int32_t powerBatteryLevel(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (!g_power_inited) {
-        wasm_api_set_last_error(kWasmErrNotReady, "power_battery_level: power not initialized");
+        wasm_api_set_last_error(kWasmErrNotReady, "powerBatteryLevel: power not initialized");
         return kWasmErrNotReady;
     }
     return get_battery_level_percent();
 }
 
-int32_t power_battery_voltage_mv(wasm_exec_env_t exec_env)
+int32_t powerBatteryVoltageMv(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (!g_power_inited) {
-        wasm_api_set_last_error(kWasmErrNotReady, "power_battery_voltage_mv: power not initialized");
+        wasm_api_set_last_error(kWasmErrNotReady, "powerBatteryVoltageMv: power not initialized");
         return kWasmErrNotReady;
     }
     return (int32_t)get_battery_voltage_mv();
 }
 
-int32_t power_battery_current_ma(wasm_exec_env_t exec_env)
+int32_t powerBatteryCurrentMa(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (!g_power_inited) {
-        wasm_api_set_last_error(kWasmErrNotReady, "power_battery_current_ma: power not initialized");
+        wasm_api_set_last_error(kWasmErrNotReady, "powerBatteryCurrentMa: power not initialized");
         return kWasmErrNotReady;
     }
     // M5Unified's M5PaperS3 uses pmic_adc and does not provide a battery current reading.
     return 0;
 }
 
-int32_t power_vbus_voltage_mv(wasm_exec_env_t exec_env)
+int32_t powerVbusVoltageMv(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
-    wasm_api_set_last_error(kWasmErrInternal, "power_vbus_voltage_mv: VBUS not supported on this model");
+    wasm_api_set_last_error(kWasmErrInternal, "powerVbusVoltageMv: VBUS not supported on this model");
     return kWasmErrInternal;
 }
 
-int32_t power_is_charging(wasm_exec_env_t exec_env)
+int32_t powerIsCharging(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (!g_power_inited) {
-        wasm_api_set_last_error(kWasmErrNotReady, "power_is_charging: power not initialized");
+        wasm_api_set_last_error(kWasmErrNotReady, "powerIsCharging: power not initialized");
         return kWasmErrNotReady;
     }
     ensure_charge_status_pin_configured();
@@ -193,11 +193,11 @@ int32_t power_is_charging(wasm_exec_env_t exec_env)
     return (level == 0) ? 1 : 0; // low == charging
 }
 
-int32_t power_is_usb_connected(wasm_exec_env_t exec_env)
+int32_t powerIsUsbConnected(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (!g_power_inited) {
-        wasm_api_set_last_error(kWasmErrNotReady, "power_is_usb_connected: power not initialized");
+        wasm_api_set_last_error(kWasmErrNotReady, "powerIsUsbConnected: power not initialized");
         return kWasmErrNotReady;
     }
     ensure_usb_detect_pin_configured();
@@ -205,11 +205,11 @@ int32_t power_is_usb_connected(wasm_exec_env_t exec_env)
     return (level == 1) ? 1 : 0;
 }
 
-int32_t power_set_battery_charge(wasm_exec_env_t exec_env, int32_t enable)
+int32_t powerSetBatteryCharge(wasm_exec_env_t exec_env, int32_t enable)
 {
     (void)exec_env;
     if (!g_power_inited) {
-        wasm_api_set_last_error(kWasmErrNotReady, "power_set_battery_charge: power not initialized");
+        wasm_api_set_last_error(kWasmErrNotReady, "powerSetBatteryCharge: power not initialized");
         return kWasmErrNotReady;
     }
     // M5Unified doesn't support toggling charge enable for M5PaperS3 (pmic_adc).
@@ -217,18 +217,18 @@ int32_t power_set_battery_charge(wasm_exec_env_t exec_env, int32_t enable)
     return kWasmOk;
 }
 
-int32_t power_restart(wasm_exec_env_t exec_env)
+int32_t powerRestart(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     esp_restart();
     return kWasmOk;
 }
 
-int32_t power_light_sleep_us(wasm_exec_env_t exec_env, int64_t us)
+int32_t powerLightSleepUs(wasm_exec_env_t exec_env, int64_t us)
 {
     (void)exec_env;
     if (us < 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "power_light_sleep_us: us < 0");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "powerLightSleepUs: us < 0");
         return kWasmErrInvalidArgument;
     }
     if (us > 0) {
@@ -240,11 +240,11 @@ int32_t power_light_sleep_us(wasm_exec_env_t exec_env, int64_t us)
     return kWasmOk;
 }
 
-int32_t power_deep_sleep_us(wasm_exec_env_t exec_env, int64_t us)
+int32_t powerDeepSleepUs(wasm_exec_env_t exec_env, int64_t us)
 {
     (void)exec_env;
     if (us < 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "power_deep_sleep_us: us < 0");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "powerDeepSleepUs: us < 0");
         return kWasmErrInvalidArgument;
     }
     if (us > 0) {
@@ -256,11 +256,11 @@ int32_t power_deep_sleep_us(wasm_exec_env_t exec_env, int64_t us)
     return kWasmOk;
 }
 
-int32_t power_off(wasm_exec_env_t exec_env)
+int32_t powerOff(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (!paper_display_ensure_init()) {
-        wasm_api_set_last_error(kWasmErrInternal, "power_off: display init failed");
+        wasm_api_set_last_error(kWasmErrInternal, "powerOff: display init failed");
         return kWasmErrInternal;
     }
 
@@ -291,22 +291,22 @@ int32_t power_off(wasm_exec_env_t exec_env)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_power_native_symbols[] = {
-    REG_NATIVE_FUNC(power_begin, "()i"),
-    REG_NATIVE_FUNC(power_battery_level, "()i"),
-    REG_NATIVE_FUNC(power_battery_voltage_mv, "()i"),
-    REG_NATIVE_FUNC(power_battery_current_ma, "()i"),
-    REG_NATIVE_FUNC(power_vbus_voltage_mv, "()i"),
-    REG_NATIVE_FUNC(power_is_charging, "()i"),
-    REG_NATIVE_FUNC(power_is_usb_connected, "()i"),
-    REG_NATIVE_FUNC(power_set_battery_charge, "(i)i"),
-    REG_NATIVE_FUNC(power_restart, "()i"),
-    REG_NATIVE_FUNC(power_light_sleep_us, "(I)i"),
-    REG_NATIVE_FUNC(power_deep_sleep_us, "(I)i"),
-    REG_NATIVE_FUNC(power_off, "()i"),
+    REG_NATIVE_FUNC(powerBegin, "()i"),
+    REG_NATIVE_FUNC(powerBatteryLevel, "()i"),
+    REG_NATIVE_FUNC(powerBatteryVoltageMv, "()i"),
+    REG_NATIVE_FUNC(powerBatteryCurrentMa, "()i"),
+    REG_NATIVE_FUNC(powerVbusVoltageMv, "()i"),
+    REG_NATIVE_FUNC(powerIsCharging, "()i"),
+    REG_NATIVE_FUNC(powerIsUsbConnected, "()i"),
+    REG_NATIVE_FUNC(powerSetBatteryCharge, "(i)i"),
+    REG_NATIVE_FUNC(powerRestart, "()i"),
+    REG_NATIVE_FUNC(powerLightSleepUs, "(I)i"),
+    REG_NATIVE_FUNC(powerDeepSleepUs, "(I)i"),
+    REG_NATIVE_FUNC(powerOff, "()i"),
 };
 /* clang-format on */
 

@@ -162,47 +162,47 @@ static void wifi_scan_task(void *arg)
     }
 }
 
-int32_t net_is_ready(wasm_exec_env_t exec_env)
+int32_t netIsReady(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return wifi::sta_has_ip() ? 1 : 0;
 }
 
-int32_t net_connect(wasm_exec_env_t exec_env)
+int32_t netConnect(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
 
     (void)wifi_init_once();
     esp_err_t err = wifi::sta_connect();
     if (err != ESP_OK) {
-        wasm_api_set_last_error(kWasmErrInternal, "net_connect: wifi::sta_connect failed");
+        wasm_api_set_last_error(kWasmErrInternal, "netConnect: wifi::sta_connect failed");
         return kWasmErrInternal;
     }
 
     return kWasmOk;
 }
 
-int32_t net_disconnect(wasm_exec_env_t exec_env)
+int32_t netDisconnect(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
 
     esp_err_t err = wifi::sta_disconnect();
     if (err != ESP_OK) {
-        wasm_api_set_last_error(kWasmErrInternal, "net_disconnect: wifi::sta_disconnect failed");
+        wasm_api_set_last_error(kWasmErrInternal, "netDisconnect: wifi::sta_disconnect failed");
         return kWasmErrInternal;
     }
     return kWasmOk;
 }
 
-int32_t net_get_ipv4(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len)
+int32_t netGetIpv4(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len)
 {
     if (!out_ptr && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "net_get_ipv4: out_ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "netGetIpv4: out_ptr is null");
         return kWasmErrInvalidArgument;
     }
 
     if (out_len < 4) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "net_get_ipv4: out_len too small (need 4)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "netGetIpv4: out_len too small (need 4)");
         return kWasmErrInvalidArgument;
     }
 
@@ -223,20 +223,20 @@ int32_t net_get_ipv4(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len
     return 4;
 }
 
-int32_t net_resolve_ipv4(wasm_exec_env_t exec_env, const char *host, uint8_t *out_ptr, int32_t out_len)
+int32_t netResolveIpv4(wasm_exec_env_t exec_env, const char *host, uint8_t *out_ptr, int32_t out_len)
 {
     if (!host) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "net_resolve_ipv4: host is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "netResolveIpv4: host is null");
         return kWasmErrInvalidArgument;
     }
 
     if (!out_ptr && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "net_resolve_ipv4: out_ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "netResolveIpv4: out_ptr is null");
         return kWasmErrInvalidArgument;
     }
 
     if (out_len < 4) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "net_resolve_ipv4: out_len too small (need 4)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "netResolveIpv4: out_len too small (need 4)");
         return kWasmErrInvalidArgument;
     }
 
@@ -259,7 +259,7 @@ int32_t net_resolve_ipv4(wasm_exec_env_t exec_env, const char *host, uint8_t *ou
     return 4;
 }
 
-int32_t wifi_scan_start(wasm_exec_env_t exec_env)
+int32_t wifiScanStart(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     if (g_scan_task_started) {
@@ -273,7 +273,7 @@ int32_t wifi_scan_start(wasm_exec_env_t exec_env)
 
     BaseType_t ok = xTaskCreate(wifi_scan_task, "wifi_scan", 1024 * 4, NULL, 5, NULL);
     if (ok != pdPASS) {
-        wasm_api_set_last_error(kWasmErrInternal, "wifi_scan_start: task create failed");
+        wasm_api_set_last_error(kWasmErrInternal, "wifiScanStart: task create failed");
         return kWasmErrInternal;
     }
 
@@ -281,22 +281,22 @@ int32_t wifi_scan_start(wasm_exec_env_t exec_env)
     return kWasmOk;
 }
 
-int32_t wifi_scan_is_running(wasm_exec_env_t exec_env)
+int32_t wifiScanIsRunning(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     std::lock_guard<std::mutex> lock(g_scan_mutex);
     return g_scan_in_progress ? 1 : 0;
 }
 
-int32_t wifi_scan_get_best(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len)
+int32_t wifiScanGetBest(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (!out_ptr && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "wifi_scan_get_best: out_ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "wifiScanGetBest: out_ptr is null");
         return kWasmErrInvalidArgument;
     }
     if (out_len < (int32_t)kWifiRecordSize) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "wifi_scan_get_best: out_len too small (need 37)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "wifiScanGetBest: out_len too small (need 37)");
         return kWasmErrInvalidArgument;
     }
 
@@ -309,26 +309,26 @@ int32_t wifi_scan_get_best(wasm_exec_env_t exec_env, uint8_t *out_ptr, int32_t o
     return (int32_t)kWifiRecordSize;
 }
 
-int32_t wifi_scan_get_count(wasm_exec_env_t exec_env)
+int32_t wifiScanGetCount(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     std::lock_guard<std::mutex> lock(g_scan_mutex);
     return g_scan_count;
 }
 
-int32_t wifi_scan_get_record(wasm_exec_env_t exec_env, int32_t index, uint8_t *out_ptr, int32_t out_len)
+int32_t wifiScanGetRecord(wasm_exec_env_t exec_env, int32_t index, uint8_t *out_ptr, int32_t out_len)
 {
     (void)exec_env;
     if (index < 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "wifi_scan_get_record: index < 0");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "wifiScanGetRecord: index < 0");
         return kWasmErrInvalidArgument;
     }
     if (!out_ptr && out_len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "wifi_scan_get_record: out_ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "wifiScanGetRecord: out_ptr is null");
         return kWasmErrInvalidArgument;
     }
     if (out_len < (int32_t)kWifiRecordSize) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "wifi_scan_get_record: out_len too small (need 37)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "wifiScanGetRecord: out_len too small (need 37)");
         return kWasmErrInvalidArgument;
     }
 
@@ -336,7 +336,7 @@ int32_t wifi_scan_get_record(wasm_exec_env_t exec_env, int32_t index, uint8_t *o
     {
         std::lock_guard<std::mutex> lock(g_scan_mutex);
         if (index >= g_scan_count) {
-            wasm_api_set_last_error(kWasmErrInvalidArgument, "wifi_scan_get_record: index out of range");
+            wasm_api_set_last_error(kWasmErrInvalidArgument, "wifiScanGetRecord: index out of range");
             return kWasmErrInvalidArgument;
         }
         rec = g_scan_records[index];
@@ -347,20 +347,20 @@ int32_t wifi_scan_get_record(wasm_exec_env_t exec_env, int32_t index, uint8_t *o
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_net_native_symbols[] = {
-    REG_NATIVE_FUNC(net_is_ready, "()i"),
-    REG_NATIVE_FUNC(net_connect, "()i"),
-    REG_NATIVE_FUNC(net_disconnect, "()i"),
-    REG_NATIVE_FUNC(net_get_ipv4, "(*i)i"),
-    REG_NATIVE_FUNC(net_resolve_ipv4, "(**i)i"),
-    REG_NATIVE_FUNC(wifi_scan_start, "()i"),
-    REG_NATIVE_FUNC(wifi_scan_is_running, "()i"),
-    REG_NATIVE_FUNC(wifi_scan_get_best, "(*i)i"),
-    REG_NATIVE_FUNC(wifi_scan_get_count, "()i"),
-    REG_NATIVE_FUNC(wifi_scan_get_record, "(i*i)i"),
+    REG_NATIVE_FUNC(netIsReady, "()i"),
+    REG_NATIVE_FUNC(netConnect, "()i"),
+    REG_NATIVE_FUNC(netDisconnect, "()i"),
+    REG_NATIVE_FUNC(netGetIpv4, "(*i)i"),
+    REG_NATIVE_FUNC(netResolveIpv4, "(**i)i"),
+    REG_NATIVE_FUNC(wifiScanStart, "()i"),
+    REG_NATIVE_FUNC(wifiScanIsRunning, "()i"),
+    REG_NATIVE_FUNC(wifiScanGetBest, "(*i)i"),
+    REG_NATIVE_FUNC(wifiScanGetCount, "()i"),
+    REG_NATIVE_FUNC(wifiScanGetRecord, "(i*i)i"),
 };
 /* clang-format on */
 

@@ -57,7 +57,7 @@ pub const Controller = struct {
             else => return err,
         };
 
-        if (fs.is_mounted()) {
+        if (fs.isMounted()) {
             self.sd_ready = true;
             catalog_mod.ensureBaseDirs() catch {};
             installer.recoverIncompleteInstalls(allocator);
@@ -117,7 +117,7 @@ pub const Controller = struct {
                     }
 
                     var root_buf: [96]u8 = undefined;
-                    const root_z = paths.app_root_z(&root_buf, self.catalog.apps.items[s.index].id);
+                    const root_z = paths.appRootZ(&root_buf, self.catalog.apps.items[s.index].id);
                     const meta = fs.metadata(root_z) catch |err| switch (err) {
                         Error.NotFound => null,
                         else => null,
@@ -207,13 +207,13 @@ pub const Controller = struct {
         const gs = self.grid_state orelse return;
         const id_z = grid.hitTest(&gs, x, y) orelse return;
         if (std.mem.eql(u8, id_z, "settings")) {
-            core.open_app("settings", null) catch {
+            core.openApp("settings", null) catch {
                 core.log.err("Failed to open settings app");
             };
             return;
         }
 
-        core.open_app(id_z, null) catch {
+        core.openApp(id_z, null) catch {
             core.log.err("Failed to open app");
         };
     }
@@ -255,7 +255,7 @@ pub const Controller = struct {
 
         var name_buf: [96]u8 = undefined;
         while (true) {
-            const n_opt = d.read_name(name_buf[0..]) catch break;
+            const n_opt = d.readName(name_buf[0..]) catch break;
             if (n_opt == null) break;
             const n = n_opt.?;
             const name = name_buf[0..n];

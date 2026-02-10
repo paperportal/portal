@@ -129,7 +129,7 @@ fn skipEntryData(file: *fs.File, e: *const Entry) !void {
     _ = try file.seek(.{ .Current = @intCast(e.comp_size) });
 }
 
-fn mkdir_p(path_z: [:0]const u8) void {
+fn mkdirP(path_z: [:0]const u8) void {
     const path: []const u8 = path_z;
     if (path.len == 0 or path[0] != '/') return;
 
@@ -474,12 +474,12 @@ pub fn extractAll(
                 if (dir.len < dir_buf.len) {
                     @memcpy(dir_buf[0..dir.len], dir);
                     dir_buf[dir.len] = 0;
-                    mkdir_p(dir_buf[0..dir.len :0]);
+                    mkdirP(dir_buf[0..dir.len :0]);
                 }
             }
         }
         if (is_manifest or is_wasm or is_icon) {
-            mkdir_p(dest_root_z);
+            mkdirP(dest_root_z);
         }
 
         var out_file = fs.File.open(out_path_z, fs.FS_WRITE | fs.FS_CREATE | fs.FS_TRUNC) catch |err| {

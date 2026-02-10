@@ -307,110 +307,110 @@ static void beeper_task(void* arg)
     vTaskDelete(NULL);
 }
 
-int32_t speaker_begin(wasm_exec_env_t exec_env)
+int32_t speakerBegin(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     bool ok = speaker_backend_begin();
     if (!ok) {
-        wasm_api_set_last_error(kWasmErrInternal, "speaker_begin: speaker init failed");
+        wasm_api_set_last_error(kWasmErrInternal, "speakerBegin: speaker init failed");
         return kWasmErrInternal;
     }
     return kWasmOk;
 }
 
-int32_t speaker_end(wasm_exec_env_t exec_env)
+int32_t speakerEnd(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     speaker_backend_end();
     return kWasmOk;
 }
 
-int32_t speaker_is_enabled(wasm_exec_env_t exec_env)
+int32_t speakerIsEnabled(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return (int32_t)speaker_backend_is_enabled();
 }
 
-int32_t speaker_is_running(wasm_exec_env_t exec_env)
+int32_t speakerIsRunning(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return (int32_t)speaker_backend_is_running();
 }
 
-int32_t speaker_set_volume(wasm_exec_env_t exec_env, int32_t v)
+int32_t speakerSetVolume(wasm_exec_env_t exec_env, int32_t v)
 {
     (void)exec_env;
     if (v < 0 || v > 255) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "speaker_set_volume: volume out of range (0..255)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "speakerSetVolume: volume out of range (0..255)");
         return kWasmErrInvalidArgument;
     }
     speaker_backend_set_volume((uint8_t)v);
     return kWasmOk;
 }
 
-int32_t speaker_get_volume(wasm_exec_env_t exec_env)
+int32_t speakerGetVolume(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     return (int32_t)speaker_backend_get_volume();
 }
 
-int32_t speaker_stop(wasm_exec_env_t exec_env)
+int32_t speakerStop(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     speaker_backend_stop();
     return kWasmOk;
 }
 
-int32_t speaker_tone(wasm_exec_env_t exec_env, float freq_hz, int32_t duration_ms)
+int32_t speakerTone(wasm_exec_env_t exec_env, float freq_hz, int32_t duration_ms)
 {
     (void)exec_env;
     if (freq_hz <= 0.0f || freq_hz > 20000.0f) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "speaker_tone: frequency out of range (0..20000 Hz)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "speakerTone: frequency out of range (0..20000 Hz)");
         return kWasmErrInvalidArgument;
     }
     if (duration_ms < 0 || duration_ms > 60000) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "speaker_tone: duration out of range (0..60000 ms)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "speakerTone: duration out of range (0..60000 ms)");
         return kWasmErrInvalidArgument;
     }
     uint32_t duration = (duration_ms == 0) ? UINT32_MAX : (uint32_t)duration_ms;
     bool ok = speaker_backend_tone(freq_hz, duration);
     if (!ok) {
-        wasm_api_set_last_error(kWasmErrInternal, "speaker_tone: tone output failed");
+        wasm_api_set_last_error(kWasmErrInternal, "speakerTone: tone output failed");
         return kWasmErrInternal;
     }
     return kWasmOk;
 }
 
-int32_t speaker_beeper_start(wasm_exec_env_t exec_env, float freq_hz, int32_t beep_count,
+int32_t speakerBeeperStart(wasm_exec_env_t exec_env, float freq_hz, int32_t beep_count,
                               int32_t duration_ms, int32_t gap_ms, int32_t pause_ms)
 {
     (void)exec_env;
 
     // Validate arguments
     if (freq_hz <= 0.0f || freq_hz > 20000.0f) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "speaker_beeper_start: frequency out of range (0..20000 Hz)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "speakerBeeperStart: frequency out of range (0..20000 Hz)");
         return kWasmErrInvalidArgument;
     }
     if (beep_count < 1 || beep_count > 100) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "speaker_beeper_start: beep_count out of range (1..100)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "speakerBeeperStart: beep_count out of range (1..100)");
         return kWasmErrInvalidArgument;
     }
     if (duration_ms < 10 || duration_ms > 10000) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "speaker_beeper_start: duration_ms out of range (10..10000)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "speakerBeeperStart: duration_ms out of range (10..10000)");
         return kWasmErrInvalidArgument;
     }
     if (gap_ms < 0 || gap_ms > 10000) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "speaker_beeper_start: gap_ms out of range (0..10000)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "speakerBeeperStart: gap_ms out of range (0..10000)");
         return kWasmErrInvalidArgument;
     }
     if (pause_ms < 0 || pause_ms > 60000) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "speaker_beeper_start: pause_ms out of range (0..60000)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "speakerBeeperStart: pause_ms out of range (0..60000)");
         return kWasmErrInvalidArgument;
     }
 
     // Check if already running
     if (g_beeper_running) {
-        wasm_api_set_last_error(kWasmErrInternal, "speaker_beeper_start: beeper already running");
+        wasm_api_set_last_error(kWasmErrInternal, "speakerBeeperStart: beeper already running");
         return kWasmErrInternal;
     }
 
@@ -425,7 +425,7 @@ int32_t speaker_beeper_start(wasm_exec_env_t exec_env, float freq_hz, int32_t be
     // Create the beeper task
     BaseType_t ret = xTaskCreate(beeper_task, "beeper", 4096, NULL, 5, &g_beeper_task_handle);
     if (ret != pdPASS) {
-        wasm_api_set_last_error(kWasmErrInternal, "speaker_beeper_start: failed to create beeper task");
+        wasm_api_set_last_error(kWasmErrInternal, "speakerBeeperStart: failed to create beeper task");
         return kWasmErrInternal;
     }
 
@@ -433,7 +433,7 @@ int32_t speaker_beeper_start(wasm_exec_env_t exec_env, float freq_hz, int32_t be
     return kWasmOk;
 }
 
-int32_t speaker_beeper_stop(wasm_exec_env_t exec_env)
+int32_t speakerBeeperStop(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
 
@@ -465,20 +465,20 @@ int32_t speaker_beeper_stop(wasm_exec_env_t exec_env)
 }
 
 /* clang-format off */
-#define REG_NATIVE_FUNC(func_name, signature) \
-    { #func_name, (void *)func_name, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature) \
+    { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_speaker_native_symbols[] = {
-    REG_NATIVE_FUNC(speaker_begin, "()i"),
-    REG_NATIVE_FUNC(speaker_end, "()i"),
-    REG_NATIVE_FUNC(speaker_is_enabled, "()i"),
-    REG_NATIVE_FUNC(speaker_is_running, "()i"),
-    REG_NATIVE_FUNC(speaker_set_volume, "(i)i"),
-    REG_NATIVE_FUNC(speaker_get_volume, "()i"),
-    REG_NATIVE_FUNC(speaker_stop, "()i"),
-    REG_NATIVE_FUNC(speaker_tone, "(fi)i"),
-    REG_NATIVE_FUNC(speaker_beeper_start, "(fiiii)i"),
-    REG_NATIVE_FUNC(speaker_beeper_stop, "()i"),
+    REG_NATIVE_FUNC(speakerBegin, "()i"),
+    REG_NATIVE_FUNC(speakerEnd, "()i"),
+    REG_NATIVE_FUNC(speakerIsEnabled, "()i"),
+    REG_NATIVE_FUNC(speakerIsRunning, "()i"),
+    REG_NATIVE_FUNC(speakerSetVolume, "(i)i"),
+    REG_NATIVE_FUNC(speakerGetVolume, "()i"),
+    REG_NATIVE_FUNC(speakerStop, "()i"),
+    REG_NATIVE_FUNC(speakerTone, "(fi)i"),
+    REG_NATIVE_FUNC(speakerBeeperStart, "(fiiii)i"),
+    REG_NATIVE_FUNC(speakerBeeperStop, "()i"),
 };
 /* clang-format on */
 
