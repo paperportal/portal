@@ -1,4 +1,5 @@
 #include <inttypes.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #include "driver/gpio.h"
@@ -25,6 +26,39 @@
 namespace {
 
 constexpr const char *kTag = "wasm_api_power";
+
+extern const uint8_t _binary_assets_sleepimage_jpg_start[] asm("_binary_assets_sleepimage_jpg_start");
+extern const uint8_t _binary_assets_sleepimage_jpg_end[] asm("_binary_assets_sleepimage_jpg_end");
+
+static void show_sleep_image_best_effort(void)
+{
+    if (!paper_display_ensure_init()) {
+        ESP_LOGW(kTag, "sleep image: display init failed");
+        return;
+    }
+
+    const uint8_t *start = _binary_assets_sleepimage_jpg_start;
+    const uint8_t *end = _binary_assets_sleepimage_jpg_end;
+    if (end <= start) {
+        ESP_LOGW(kTag, "sleep image: missing/empty asset");
+        return;
+    }
+
+    auto &display = paper_display();
+    const size_t len = (size_t)(end - start);
+    const int32_t max_w = (int32_t)display.width();
+    const int32_t max_h = (int32_t)display.height();
+
+    display.clearDisplay();
+    const bool ok = display.drawJpg(start, len, 0, 0, max_w, max_h, 0, 0, 0.0f, 0.0f);
+    if (!ok) {
+        ESP_LOGW(kTag, "sleep image: decode failed");
+        return;
+    }
+
+    display.display();
+    display.waitDisplay();
+}
 
 // M5PaperS3 behavior ported from M5Unified:
 // - Battery voltage measured via ADC1 on GPIO3, scale ratio 2.0.
@@ -256,12 +290,16 @@ int32_t powerDeepSleepUs(wasm_exec_env_t exec_env, int64_t us)
     return kWasmOk;
 }
 
-int32_t powerOff(wasm_exec_env_t exec_env)
+static int32_t power_off_impl(wasm_exec_env_t exec_env, bool show_sleep_image)
 {
     (void)exec_env;
     if (!paper_display_ensure_init()) {
         wasm_api_set_last_error(kWasmErrInternal, "powerOff: display init failed");
         return kWasmErrInternal;
+    }
+
+    if (show_sleep_image) {
+        show_sleep_image_best_effort();
     }
 
     paper_display().sleep();
@@ -290,6 +328,16 @@ int32_t powerOff(wasm_exec_env_t exec_env)
     return kWasmOk; // not reached
 }
 
+int32_t powerOff(wasm_exec_env_t exec_env)
+{
+    return power_off_impl(exec_env, false);
+}
+
+int32_t powerOffWithSleepImage(wasm_exec_env_t exec_env, int32_t show_sleep_image)
+{
+    return power_off_impl(exec_env, show_sleep_image != 0);
+}
+
 /* clang-format off */
 #define REG_NATIVE_FUNC(funcName, signature) \
     { #funcName, (void *)funcName, signature, NULL }
@@ -307,6 +355,7 @@ static NativeSymbol g_power_native_symbols[] = {
     REG_NATIVE_FUNC(powerLightSleepUs, "(I)i"),
     REG_NATIVE_FUNC(powerDeepSleepUs, "(I)i"),
     REG_NATIVE_FUNC(powerOff, "()i"),
+    REG_NATIVE_FUNC(powerOffWithSleepImage, "(i)i"),
 };
 /* clang-format on */
 
