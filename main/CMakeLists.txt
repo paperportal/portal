@@ -7,6 +7,7 @@ idf_component_register(
     "input/gesture_engine.cpp"
     "input/touch_tracker.cpp"
     "services/devserver_service.cpp"
+    "services/power_service.cpp"
     "services/wifi_service.cpp"
     "other/mem_utils.cpp"
     "other/xteink_image_utils.cpp"

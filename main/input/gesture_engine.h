@@ -33,6 +33,7 @@ public:
         std::vector<PointF> points;
         float tolerance_px;
         bool fixed;
+        bool system;
         int32_t priority;
         uint32_t max_duration_ms;
         bool segment_constraint_enabled;
@@ -55,10 +56,11 @@ public:
     GestureEngine();
 
     void ClearAll();
+    void ClearCustom();
     void ResetTracking();
 
     int32_t RegisterPolyline(const char *id_z, std::vector<PointF> points, bool fixed, float tolerance_px,
-        int32_t priority, uint32_t max_duration_ms, bool segment_constraint_enabled);
+        int32_t priority, uint32_t max_duration_ms, bool segment_constraint_enabled, bool system = false);
     int32_t Remove(int32_t handle);
 
     // Feed the engine a touch event. Returns the winning handle on Up, or 0 if no match.

@@ -86,7 +86,11 @@ When a winner exists, the host emits a single `ppOnGesture` call:
 
 ### `gestureClearAll() -> i32`
 
-Clears all registered gestures and resets tracking state.
+Clears all **app-registered** gestures and resets tracking state.
+
+Notes:
+
+- The firmware may register additional **system gestures** that are always active; these are not removed by `gestureClearAll()`.
 
 ### `gestureRegisterPolyline(...) -> i32`
 
@@ -116,3 +120,5 @@ Removes a single gesture by handle.
 ## App lifecycle safety
 
 On app unload (exit/switch/crash recovery), the host clears all custom gestures to prevent cross-app leakage.
+
+System gestures (registered by the firmware) remain active across app unloads.

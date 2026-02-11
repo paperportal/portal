@@ -18,7 +18,7 @@ constexpr const char *kTag = "wasm_api_gesture";
 int32_t gestureClearAll(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
-    gesture_engine().ClearAll();
+    gesture_engine().ClearCustom();
     return kWasmOk;
 }
 

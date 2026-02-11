@@ -49,6 +49,21 @@ void GestureEngine::ClearAll()
     ResetTracking();
 }
 
+void GestureEngine::ClearCustom()
+{
+    if (slots_.empty()) {
+        return;
+    }
+
+    size_t before = slots_.size();
+    slots_.erase(std::remove_if(slots_.begin(), slots_.end(), [](const Slot &s) { return !s.def.system; }), slots_.end());
+    const size_t after = slots_.size();
+    if (before != after) {
+        ESP_LOGI(kTag, "ClearCustom: cleared %u gestures; kept %u system gestures", (unsigned)(before - after), (unsigned)after);
+    }
+    ResetTracking();
+}
+
 float GestureEngine::dist_sq(const PointF &a, const PointF &b)
 {
     const float dx = a.x - b.x;
@@ -93,7 +108,7 @@ GestureEngine::PointF GestureEngine::abs_point(const GestureDef &def, const Trac
 }
 
 int32_t GestureEngine::RegisterPolyline(const char *id_z, std::vector<PointF> points, bool fixed, float tolerance_px,
-    int32_t priority, uint32_t max_duration_ms, bool segment_constraint_enabled)
+    int32_t priority, uint32_t max_duration_ms, bool segment_constraint_enabled, bool system)
 {
     if (!id_z) {
         return -1;
@@ -116,6 +131,7 @@ int32_t GestureEngine::RegisterPolyline(const char *id_z, std::vector<PointF> po
     s.def.points = std::move(points);
     s.def.tolerance_px = tolerance_px;
     s.def.fixed = fixed;
+    s.def.system = system;
     s.def.priority = priority;
     s.def.max_duration_ms = max_duration_ms;
     s.def.segment_constraint_enabled = segment_constraint_enabled;
@@ -127,10 +143,10 @@ int32_t GestureEngine::RegisterPolyline(const char *id_z, std::vector<PointF> po
     const PointF p0 = def.points.empty() ? PointF{ 0.0f, 0.0f } : def.points.front();
     const PointF plast = def.points.empty() ? PointF{ 0.0f, 0.0f } : def.points.back();
     ESP_LOGI(kTag,
-        "RegisterPolyline: id='%s' handle=%" PRIi32 " points=%u fixed=%d tol=%.1f pri=%" PRIi32 " max_dur=%" PRIu32
+        "RegisterPolyline: id='%s' handle=%" PRIi32 " points=%u fixed=%d system=%d tol=%.1f pri=%" PRIi32 " max_dur=%" PRIu32
         " seg=%d p0=(%.1f,%.1f) plast=(%.1f,%.1f)",
-        def.id, def.handle, (unsigned)def.points.size(), fixed ? 1 : 0, tolerance_px, priority, max_duration_ms,
-        segment_constraint_enabled ? 1 : 0, p0.x, p0.y, plast.x, plast.y);
+        def.id, def.handle, (unsigned)def.points.size(), fixed ? 1 : 0, system ? 1 : 0, tolerance_px, priority,
+        max_duration_ms, segment_constraint_enabled ? 1 : 0, p0.x, p0.y, plast.x, plast.y);
 
     return slots_.back().def.handle;
 }
@@ -142,6 +158,10 @@ int32_t GestureEngine::Remove(int32_t handle)
     }
     for (size_t i = 0; i < slots_.size(); i++) {
         if (slots_[i].def.handle == handle) {
+            if (slots_[i].def.system) {
+                ESP_LOGI(kTag, "Remove: handle=%" PRIi32 " id='%s' denied (system)", handle, slots_[i].def.id);
+                return -4;
+            }
             const TrackState &t = slots_[i].track;
             ESP_LOGI(kTag, "Remove: handle=%" PRIi32 " id='%s' x=%.1f y=%.1f", handle, slots_[i].def.id, t.last_pos.x,
                 t.last_pos.y);

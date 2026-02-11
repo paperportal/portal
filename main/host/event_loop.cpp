@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
+#include <vector>
 
 #include "esp_err.h"
 #include "esp_log.h"
@@ -19,6 +20,7 @@
 #include "input/touch_tracker.h"
 #include "m5papers3_display.h"
 #include "services/wifi_service.h"
+#include "services/power_service.h"
 #include "wasm/app_contract.h"
 #include "wasm/wasm_controller.h"
 
@@ -41,6 +43,8 @@ static char g_pending_app_args[256] = "";
 static wifi::Subscription g_wifi_sub = {};
 static bool g_wifi_subscribed = false;
 
+static int32_t g_system_sleep_gesture_handle = 0;
+
 struct GestureState {
     bool active = false;
     bool dragging = false;
@@ -58,9 +62,29 @@ int32_t now_ms()
     return (int32_t)(esp_timer_get_time() / 1000);
 }
 
+void ensure_system_gestures_registered()
+{
+    if (g_system_sleep_gesture_handle > 0) {
+        return;
+    }
+
+    std::vector<GestureEngine::PointF> points = {
+        { 280.0f, 860.0f },
+        { 280.0f, 500.0f },
+        { 280.0f, 860.0f },
+    };
+
+    // "SLP" system gesture: fixed absolute polyline; high priority; short duration.
+    g_system_sleep_gesture_handle = gesture_engine().RegisterPolyline("SLP", std::move(points), true, 100.0f, 10, 1500, true, true);
+    if (g_system_sleep_gesture_handle <= 0) {
+        ESP_LOGE(kTag, "Failed to register system sleep gesture");
+        g_system_sleep_gesture_handle = 0;
+    }
+}
+
 void clear_custom_gestures()
 {
-    gesture_engine().ClearAll();
+    gesture_engine().ClearCustom();
 }
 
 void wifi_service_event_cb(const wifi::Event &event, void *user_ctx)
@@ -400,12 +424,11 @@ void emit_gesture(WasmController *wasm, int32_t now, int32_t kind, int32_t x, in
 
 void process_touch(WasmController *wasm, GestureState &state, int32_t now)
 {
-    if (!wasm || !wasm->HasGestureHandler()) {
-        return;
-    }
     if (!paper_display_ensure_init()) {
         return;
     }
+
+    const bool dispatch_to_wasm = (wasm != nullptr) && wasm->HasGestureHandler();
 
     TouchTracker &tracker = touch_tracker();
     tracker.update(&paper_display(), (uint32_t)now);
@@ -494,19 +517,25 @@ void process_touch(WasmController *wasm, GestureState &state, int32_t now)
             .time_ms = (uint64_t)now,
         });
 
-        if (custom_handle > 0) {
+        if (custom_handle > 0 && custom_handle == g_system_sleep_gesture_handle) {
+            ESP_LOGI(kTag, "System sleep gesture detected; powering off");
+            (void)power_service::power_off(true);
+            return;
+        }
+
+        if (dispatch_to_wasm && custom_handle > 0) {
             emit_gesture(wasm, now, pp_contract::kGestureCustomPolyline, state.last_x, state.last_y, dx, dy, duration,
                 custom_handle);
         }
 
-        if (state.dragging) {
+        if (dispatch_to_wasm && state.dragging) {
             emit_gesture(wasm, now, pp_contract::kGestureDragEnd, state.last_x, state.last_y, dx, dy, duration, 0);
         }
-        else if (!state.long_press_sent && duration <= pp_contract::kTapMaxDurationMs
+        else if (dispatch_to_wasm && !state.long_press_sent && duration <= pp_contract::kTapMaxDurationMs
             && abs_dx <= pp_contract::kTapMaxMovePx && abs_dy <= pp_contract::kTapMaxMovePx) {
             emit_gesture(wasm, now, pp_contract::kGestureTap, state.last_x, state.last_y, dx, dy, duration, 0);
         }
-        else if (duration <= pp_contract::kFlickMaxDurationMs
+        else if (dispatch_to_wasm && duration <= pp_contract::kFlickMaxDurationMs
             && (abs_dx >= pp_contract::kFlickMinDistancePx || abs_dy >= pp_contract::kFlickMinDistancePx)) {
             emit_gesture(wasm, now, pp_contract::kGestureFlick, state.last_x, state.last_y, dx, dy, duration, 0);
         }
@@ -574,6 +603,7 @@ void host_event_loop_run(WasmController *wasm)
 
     g_event_loop_running = true;
     GestureState gesture_state;
+    ensure_system_gestures_registered();
     int32_t last_tick = now_ms();
 
     while (g_event_loop_running) {

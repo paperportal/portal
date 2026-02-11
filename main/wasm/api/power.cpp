@@ -19,6 +19,7 @@
 #include "wasm_export.h"
 
 #include "m5papers3_display.h"
+#include "services/power_service.h"
 
 #include "../api.h"
 #include "errors.h"
@@ -27,46 +28,12 @@ namespace {
 
 constexpr const char *kTag = "wasm_api_power";
 
-extern const uint8_t _binary_sleepimage_jpg_start[] asm("_binary_sleepimage_jpg_start");
-extern const uint8_t _binary_sleepimage_jpg_end[] asm("_binary_sleepimage_jpg_end");
-
-static void show_sleep_image_best_effort(void)
-{
-    if (!paper_display_ensure_init()) {
-        ESP_LOGW(kTag, "sleep image: display init failed");
-        return;
-    }
-
-    const uint8_t *start = _binary_sleepimage_jpg_start;
-    const uint8_t *end = _binary_sleepimage_jpg_end;
-    if (end <= start) {
-        ESP_LOGW(kTag, "sleep image: missing/empty asset");
-        return;
-    }
-
-    auto &display = paper_display();
-    const size_t len = (size_t)(end - start);
-    const int32_t max_w = (int32_t)display.width();
-    const int32_t max_h = (int32_t)display.height();
-
-    display.clearDisplay();
-    const bool ok = display.drawJpg(start, len, 0, 0, max_w, max_h, 0, 0, 0.0f, 0.0f);
-    if (!ok) {
-        ESP_LOGW(kTag, "sleep image: decode failed");
-        return;
-    }
-
-    display.display();
-    display.waitDisplay();
-}
-
 // M5PaperS3 behavior ported from M5Unified:
 // - Battery voltage measured via ADC1 on GPIO3, scale ratio 2.0.
 // - Charge status on GPIO4, low == charging.
 // - USB detect on GPIO5, high == USB connected. (Matches the upstream UserDemo.)
 constexpr gpio_num_t kPaperS3ChargeStatusPin = GPIO_NUM_4;
 constexpr gpio_num_t kPaperS3UsbDetectPin = GPIO_NUM_5;
-constexpr gpio_num_t kPaperS3PowerHoldPin = GPIO_NUM_44;
 constexpr float kPaperS3BatteryAdcRatio = 2.0f;
 
 adc_oneshot_unit_handle_t g_adc_handle = nullptr;
@@ -293,39 +260,12 @@ int32_t powerDeepSleepUs(wasm_exec_env_t exec_env, int64_t us)
 static int32_t power_off_impl(wasm_exec_env_t exec_env, bool show_sleep_image)
 {
     (void)exec_env;
-    if (!paper_display_ensure_init()) {
-        wasm_api_set_last_error(kWasmErrInternal, "powerOff: display init failed");
+    const esp_err_t err = power_service::power_off(show_sleep_image);
+    if (err != ESP_OK) {
+        wasm_api_set_last_error(kWasmErrInternal, "powerOff: power off failed");
         return kWasmErrInternal;
     }
-
-    if (show_sleep_image) {
-        show_sleep_image_best_effort();
-    }
-
-    paper_display().sleep();
-    paper_display().waitDisplay();
-    vTaskDelay(pdMS_TO_TICKS(200));
-
-    // Mirrors M5Unified's power-hold pulse sequence for M5PaperS3.
-    gpio_config_t io_conf{};
-    io_conf.intr_type = GPIO_INTR_DISABLE;
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    io_conf.pin_bit_mask = 1ULL << static_cast<uint32_t>(kPaperS3PowerHoldPin);
-    io_conf.pull_down_en = GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = GPIO_PULLUP_DISABLE;
-    gpio_config(&io_conf);
-
-    for (int i = 0; i < 5; ++i) {
-        gpio_set_level(kPaperS3PowerHoldPin, 0);
-        vTaskDelay(pdMS_TO_TICKS(50));
-        gpio_set_level(kPaperS3PowerHoldPin, 1);
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
-
-    esp_deep_sleep_start();
-    esp_light_sleep_start();
-    esp_restart();
-    return kWasmOk; // not reached
+    return kWasmOk;
 }
 
 int32_t powerOff(wasm_exec_env_t exec_env)
