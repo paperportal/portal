@@ -41,7 +41,13 @@ struct UiRect {
   int32_t h = 0;
 };
 
+enum class PaperDisplayDriver : int32_t {
+  lgfx = 0,
+  fastepd = 1,
+};
+
 void hold_pwroff_pulse_low();
 
 LGFX_M5PaperS3 &paper_display();
 bool paper_display_ensure_init();
+bool paper_display_ensure_init(PaperDisplayDriver driver);

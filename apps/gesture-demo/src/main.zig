@@ -121,7 +121,7 @@ pub export fn ppInit(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: i
     if (g_initialized) return 0;
     g_initialized = true;
 
-    core.begin() catch {
+    core.begin(.lgfx) catch {
         return -1;
     };
 

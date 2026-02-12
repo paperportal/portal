@@ -9,10 +9,12 @@
 class Display {
 public:
     static Display* current();
+    static void setCurrent(std::unique_ptr<Display> display);
 
     virtual ~Display() = default;
 
     // display.cpp
+    virtual int32_t release(wasm_exec_env_t exec_env) = 0;
     virtual int32_t width(wasm_exec_env_t exec_env) = 0;
     virtual int32_t height(wasm_exec_env_t exec_env) = 0;
     virtual int32_t getRotation(wasm_exec_env_t exec_env) = 0;

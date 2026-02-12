@@ -22,11 +22,18 @@ constexpr const char *kWasmLogTag = "wasm";
 constexpr int32_t kBoardM5PaperS3 = 19;
 
 // Initializes the M5Paper display.
+//
+// Args:
+//   driver: 0=lgfx, 1=fastepd
 // Returns kWasmOk on success, or kWasmErrInternal if display initialization fails.
-int32_t begin(wasm_exec_env_t exec_env)
+int32_t begin(wasm_exec_env_t exec_env, int32_t driver)
 {
     (void)exec_env;
-    if (!paper_display_ensure_init()) {
+    if (driver < 0 || driver > 1) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "begin: driver out of range (expected 0..1)");
+        return kWasmErrInvalidArgument;
+    }
+    if (!paper_display_ensure_init(static_cast<PaperDisplayDriver>(driver))) {
         ESP_LOGE(kTag, "begin: display initialization failed");
         wasm_api_set_last_error(kWasmErrInternal, "begin: display init failed");
         return kWasmErrInternal;
@@ -82,7 +89,7 @@ int32_t board(wasm_exec_env_t exec_env)
     { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_m5_native_symbols[] = {
-    REG_NATIVE_FUNC(begin, "()i"),
+    REG_NATIVE_FUNC(begin, "(i)i"),
     REG_NATIVE_FUNC(delayMs, "(i)i"),
     REG_NATIVE_FUNC(millis, "()i"),
     REG_NATIVE_FUNC(micros, "()I"),

@@ -1,5 +1,11 @@
 #include "display_fastepd.h"
 
+int32_t DisplayFastEpd::release(wasm_exec_env_t exec_env)
+{
+    (void)exec_env;
+    return 0;
+}
+
 int32_t DisplayFastEpd::width(wasm_exec_env_t exec_env)
 {
     return 0;

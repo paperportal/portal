@@ -1,4 +1,8 @@
 #include "m5papers3_display.h"
+#include "wasm/api/display_lgfx.h"
+#include "wasm/api/display_fastepd.h"
+#include "driver/gpio.h"
+#include "esp_log.h"
 
 static constexpr const char* TAG = "m5papers3_display";
 
@@ -80,6 +84,7 @@ void LGFX_M5PaperS3::configure_touch() {
   }
 
 void hold_pwroff_pulse_low() {
+  ESP_LOGI(TAG, "Holding PWROFF_PULSE low (gpio=%d)", static_cast<int>(kPwroffPulsePin));
   gpio_config_t io_conf{};
   io_conf.intr_type = GPIO_INTR_DISABLE;
   io_conf.mode = GPIO_MODE_OUTPUT;
@@ -95,15 +100,61 @@ LGFX_M5PaperS3 &paper_display() {
   return display;
 }
 
-bool paper_display_ensure_init() {
-  static bool attempted = false;
-  static bool ok = false;
-  if (attempted) {
-    return ok;
-  }
-  attempted = true;
+namespace {
 
+void set_display_driver(PaperDisplayDriver driver)
+{
+  switch (driver) {
+  case PaperDisplayDriver::lgfx:
+    Display::setCurrent(std::make_unique<DisplayLgfx>());
+    break;
+  case PaperDisplayDriver::fastepd:
+    Display::setCurrent(std::make_unique<DisplayFastEpd>());
+    break;
+  default:
+    Display::setCurrent(std::make_unique<DisplayLgfx>());
+    break;
+  }
+}
+
+bool g_attempted = false;
+bool g_ok = false;
+PaperDisplayDriver g_current_driver = PaperDisplayDriver::lgfx;
+
+} // namespace
+
+bool paper_display_ensure_init() {
+  if (g_attempted) {
+    return g_ok;
+  }
+  (void)paper_display_ensure_init(PaperDisplayDriver::lgfx);
+  return g_ok;
+}
+
+bool paper_display_ensure_init(PaperDisplayDriver driver) {
+  if (g_attempted) {
+    if (g_ok && g_current_driver != driver) {
+      g_current_driver = driver;
+      set_display_driver(driver);
+    }
+    return g_ok;
+  }
+  g_attempted = true;
+
+  ESP_LOGI(TAG, "Initializing display (M5PaperS3)...");
   hold_pwroff_pulse_low();
-  ok = paper_display().init();
-  return ok;
+  ESP_LOGI(TAG, "Calling LGFX init()...");
+  g_ok = paper_display().init();
+  if (!g_ok) {
+    ESP_LOGE(TAG, "LGFX init() failed");
+    return false;
+  }
+  ESP_LOGI(TAG, "Display init OK: w=%d h=%d rotation=%d",
+      static_cast<int>(paper_display().width()),
+      static_cast<int>(paper_display().height()),
+      static_cast<int>(paper_display().getRotation()));
+
+  g_current_driver = driver;
+  set_display_driver(driver);
+  return g_ok;
 }

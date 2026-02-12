@@ -1,6 +1,8 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include "display.h"
+#include "display_unspecified.h"
+#include "display_lgfx.h"
 #include "esp_log.h"
 #include "wasm_export.h"
 
@@ -9,10 +11,15 @@
 #include "../api.h"
 #include "errors.h"
 
-std::unique_ptr<Display> Display::_current = nullptr;
+std::unique_ptr<Display> Display::_current = std::make_unique<DisplayUnspecified>();
 
 Display* Display::current() {
     return _current.get();
+}
+
+void Display::setCurrent(std::unique_ptr<Display> display) {
+    _current.release();
+    _current.swap(display);
 }
 
 namespace {
