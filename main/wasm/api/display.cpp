@@ -1,6 +1,6 @@
 #include <inttypes.h>
 #include <stdint.h>
-
+#include "display.h"
 #include "esp_log.h"
 #include "wasm_export.h"
 
@@ -8,6 +8,12 @@
 
 #include "../api.h"
 #include "errors.h"
+
+std::unique_ptr<Display> Display::_current = nullptr;
+
+Display* Display::current() {
+    return _current.get();
+}
 
 namespace {
 

@@ -1,4 +1,4 @@
-#include "display.h"
+#include "display_lgfx.h"
 
 int32_t DisplayLgfx::width(wasm_exec_env_t exec_env)
 {

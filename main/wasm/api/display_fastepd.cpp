@@ -1,4 +1,4 @@
-#include "display.h"
+#include "display_fastepd.h"
 
 int32_t DisplayFastEpd::width(wasm_exec_env_t exec_env)
 {
