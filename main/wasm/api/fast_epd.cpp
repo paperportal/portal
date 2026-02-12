@@ -15,6 +15,18 @@
 #include "errors.h"
 #include "features.h"
 
+extern "C" {
+int JPEG_openRAM(JPEGIMAGE *pJPEG, uint8_t *pData, int iDataSize, JPEG_DRAW_CALLBACK *pfnDraw);
+int JPEG_getWidth(JPEGIMAGE *pJPEG);
+int JPEG_getHeight(JPEGIMAGE *pJPEG);
+int JPEG_getSubSample(JPEGIMAGE *pJPEG);
+void JPEG_setPixelType(JPEGIMAGE *pJPEG, int iType);
+int JPEG_decode(JPEGIMAGE *pJPEG, int x, int y, int iOptions);
+int JPEG_decodeDither(JPEGIMAGE *pJPEG, uint8_t *pDither, int iOptions);
+int JPEG_getLastError(JPEGIMAGE *pJPEG);
+void JPEG_close(JPEGIMAGE *pJPEG);
+}
+
 extern "C" void bbepDeinitBus(void);
 
 namespace {
@@ -205,19 +217,18 @@ int32_t epdDrawJpgInternal(
         ctx.clip_y1 = g_fastept.height();
     }
 
-    JPEGDEC jpeg;
-    jpeg.setUserPointer(&ctx);
-
-    const int opened = jpeg.openRAM((uint8_t *)ptr, (int)len, epd_jpeg_draw);
+    JPEGIMAGE jpeg = {};
+    const int opened = JPEG_openRAM(&jpeg, (uint8_t *)ptr, (int)len, epd_jpeg_draw);
     if (!opened) {
         wasm_api_set_last_error(kWasmErrInternal, "epd_draw_jpg: JPEG openRAM failed");
         return kWasmErrInternal;
     }
+    jpeg.pUser = &ctx;
 
     int options = 0;
     if (do_fit) {
-        const int img_w = jpeg.getWidth();
-        const int img_h = jpeg.getHeight();
+        const int img_w = JPEG_getWidth(&jpeg);
+        const int img_h = JPEG_getHeight(&jpeg);
         int scale = 1;
         if (img_w > 0 && img_h > 0) {
             const int w2 = (img_w + 1) / 2;
@@ -246,7 +257,7 @@ int32_t epdDrawJpgInternal(
         }
     }
 
-    const int subsample = jpeg.getSubSample();
+    const int subsample = JPEG_getSubSample(&jpeg);
     int base_mcu_w = 8;
     int base_mcu_h = 8;
     switch (subsample) {
@@ -279,7 +290,7 @@ int32_t epdDrawJpgInternal(
     const int mcu_w = base_mcu_w >> scale_shift;
     const int mcu_h = base_mcu_h >> scale_shift;
 
-    const int img_w = jpeg.getWidth();
+    const int img_w = JPEG_getWidth(&jpeg);
     const int cx = base_mcu_w == 16 ? ((img_w + 15) >> 4) : ((img_w + 7) >> 3);
     const size_t aligned_w = (size_t)cx * (size_t)mcu_w;
     const size_t dither_buf_len = aligned_w * (size_t)mcu_h;
@@ -291,16 +302,18 @@ int32_t epdDrawJpgInternal(
     }
 
     if (dither_buf) {
-        jpeg.setPixelType(FOUR_BIT_DITHERED);
-        ok = jpeg.decodeDither(x, y, dither_buf, options) != 0;
+        JPEG_setPixelType(&jpeg, FOUR_BIT_DITHERED);
+        jpeg.iXOffset = x;
+        jpeg.iYOffset = y;
+        ok = JPEG_decodeDither(&jpeg, dither_buf, options) != 0;
         free(dither_buf);
     } else {
-        jpeg.setPixelType(EIGHT_BIT_GRAYSCALE);
-        ok = jpeg.decode(x, y, options) != 0;
+        JPEG_setPixelType(&jpeg, EIGHT_BIT_GRAYSCALE);
+        ok = JPEG_decode(&jpeg, x, y, options) != 0;
     }
 
-    const int last_err = jpeg.getLastError();
-    jpeg.close();
+    const int last_err = JPEG_getLastError(&jpeg);
+    JPEG_close(&jpeg);
 
     if (!ok) {
         (void)last_err;
