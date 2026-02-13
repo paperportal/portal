@@ -24,11 +24,8 @@ fetch_repo() {
   fi
 }
 
-fetch_repo "https://github.com/lovyan03/LovyanGFX.git" "LovyanGFX" "1.2.19"
+fetch_repo "git@github.com:mikaryyn/LovyanGFX.git" "LovyanGFX" "master"
 fetch_repo "https://github.com/bytecodealliance/wasm-micro-runtime" "wamr" "WAMR-2.4.4"
-fetch_repo "https://github.com/bitbank2/FastEPD" "FastEPD" "1.4.2"
-fetch_repo "https://github.com/vroland/epdiy" "epdiy" "main"
+fetch_repo "git@github.com:mikaryyn/FastEPD.git" "FastEPD" "main"
 
-git apply patches/fastepd.patch
-git apply patches/lovyangfx.patch
 git apply patches/wamr.patch
