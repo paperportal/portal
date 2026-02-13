@@ -47,3 +47,4 @@ void hold_pwroff_pulse_low();
 LGFX_M5PaperS3 &paper_display();
 bool paper_display_ensure_init();
 bool paper_display_ensure_init(PaperDisplayDriver driver);
+void paper_touch_set_rotation(uint_fast8_t rot);

@@ -30,6 +30,8 @@ int JPEG_getLastError(JPEGIMAGE *pJPEG);
 void JPEG_close(JPEGIMAGE *pJPEG);
 }
 
+void paper_touch_set_rotation(uint_fast8_t rot);
+
 namespace {
 
 constexpr const char *kTag = "display_fastepd";
@@ -73,6 +75,11 @@ bool ensure_epd_ready(void)
         (void)g_epd.setMode(BB_MODE_4BPP);
         (void)g_epd.setRotation(90);
         g_epd.fillScreen(0xF);
+        const int update_rc = g_epd.fullUpdate(CLEAR_FAST, false);
+        if (update_rc != BBEP_SUCCESS) {
+            ESP_LOGW(kTag, "FastEPD initial clear fullUpdate failed (%d)", update_rc);
+            return false;
+        }
         g_epd.backupPlane();
         g_epd_inited = true;
     }
@@ -841,9 +848,11 @@ bool DisplayFastEpd::init()
 int32_t DisplayFastEpd::release(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
+    ESP_LOGI(kTag, "release: deinitializing FastEPD resources");
     g_epd.deInit();
     bbepDeinitBus();
     g_epd_inited = false;
+    ESP_LOGI(kTag, "release: FastEPD deinitialized (bus + panel io released)");
     return kWasmOk;
 }
 
@@ -907,6 +916,10 @@ int32_t DisplayFastEpd::setRotation(wasm_exec_env_t exec_env, int32_t rot)
         wasm_api_set_last_error(kWasmErrInternal, "setRotation: FastEPD setRotation failed");
         return kWasmErrInternal;
     }
+    // Keep LGFX touch coordinate conversion aligned with active FastEPD rotation.
+    // FastEPD defaults to 90deg while LGFX touch baseline is rot=0 on this board.
+    const uint_fast8_t lgfx_rot = (uint_fast8_t)((rot + 3) & 0x3);
+    paper_touch_set_rotation(lgfx_rot);
     return kWasmOk;
 }
 

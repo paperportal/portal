@@ -92,8 +92,6 @@ void heapLog(wasm_exec_env_t exec_env, const char *label)
 int32_t openApp(wasm_exec_env_t exec_env, const char *app_id, const char *arguments)
 {
     (void)exec_env;
-    mem_utils::log_heap(kTag, "openApp");
-    mem_utils::check_heap_integrity(kTag, "openApp");
 
     // Validate app_id
     if (!app_id) {

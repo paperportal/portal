@@ -38,6 +38,13 @@ void Display::setCurrent(PaperDisplayDriver driver) {
     if (current_driver != driver) {
         ESP_LOGI(kTag, "setCurrent: switching driver %s -> %s",
                  driver_to_string(current_driver), driver_to_string(driver));
+        const int32_t release_rc = _current->release(nullptr);
+        if (release_rc != kWasmOk) {
+            ESP_LOGW(kTag, "setCurrent: release(%s) failed rc=%" PRId32,
+                     driver_to_string(current_driver), release_rc);
+        } else {
+            ESP_LOGI(kTag, "setCurrent: released driver %s", driver_to_string(current_driver));
+        }
         _current.reset();
         switch (driver) {
             case PaperDisplayDriver::lgfx:

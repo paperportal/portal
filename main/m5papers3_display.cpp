@@ -101,6 +101,32 @@ LGFX_M5PaperS3 &paper_display() {
 namespace {
 
 PaperDisplayDriver g_current_driver = PaperDisplayDriver::lgfx;
+bool g_lgfx_touch_ready = false;
+
+bool ensure_lgfx_touch_ready()
+{
+  if (g_lgfx_touch_ready) {
+    return true;
+  }
+
+  auto *touch = static_cast<lgfx::LGFX_Device &>(paper_display()).touch();
+  if (!touch) {
+    ESP_LOGE(TAG, "LGFX touch backend missing");
+    return false;
+  }
+
+  ESP_LOGI(TAG, "Initializing LGFX touch controller for input polling");
+  g_lgfx_touch_ready = touch->init();
+  if (!g_lgfx_touch_ready) {
+    ESP_LOGE(TAG, "Failed to initialize LGFX touch controller");
+    return false;
+  }
+
+  // Keep LGFX panel geometry/rotation state initialized for convertRawXY(),
+  // but avoid full display init which would claim the i80 bus.
+  static_cast<lgfx::LGFX_Device &>(paper_display()).setRotation(0);
+  return true;
+}
 
 } // namespace
 
@@ -114,10 +140,22 @@ bool paper_display_ensure_init() {
 
 bool paper_display_ensure_init(PaperDisplayDriver driver) {
   g_current_driver = driver;
+  if (driver == PaperDisplayDriver::fastepd) {
+    if (!ensure_lgfx_touch_ready()) {
+      return false;
+    }
+  }
   if (Display::current()->driver() != driver) {
       ESP_LOGI(TAG, "Ensuring display initialization for driver=%d", static_cast<int>(driver));
       Display::setCurrent(driver);
-      Display::current()->init();
+      if (!Display::current()->init()) {
+        ESP_LOGE(TAG, "Display initialization failed for driver=%d", static_cast<int>(driver));
+        return false;
+      }
   }
   return true;
+}
+
+void paper_touch_set_rotation(uint_fast8_t rot) {
+  static_cast<lgfx::LGFX_Device &>(paper_display()).setRotation(rot);
 }

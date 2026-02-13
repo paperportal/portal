@@ -244,8 +244,14 @@ bool DisplayLgfx::init()
 int32_t DisplayLgfx::release(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
-    if (paper_display_ensure_init()) {
-        paper_display().unloadFont();
+    if (g_lgfx_inited) {
+        ESP_LOGI(kTag, "release: deinitializing LGFX display resources");
+        auto &display = paper_display();
+        display.unloadFont();
+        auto *panel = static_cast<lgfx::Panel_EPD *>(display.getPanel());
+        panel->deinit();
+        g_lgfx_inited = false;
+        ESP_LOGI(kTag, "release: LGFX EPD task+buffers+i80 bus released");
     }
 
     std::lock_guard<std::mutex> lock(g_font_mutex);
