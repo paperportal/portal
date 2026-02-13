@@ -12,67 +12,34 @@ namespace {
 
 constexpr const char *kTag = "wasm_api_display_primitives";
 
-Display *get_display_or_set_error(void)
-{
-    auto *display = Display::current();
-    if (!display) {
-        wasm_api_set_last_error(kWasmErrNotReady, "display not ready");
-    }
-    return display;
-}
-
 int32_t drawPixel(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawPixel(exec_env, x, y, rgb888);
+    return Display::current()->drawPixel(exec_env, x, y, rgb888);
 }
 
 int32_t drawLine(wasm_exec_env_t exec_env, int32_t x0, int32_t y0, int32_t x1, int32_t y1, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawLine(exec_env, x0, y0, x1, y1, rgb888);
+    return Display::current()->drawLine(exec_env, x0, y0, x1, y1, rgb888);
 }
 
 int32_t drawFastVline(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t h, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawFastVline(exec_env, x, y, h, rgb888);
+    return Display::current()->drawFastVline(exec_env, x, y, h, rgb888);
 }
 
 int32_t drawFastHline(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawFastHline(exec_env, x, y, w, rgb888);
+    return Display::current()->drawFastHline(exec_env, x, y, w, rgb888);
 }
 
 int32_t drawRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawRect(exec_env, x, y, w, h, rgb888);
+    return Display::current()->drawRect(exec_env, x, y, w, h, rgb888);
 }
 
 int32_t fillRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->fillRect(exec_env, x, y, w, h, rgb888);
+    return Display::current()->fillRect(exec_env, x, y, w, h, rgb888);
 }
 
 int32_t drawRoundRect(
@@ -84,11 +51,7 @@ int32_t drawRoundRect(
     int32_t r,
     int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawRoundRect(exec_env, x, y, w, h, r, rgb888);
+    return Display::current()->drawRoundRect(exec_env, x, y, w, h, r, rgb888);
 }
 
 int32_t fillRoundRect(
@@ -100,29 +63,17 @@ int32_t fillRoundRect(
     int32_t r,
     int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->fillRoundRect(exec_env, x, y, w, h, r, rgb888);
+    return Display::current()->fillRoundRect(exec_env, x, y, w, h, r, rgb888);
 }
 
 int32_t drawCircle(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t r, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawCircle(exec_env, x, y, r, rgb888);
+    return Display::current()->drawCircle(exec_env, x, y, r, rgb888);
 }
 
 int32_t fillCircle(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t r, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->fillCircle(exec_env, x, y, r, rgb888);
+    return Display::current()->fillCircle(exec_env, x, y, r, rgb888);
 }
 
 int32_t fillArc(
@@ -135,29 +86,17 @@ int32_t fillArc(
     float angle1,
     int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->fillArc(exec_env, x, y, r0, r1, angle0, angle1, rgb888);
+    return Display::current()->fillArc(exec_env, x, y, r0, r1, angle0, angle1, rgb888);
 }
 
 int32_t drawEllipse(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t rx, int32_t ry, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawEllipse(exec_env, x, y, rx, ry, rgb888);
+    return Display::current()->drawEllipse(exec_env, x, y, rx, ry, rgb888);
 }
 
 int32_t fillEllipse(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t rx, int32_t ry, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->fillEllipse(exec_env, x, y, rx, ry, rgb888);
+    return Display::current()->fillEllipse(exec_env, x, y, rx, ry, rgb888);
 }
 
 int32_t drawTriangle(
@@ -170,11 +109,7 @@ int32_t drawTriangle(
     int32_t y2,
     int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawTriangle(exec_env, x0, y0, x1, y1, x2, y2, rgb888);
+    return Display::current()->drawTriangle(exec_env, x0, y0, x1, y1, x2, y2, rgb888);
 }
 
 int32_t fillTriangle(
@@ -187,11 +122,7 @@ int32_t fillTriangle(
     int32_t y2,
     int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->fillTriangle(exec_env, x0, y0, x1, y1, x2, y2, rgb888);
+    return Display::current()->fillTriangle(exec_env, x0, y0, x1, y1, x2, y2, rgb888);
 }
 
 /* clang-format off */

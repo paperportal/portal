@@ -2,9 +2,12 @@
 
 #include "display.h"
 
-class DisplayUnspecified final : public Display {
+class DisplayNone final : public Display {
 public:
-    ~DisplayUnspecified() override = default;
+    ~DisplayNone() override = default;
+
+    PaperDisplayDriver driver() override { return PaperDisplayDriver::none; }
+    bool init() override { return false; }
     int32_t release(wasm_exec_env_t exec_env) override { return 0; }
     int32_t width(wasm_exec_env_t exec_env) override { return 0; }
     int32_t height(wasm_exec_env_t exec_env) override { return 0; }

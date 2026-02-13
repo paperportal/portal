@@ -17,8 +17,7 @@ constexpr const char *kExportAlloc = "portalAlloc";
 constexpr const char *kExportFree = "portalFree";
 
 // ppInit signature:
-//   int32_t ppInit(int32_t api_version, int32_t screen_w, int32_t screen_h,
-//                  int32_t args_ptr, int32_t args_len)
+//   int32_t ppInit(int32_t api_version, int32_t args_ptr, int32_t args_len)
 // Returns 0 on success, negative on failure.
 // - args_ptr: pointer to JSON string in wasm memory (null if no args)
 // - args_len: length of JSON string (0 if no args)

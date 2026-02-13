@@ -28,7 +28,7 @@ constexpr int32_t kBoardM5PaperS3 = 19;
 // Returns kWasmOk on success, or kWasmErrInternal if display initialization fails.
 int32_t begin(wasm_exec_env_t exec_env, int32_t driver)
 {
-    (void)exec_env;
+    ESP_LOGI(kTag, "begin: driver=%" PRId32, driver);
     if (driver < 0 || driver > 1) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "begin: driver out of range (expected 0..1)");
         return kWasmErrInvalidArgument;

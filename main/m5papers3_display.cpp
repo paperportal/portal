@@ -1,6 +1,4 @@
 #include "m5papers3_display.h"
-#include "wasm/api/display_lgfx.h"
-#include "wasm/api/display_fastepd.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
 
@@ -102,59 +100,24 @@ LGFX_M5PaperS3 &paper_display() {
 
 namespace {
 
-void set_display_driver(PaperDisplayDriver driver)
-{
-  switch (driver) {
-  case PaperDisplayDriver::lgfx:
-    Display::setCurrent(std::make_unique<DisplayLgfx>());
-    break;
-  case PaperDisplayDriver::fastepd:
-    Display::setCurrent(std::make_unique<DisplayFastEpd>());
-    break;
-  default:
-    Display::setCurrent(std::make_unique<DisplayLgfx>());
-    break;
-  }
-}
-
-bool g_attempted = false;
-bool g_ok = false;
 PaperDisplayDriver g_current_driver = PaperDisplayDriver::lgfx;
 
 } // namespace
 
 bool paper_display_ensure_init() {
-  if (g_attempted) {
-    return g_ok;
+  PaperDisplayDriver driver = Display::current()->driver();
+  if (driver == PaperDisplayDriver::none) {
+    driver = g_current_driver;
   }
-  (void)paper_display_ensure_init(PaperDisplayDriver::lgfx);
-  return g_ok;
+  return paper_display_ensure_init(driver);
 }
 
 bool paper_display_ensure_init(PaperDisplayDriver driver) {
-  if (g_attempted) {
-    if (g_ok && g_current_driver != driver) {
-      g_current_driver = driver;
-      set_display_driver(driver);
-    }
-    return g_ok;
-  }
-  g_attempted = true;
-
-  ESP_LOGI(TAG, "Initializing display (M5PaperS3)...");
-  hold_pwroff_pulse_low();
-  ESP_LOGI(TAG, "Calling LGFX init()...");
-  g_ok = paper_display().init();
-  if (!g_ok) {
-    ESP_LOGE(TAG, "LGFX init() failed");
-    return false;
-  }
-  ESP_LOGI(TAG, "Display init OK: w=%d h=%d rotation=%d",
-      static_cast<int>(paper_display().width()),
-      static_cast<int>(paper_display().height()),
-      static_cast<int>(paper_display().getRotation()));
-
   g_current_driver = driver;
-  set_display_driver(driver);
-  return g_ok;
+  if (Display::current()->driver() != driver) {
+      ESP_LOGI(TAG, "Ensuring display initialization for driver=%d", static_cast<int>(driver));
+      Display::setCurrent(driver);
+      Display::current()->init();
+  }
+  return true;
 }

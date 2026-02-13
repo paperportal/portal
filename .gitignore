@@ -6,3 +6,4 @@ components
 managed_components
 sdkconfig
 zig-out
+zig-pkg

@@ -6,6 +6,8 @@ class DisplayFastEpd final : public Display {
 public:
     ~DisplayFastEpd() override = default;
 
+    PaperDisplayDriver driver() override;
+    bool init() override;
     int32_t release(wasm_exec_env_t exec_env) override;
     int32_t width(wasm_exec_env_t exec_env) override;
     int32_t height(wasm_exec_env_t exec_env) override;

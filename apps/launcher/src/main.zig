@@ -57,17 +57,15 @@ var g_font_handle: ?i32 = null;
 var g_initialized: bool = false;
 var g_controller: ?Controller = null;
 
-pub export fn ppInit(api_version: i32, screen_w: i32, screen_h: i32, args_ptr: i32, args_len: i32) i32 {
+pub export fn ppInit(api_version: i32, args_ptr: i32, args_len: i32) i32 {
     _ = api_version;
-    _ = screen_w;
-    _ = screen_h;
     _ = args_ptr;
     _ = args_len;
 
     if (g_initialized) return 0;
     g_initialized = true;
 
-    core.begin(.lgfx) catch {
+    core.begin(.fastepd) catch {
         core.log.err("ppInit: core.begin failed");
         return -1;
     };

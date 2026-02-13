@@ -51,21 +51,19 @@ bool WasmController::CallShutdown()
     return true;
 }
 
-bool WasmController::CallInit(int32_t api_version, int32_t screen_w, int32_t screen_h,
+bool WasmController::CallInit(int32_t api_version,
     int32_t args_ptr, int32_t args_len)
 {
     if (!dispatch_enabled_ || !exports_.init) {
         return false;
     }
 
-    uint32_t argv[5];
+    uint32_t argv[3];
     argv[0] = (uint32_t)api_version;
-    argv[1] = (uint32_t)screen_w;
-    argv[2] = (uint32_t)screen_h;
-    argv[3] = (uint32_t)args_ptr;
-    argv[4] = (uint32_t)args_len;
+    argv[1] = (uint32_t)args_ptr;
+    argv[2] = (uint32_t)args_len;
 
-    if (!CallWasm(exports_.init, 5, argv, pp_contract::kExportInit)) {
+    if (!CallWasm(exports_.init, 3, argv, pp_contract::kExportInit)) {
         return false;
     }
     return true;

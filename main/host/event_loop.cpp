@@ -188,13 +188,6 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
         return;
     }
 
-    int32_t screen_w = 0;
-    int32_t screen_h = 0;
-    if (paper_display_ensure_init()) {
-        screen_w = paper_display().width();
-        screen_h = paper_display().height();
-    }
-
     auto reload_launcher = [&]() -> bool {
         wasm->UnloadModule();
         clear_custom_gestures();
@@ -207,7 +200,7 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
         if (!wasm->Instantiate(err, sizeof(err))) {
             return false;
         }
-        if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
+        if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
             return false;
         }
         return true;
@@ -236,7 +229,7 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
             return;
         }
 
-        if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
+        if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
             devserver::notify_server_error("ppInit failed");
             (void)reload_launcher();
             finish_dev_command(cmd, -2, "ppInit failed");
@@ -559,13 +552,6 @@ void maybe_recover_uploaded_crash(WasmController *wasm)
         return;
     }
 
-    int32_t screen_w = 0;
-    int32_t screen_h = 0;
-    if (paper_display_ensure_init()) {
-        screen_w = paper_display().width();
-        screen_h = paper_display().height();
-    }
-
     wasm->UnloadModule();
     clear_custom_gestures();
     if (!wasm->LoadEntrypoint()) {
@@ -581,7 +567,7 @@ void maybe_recover_uploaded_crash(WasmController *wasm)
         return;
     }
 
-    if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
+    if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
         devserver::notify_server_error("crash recovery: launcher ppInit failed");
         devserver::notify_uploaded_stopped();
         return;
@@ -637,14 +623,7 @@ void host_event_loop_run(WasmController *wasm)
                     return false;
                 }
 
-                int32_t screen_w = 0;
-                int32_t screen_h = 0;
-                if (paper_display_ensure_init()) {
-                    screen_w = paper_display().width();
-                    screen_h = paper_display().height();
-                }
-
-                return wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0);
+                return wasm->CallInit(pp_contract::kContractVersion, 0, 0);
             };
 
             // Shutdown and unload current app
@@ -670,13 +649,6 @@ void host_event_loop_run(WasmController *wasm)
             if (load_ok) {
                 char err[256] = {};
                 if (wasm->Instantiate(err, sizeof(err))) {
-                    int32_t screen_w = 0;
-                    int32_t screen_h = 0;
-                    if (paper_display_ensure_init()) {
-                        screen_w = paper_display().width();
-                        screen_h = paper_display().height();
-                    }
-
                     // Parse args if provided
                     int32_t args_ptr = 0;
                     int32_t args_len = 0;
@@ -688,7 +660,7 @@ void host_event_loop_run(WasmController *wasm)
                         }
                     }
 
-                    wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, args_ptr, args_len);
+                    wasm->CallInit(pp_contract::kContractVersion, args_ptr, args_len);
                     if (args_ptr > 0) {
                         wasm->CallFree(args_ptr, args_len);
                     }
@@ -728,14 +700,7 @@ void host_event_loop_run(WasmController *wasm)
                 if (!wasm->Instantiate(err, sizeof(err))) {
                     ESP_LOGE(kTag, "Failed to instantiate launcher after app exit: %s", err);
                 } else {
-                    int32_t screen_w = 0;
-                    int32_t screen_h = 0;
-                    if (paper_display_ensure_init()) {
-                        screen_w = paper_display().width();
-                        screen_h = paper_display().height();
-                    }
-
-                    if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
+                    if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
                         ESP_LOGE(kTag, "Launcher ppInit failed after app exit");
                     } else {
                         ESP_LOGI(kTag, "Returned to launcher after app exit");
@@ -782,14 +747,7 @@ void *event_loop_thread(void *arg)
         return nullptr;
     }
 
-    int32_t screen_w = 0;
-    int32_t screen_h = 0;
-    if (paper_display_ensure_init()) {
-        screen_w = paper_display().width();
-        screen_h = paper_display().height();
-    }
-
-    if (!wasm->CallInit(pp_contract::kContractVersion, screen_w, screen_h, 0, 0)) {
+    if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
         ESP_LOGE(kTag, "ppInit failed; continuing without wasm dispatch");
     }
 

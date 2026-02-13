@@ -1,213 +1,206 @@
 #include <inttypes.h>
 #include <stdint.h>
 #include "display.h"
-#include "display_unspecified.h"
+#include "display_none.h"
 #include "display_lgfx.h"
+#include "display_fastepd.h"
 #include "esp_log.h"
 #include "wasm_export.h"
-
-#include "m5papers3_display.h"
 
 #include "../api.h"
 #include "errors.h"
 
-std::unique_ptr<Display> Display::_current = std::make_unique<DisplayUnspecified>();
-
-Display* Display::current() {
-    return _current.get();
-}
-
-void Display::setCurrent(std::unique_ptr<Display> display) {
-    _current.release();
-    _current.swap(display);
-}
+std::unique_ptr<Display> Display::_current = std::make_unique<DisplayNone>();
 
 namespace {
 
 constexpr const char *kTag = "wasm_api_display";
 
-LGFX_M5PaperS3 *get_display_or_set_error(void)
+const char *driver_to_string(PaperDisplayDriver driver) {
+    switch (driver) {
+        case PaperDisplayDriver::lgfx:
+            return "lgfx";
+        case PaperDisplayDriver::fastepd:
+            return "fastepd";
+        default:
+            return "unknown";
+    }
+}
+
+} // namespace
+
+Display* Display::current() {
+    return _current.get();
+}
+
+void Display::setCurrent(PaperDisplayDriver driver) {
+    const PaperDisplayDriver current_driver = _current->driver();
+    if (current_driver != driver) {
+        ESP_LOGI(kTag, "setCurrent: switching driver %s -> %s",
+                 driver_to_string(current_driver), driver_to_string(driver));
+        _current.reset();
+        switch (driver) {
+            case PaperDisplayDriver::lgfx:
+                _current = std::make_unique<DisplayLgfx>();
+                break;
+            case PaperDisplayDriver::fastepd:
+                _current = std::make_unique<DisplayFastEpd>();
+                break;
+            case PaperDisplayDriver::none:
+                _current = std::make_unique<DisplayNone>();
+                break;
+        }
+        ESP_LOGI(kTag, "setCurrent: active driver is now %s", driver_to_string(_current->driver()));
+    } else {
+        ESP_LOGI(kTag, "setCurrent: driver unchanged (%s)", driver_to_string(driver));
+    }
+}
+
+namespace {
+
+Display *get_current_or_set_error()
 {
-    if (!paper_display_ensure_init()) {
-        wasm_api_set_last_error(kWasmErrNotReady, "display not ready (init failed)");
+    auto *display = Display::current();
+    if (!display || display->driver() == PaperDisplayDriver::none) {
+        wasm_api_set_last_error(kWasmErrNotReady, "display not ready (driver not selected)");
         return nullptr;
     }
-    return &paper_display();
+    return display;
 }
 
 int32_t width(wasm_exec_env_t exec_env)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    return (int32_t)display->width();
+    return display->width(exec_env);
 }
 
 int32_t height(wasm_exec_env_t exec_env)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    return (int32_t)display->height();
+    return display->height(exec_env);
 }
 
 int32_t getRotation(wasm_exec_env_t exec_env)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    return (int32_t)display->getRotation();
+    return display->getRotation(exec_env);
 }
 
 int32_t setRotation(wasm_exec_env_t exec_env, int32_t rot)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    if (rot < 0 || rot > 3) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "setRotation: rot out of range (expected 0..3)");
-        return kWasmErrInvalidArgument;
-    }
-    display->setRotation((uint_fast8_t)rot);
-    return kWasmOk;
+    return display->setRotation(exec_env, rot);
 }
 
 int32_t clear(wasm_exec_env_t exec_env)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    display->clearDisplay();
-    return kWasmOk;
+    return display->clear(exec_env);
 }
 
 int32_t fillScreen(wasm_exec_env_t exec_env, int32_t rgb888)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    const uint32_t raw = (uint32_t)rgb888;
-    const uint8_t r = (uint8_t)((raw >> 16) & 0xFF);
-    const uint8_t g = (uint8_t)((raw >> 8) & 0xFF);
-    const uint8_t b = (uint8_t)(raw & 0xFF);
-    display->fillScreen(lgfx::color888(r, g, b));
-    return kWasmOk;
+    return display->fillScreen(exec_env, rgb888);
 }
 
 int32_t display(wasm_exec_env_t exec_env)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    display->display();
-    return kWasmOk;
+    return display->display(exec_env);
 }
 
 int32_t displayRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    if (x < 0 || y < 0 || w < 0 || h < 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "displayRect: negative argument");
-        return kWasmErrInvalidArgument;
-    }
-
-    const int32_t max_w = (int32_t)display->width();
-    const int32_t max_h = (int32_t)display->height();
-    const int64_t x2 = (int64_t)x + (int64_t)w;
-    const int64_t y2 = (int64_t)y + (int64_t)h;
-    if (x2 > max_w || y2 > max_h) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "displayRect: rect out of bounds");
-        return kWasmErrInvalidArgument;
-    }
-
-    display->display(x, y, w, h);
-    return kWasmOk;
+    return display->displayRect(exec_env, x, y, w, h);
 }
 
 int32_t waitDisplay(wasm_exec_env_t exec_env)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    display->waitDisplay();
-    return kWasmOk;
+    return display->waitDisplay(exec_env);
 }
 
 int32_t startWrite(wasm_exec_env_t exec_env)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    display->startWrite();
-    return kWasmOk;
+    return display->startWrite(exec_env);
 }
 
 int32_t endWrite(wasm_exec_env_t exec_env)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    display->endWrite();
-    return kWasmOk;
+    return display->endWrite(exec_env);
 }
 
 int32_t setBrightness(wasm_exec_env_t exec_env, int32_t v)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    if (v < 0 || v > 255) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "setBrightness: v out of range (expected 0..255)");
-        return kWasmErrInvalidArgument;
-    }
-    display->setBrightness((uint8_t)v);
-    return kWasmOk;
+    return display->setBrightness(exec_env, v);
 }
 
 int32_t getBrightness(wasm_exec_env_t exec_env)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    return (int32_t)display->getBrightness();
+    return display->getBrightness(exec_env);
 }
 
 int32_t setEpdMode(wasm_exec_env_t exec_env, int32_t mode)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    if (mode < 1 || mode > 4) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "setEpdMode: mode out of range (1..4)");
-        return kWasmErrInvalidArgument;
-    }
-    display->setEpdMode((lgfx::epd_mode_t)mode);
-    return kWasmOk;
+    return display->setEpdMode(exec_env, mode);
 }
 
 int32_t getEpdMode(wasm_exec_env_t exec_env)
 {
-    auto *display = get_display_or_set_error();
+    auto *display = get_current_or_set_error();
     if (!display) {
         return kWasmErrNotReady;
     }
-    return (int32_t)display->getEpdMode();
+    return display->getEpdMode(exec_env);
 }
 
 /* clang-format off */

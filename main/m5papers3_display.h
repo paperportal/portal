@@ -1,5 +1,6 @@
 #pragma once
 
+#include "wasm/api/display.h"
 #include "LovyanGFX.hpp"
 #include "lgfx/v1/platforms/esp32/Bus_EPD.h"
 #include "lgfx/v1/platforms/esp32/Panel_EPD.hpp"
@@ -39,11 +40,6 @@ struct UiRect {
   int32_t y = 0;
   int32_t w = 0;
   int32_t h = 0;
-};
-
-enum class PaperDisplayDriver : int32_t {
-  lgfx = 0,
-  fastepd = 1,
 };
 
 void hold_pwroff_pulse_low();

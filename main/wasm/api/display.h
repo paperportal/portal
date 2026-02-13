@@ -6,12 +6,21 @@
 
 #include "wasm_export.h"
 
+enum class PaperDisplayDriver : int32_t {
+    none = -1,
+    lgfx = 0,
+    fastepd = 1,
+};
+
 class Display {
 public:
     static Display* current();
-    static void setCurrent(std::unique_ptr<Display> display);
+    static void setCurrent(PaperDisplayDriver driver);
+    virtual PaperDisplayDriver driver() = 0;
+    virtual bool init() = 0;
 
     virtual ~Display() = default;
+
 
     // display.cpp
     virtual int32_t release(wasm_exec_env_t exec_env) = 0;

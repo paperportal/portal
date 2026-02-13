@@ -41,6 +41,7 @@ struct FontBlob {
 
 std::mutex g_font_mutex;
 std::vector<FontBlob> g_fonts;
+bool g_lgfx_inited = false;
 
 LGFX_M5PaperS3 *get_display_or_set_error(void)
 {
@@ -214,6 +215,31 @@ bool compute_expected_image_len(int32_t w, int32_t h, uint32_t bits, size_t *out
 }
 
 } // namespace
+
+PaperDisplayDriver DisplayLgfx::driver() {
+    return PaperDisplayDriver::lgfx;
+}
+
+bool DisplayLgfx::init()
+{
+    if (g_lgfx_inited) {
+        return true;
+    }
+
+    ESP_LOGI(kTag, "Initializing LGFX display...");
+    hold_pwroff_pulse_low();
+    g_lgfx_inited = paper_display().init();
+    if (!g_lgfx_inited) {
+        ESP_LOGE(kTag, "LGFX init() failed");
+        return false;
+    }
+
+    ESP_LOGI(kTag, "LGFX init OK: w=%d h=%d rotation=%d",
+             static_cast<int>(paper_display().width()),
+             static_cast<int>(paper_display().height()),
+             static_cast<int>(paper_display().getRotation()));
+    return true;
+}
 
 int32_t DisplayLgfx::release(wasm_exec_env_t exec_env)
 {

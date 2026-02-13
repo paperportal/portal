@@ -13,15 +13,6 @@ namespace {
 
 constexpr const char *kTag = "wasm_api_display_images";
 
-Display *get_display_or_set_error(void)
-{
-    auto *display = Display::current();
-    if (!display) {
-        wasm_api_set_last_error(kWasmErrNotReady, "display not ready");
-    }
-    return display;
-}
-
 int32_t pushImageRgb565(
     wasm_exec_env_t exec_env,
     int32_t x,
@@ -31,11 +22,7 @@ int32_t pushImageRgb565(
     const uint8_t *ptr,
     size_t len)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->pushImageRgb565(exec_env, x, y, w, h, ptr, len);
+    return Display::current()->pushImageRgb565(exec_env, x, y, w, h, ptr, len);
 }
 
 int32_t pushImage(
@@ -50,11 +37,7 @@ int32_t pushImage(
     const uint8_t *palette_ptr,
     size_t palette_len)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->pushImage(exec_env, x, y, w, h, data_ptr, data_len, depth_raw, palette_ptr, palette_len);
+    return Display::current()->pushImage(exec_env, x, y, w, h, data_ptr, data_len, depth_raw, palette_ptr, palette_len);
 }
 
 int32_t pushImageGray8(
@@ -66,11 +49,7 @@ int32_t pushImageGray8(
     const uint8_t *ptr,
     size_t len)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->pushImageGray8(exec_env, x, y, w, h, ptr, len);
+    return Display::current()->pushImageGray8(exec_env, x, y, w, h, ptr, len);
 }
 
 int32_t readRectRgb565(
@@ -82,81 +61,47 @@ int32_t readRectRgb565(
     uint8_t *out,
     size_t out_len)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->readRectRgb565(exec_env, x, y, w, h, out, out_len);
+    return Display::current()->readRectRgb565(exec_env, x, y, w, h, out, out_len);
 }
 
 int32_t drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawPng(exec_env, ptr, len, x, y);
+    return Display::current()->drawPng(exec_env, ptr, len, x, y);
 }
 
 int32_t drawXthCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawXthCentered(exec_env, ptr, len);
+    return Display::current()->drawXthCentered(exec_env, ptr, len);
 }
 
 int32_t drawXtgCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawXtgCentered(exec_env, ptr, len);
+    return Display::current()->drawXtgCentered(exec_env, ptr, len);
 }
 
 int32_t drawJpgFit(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w,
     int32_t max_h)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawJpgFit(exec_env, ptr, len, x, y, max_w, max_h);
+    return Display::current()->drawJpgFit(exec_env, ptr, len, x, y, max_w, max_h);
 }
 
 int32_t drawPngFit(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w,
     int32_t max_h)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawPngFit(exec_env, ptr, len, x, y, max_w, max_h);
+    return Display::current()->drawPngFit(exec_env, ptr, len, x, y, max_w, max_h);
 }
 
 int32_t drawJpgFile(wasm_exec_env_t exec_env, const char *path, int32_t x, int32_t y, int32_t max_w, int32_t max_h)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawJpgFile(exec_env, path, x, y, max_w, max_h);
+    return Display::current()->drawJpgFile(exec_env, path, x, y, max_w, max_h);
 }
 
 int32_t drawPngFile(wasm_exec_env_t exec_env, const char *path, int32_t x, int32_t y, int32_t max_w, int32_t max_h)
 {
-    auto *display = get_display_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->drawPngFile(exec_env, path, x, y, max_w, max_h);
+    return Display::current()->drawPngFile(exec_env, path, x, y, max_w, max_h);
 }
 
-/* clang-format off */
-#define REG_NATIVE_FUNC(funcName, signature) \
-    { #funcName, (void *)funcName, signature, NULL }
+#define REG_NATIVE_FUNC(funcName, signature)  { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_display_images_native_symbols[] = {
     REG_NATIVE_FUNC(pushImageRgb565, "(iiii*~)i"),
@@ -171,7 +116,6 @@ static NativeSymbol g_display_images_native_symbols[] = {
     REG_NATIVE_FUNC(drawJpgFile, "(*iiii)i"),
     REG_NATIVE_FUNC(drawPngFile, "(*iiii)i"),
 };
-/* clang-format on */
 
 } // namespace
 
@@ -185,4 +129,3 @@ bool wasm_api_register_display_images(void)
     }
     return ok;
 }
-
