@@ -39,6 +39,9 @@ constexpr const char *kTag = "display_fastepd";
 constexpr size_t kMaxJpgBytes = 1024 * 1024;
 constexpr size_t kMaxPngBytes = 1024 * 1024;
 
+extern const uint8_t _binary_sleepimage_jpg_start[] asm("_binary_sleepimage_jpg_start");
+extern const uint8_t _binary_sleepimage_jpg_end[] asm("_binary_sleepimage_jpg_end");
+
 static FASTEPD g_epd;
 static bool g_epd_inited = false;
 static uint8_t g_brightness = 0;
@@ -62,9 +65,16 @@ uint8_t gray8_to_epd_color(uint8_t gray, int32_t mode)
 
 bool ensure_epd_ready(void)
 {
-    if (g_epd_inited && g_epd.currentBuffer()) {
-        return true;
+    if (g_epd_inited) {
+        if (g_epd.currentBuffer()) {
+            return true;
+        }
+        ESP_LOGW(kTag, "FastEPD marked inited but framebuffer missing; forcing reinit");
+        g_epd.deInit();
+        bbepDeinitBus();
+        g_epd_inited = false;
     }
+
     if (!g_epd_inited) {
         hold_pwroff_pulse_low();
         const int rc = g_epd.initPanel(BB_PANEL_M5PAPERS3);
@@ -94,6 +104,24 @@ int32_t require_epd_ready_or_set_error(const char *context)
     wasm_api_set_last_error(kWasmErrNotReady, context);
     return kWasmErrNotReady;
 }
+
+} // namespace
+
+int32_t display_fastepd_full_update_slow()
+{
+    const int32_t ready_rc = require_epd_ready_or_set_error("full_update_slow: display not ready");
+    if (ready_rc != kWasmOk) {
+        return ready_rc;
+    }
+    const int epd_rc = g_epd.fullUpdate(CLEAR_SLOW, false);
+    if (epd_rc != BBEP_SUCCESS) {
+        wasm_api_set_last_error(kWasmErrInternal, "full_update_slow: FastEPD fullUpdate failed");
+        return kWasmErrInternal;
+    }
+    return kWasmOk;
+}
+
+namespace {
 
 struct JpegDrawContext {
     FASTEPD *epd;
@@ -192,15 +220,15 @@ int epd_jpeg_draw(JPEGDRAW *pDraw)
     return 1;
 }
 
-int32_t draw_jpg_internal(
-    const uint8_t *ptr,
-    size_t len,
-    int32_t x,
-    int32_t y,
-    int32_t max_w,
-    int32_t max_h,
-    bool do_fit)
-{
+	int32_t draw_jpg_internal(
+	    const uint8_t *ptr,
+	    size_t len,
+	    int32_t x,
+	    int32_t y,
+	    int32_t max_w,
+	    int32_t max_h,
+	    bool do_fit)
+	{
     if (x < 0 || y < 0) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_jpg: negative coordinates");
         return kWasmErrInvalidArgument;
@@ -238,35 +266,41 @@ int32_t draw_jpg_internal(
     ctx.epd = &g_epd;
     ctx.mode = mode;
 
-    if (do_fit) {
-        ctx.clip_x0 = x;
-        ctx.clip_y0 = y;
-        ctx.clip_x1 = x + max_w;
-        ctx.clip_y1 = y + max_h;
-    } else {
-        ctx.clip_x0 = 0;
-        ctx.clip_y0 = 0;
-        ctx.clip_x1 = g_epd.width();
-        ctx.clip_y1 = g_epd.height();
-    }
+	    if (do_fit) {
+	        ctx.clip_x0 = x;
+	        ctx.clip_y0 = y;
+	        ctx.clip_x1 = x + max_w;
+	        ctx.clip_y1 = y + max_h;
+	    } else {
+	        ctx.clip_x0 = 0;
+	        ctx.clip_y0 = 0;
+	        ctx.clip_x1 = g_epd.width();
+	        ctx.clip_y1 = g_epd.height();
+	    }
 
-    JPEGIMAGE jpeg = {};
-    const int opened = JPEG_openRAM(&jpeg, (uint8_t *)ptr, (int)len, epd_jpeg_draw);
-    if (!opened) {
-        wasm_api_set_last_error(kWasmErrInternal, "draw_jpg: JPEG openRAM failed");
-        return kWasmErrInternal;
-    }
-    jpeg.pUser = &ctx;
+	    JPEGIMAGE *jpeg = (JPEGIMAGE *)calloc(1, sizeof(JPEGIMAGE));
+	    if (!jpeg) {
+	        wasm_api_set_last_error(kWasmErrInternal, "draw_jpg: out of memory");
+	        return kWasmErrInternal;
+	    }
 
-    int options = 0;
-    if (do_fit) {
-        const int img_w = JPEG_getWidth(&jpeg);
-        const int img_h = JPEG_getHeight(&jpeg);
-        int scale = 1;
-        if (img_w > 0 && img_h > 0) {
-            const int w2 = (img_w + 1) / 2;
-            const int h2 = (img_h + 1) / 2;
-            const int w4 = (img_w + 3) / 4;
+	    const int opened = JPEG_openRAM(jpeg, (uint8_t *)ptr, (int)len, epd_jpeg_draw);
+	    if (!opened) {
+	        wasm_api_set_last_error(kWasmErrInternal, "draw_jpg: JPEG openRAM failed");
+	        free(jpeg);
+	        return kWasmErrInternal;
+	    }
+	    jpeg->pUser = &ctx;
+
+	    int options = 0;
+	    if (do_fit) {
+	        const int img_w = JPEG_getWidth(jpeg);
+	        const int img_h = JPEG_getHeight(jpeg);
+	        int scale = 1;
+	        if (img_w > 0 && img_h > 0) {
+	            const int w2 = (img_w + 1) / 2;
+	            const int h2 = (img_h + 1) / 2;
+	            const int w4 = (img_w + 3) / 4;
             const int h4 = (img_h + 3) / 4
 ;
             if (img_w <= max_w && img_h <= max_h) {
@@ -285,14 +319,14 @@ int32_t draw_jpg_internal(
             options |= JPEG_SCALE_QUARTER;
         } else if (scale == 8) {
             options |= JPEG_SCALE_EIGHTH;
-        }
-    }
+	        }
+	    }
 
-    const int subsample = JPEG_getSubSample(&jpeg);
-    int base_mcu_w = 8;
-    int base_mcu_h = 8;
-    switch (subsample) {
-        case 0x12:
+	    const int subsample = JPEG_getSubSample(jpeg);
+	    int base_mcu_w = 8;
+	    int base_mcu_h = 8;
+	    switch (subsample) {
+	        case 0x12:
             base_mcu_w = 8;
             base_mcu_h = 16;
             break;
@@ -317,39 +351,40 @@ int32_t draw_jpg_internal(
         scale_shift = 2;
     } else if (options & JPEG_SCALE_EIGHTH) {
         scale_shift = 3;
-    }
-    const int mcu_w = base_mcu_w >> scale_shift;
-    const int mcu_h = base_mcu_h >> scale_shift;
+	    }
+	    const int mcu_w = base_mcu_w >> scale_shift;
+	    const int mcu_h = base_mcu_h >> scale_shift;
 
-    const int img_w = JPEG_getWidth(&jpeg);
-    const int cx = base_mcu_w == 16 ? ((img_w + 15) >> 4) : ((img_w + 7) >> 3);
-    const size_t aligned_w = (size_t)cx * (size_t)mcu_w;
-    const size_t dither_buf_len = aligned_w * (size_t)mcu_h;
+	    const int img_w = JPEG_getWidth(jpeg);
+	    const int cx = base_mcu_w == 16 ? ((img_w + 15) >> 4) : ((img_w + 7) >> 3);
+	    const size_t aligned_w = (size_t)cx * (size_t)mcu_w;
+	    const size_t dither_buf_len = aligned_w * (size_t)mcu_h;
 
-    bool ok = false;
-    uint8_t *dither_buf = nullptr;
-    if (dither_buf_len > 0) {
-        dither_buf = (uint8_t *)malloc(dither_buf_len);
-    }
+	    bool ok = false;
+	    uint8_t *dither_buf = nullptr;
+	    if (dither_buf_len > 0) {
+	        dither_buf = (uint8_t *)malloc(dither_buf_len);
+	    }
 
-    if (dither_buf) {
-        JPEG_setPixelType(&jpeg, FOUR_BIT_DITHERED);
-        jpeg.iXOffset = x;
-        jpeg.iYOffset = y;
-        ok = JPEG_decodeDither(&jpeg, dither_buf, options) != 0;
-        free(dither_buf);
-    } else {
-        JPEG_setPixelType(&jpeg, EIGHT_BIT_GRAYSCALE);
-        ok = JPEG_decode(&jpeg, x, y, options) != 0;
-    }
+	    if (dither_buf) {
+	        JPEG_setPixelType(jpeg, FOUR_BIT_DITHERED);
+	        jpeg->iXOffset = x;
+	        jpeg->iYOffset = y;
+	        ok = JPEG_decodeDither(jpeg, dither_buf, options) != 0;
+	        free(dither_buf);
+	    } else {
+	        JPEG_setPixelType(jpeg, EIGHT_BIT_GRAYSCALE);
+	        ok = JPEG_decode(jpeg, x, y, options) != 0;
+	    }
 
-    const int last_err = JPEG_getLastError(&jpeg);
-    JPEG_close(&jpeg);
+	    const int last_err = JPEG_getLastError(jpeg);
+	    JPEG_close(jpeg);
+	    free(jpeg);
 
-    if (!ok) {
-        (void)last_err;
-        wasm_api_set_last_error(kWasmErrInternal, "draw_jpg: decode failed");
-        return kWasmErrInternal;
+	    if (!ok) {
+	        (void)last_err;
+	        wasm_api_set_last_error(kWasmErrInternal, "draw_jpg: decode failed");
+	        return kWasmErrInternal;
     }
 
     return kWasmOk;
@@ -820,6 +855,137 @@ void fill_ellipse_scanlines(int32_t cx, int32_t cy, int32_t rx, int32_t ry, uint
 }
 
 } // namespace
+
+	extern "C" void show_sleepimage_with_fastepd_best_effort(void)
+	{
+    constexpr int kPortraitRotationDeg = 90;
+
+    const uint8_t *start = _binary_sleepimage_jpg_start;
+    const uint8_t *end = _binary_sleepimage_jpg_end;
+    if (end <= start) {
+        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] sleepimage asset missing/empty");
+        return;
+    }
+
+    const bool was_inited = g_epd_inited;
+    auto cleanup_if_owned = [&]() {
+        if (was_inited) {
+            return;
+        }
+        g_epd.deInit();
+        bbepDeinitBus();
+        g_epd_inited = false;
+    };
+
+    if (!ensure_epd_ready()) {
+        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] FastEPD init failed");
+        cleanup_if_owned();
+        return;
+    }
+
+    (void)g_epd.setMode(BB_MODE_4BPP);
+    (void)g_epd.setRotation(kPortraitRotationDeg);
+    g_epd.fillScreen(0xF);
+
+    if (!g_epd.currentBuffer()) {
+        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] FastEPD framebuffer missing");
+        cleanup_if_owned();
+        return;
+    }
+
+    const size_t len = (size_t)(end - start);
+    JpegDrawContext ctx = {};
+    ctx.epd = &g_epd;
+    ctx.mode = g_epd.getMode();
+    ctx.clip_x0 = 0;
+	    ctx.clip_y0 = 0;
+	    ctx.clip_x1 = g_epd.width();
+	    ctx.clip_y1 = g_epd.height();
+
+	    JPEGIMAGE *jpeg = (JPEGIMAGE *)calloc(1, sizeof(JPEGIMAGE));
+	    if (!jpeg) {
+	        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] JPEGIMAGE alloc failed");
+	        cleanup_if_owned();
+	        return;
+	    }
+
+	    const int opened = JPEG_openRAM(jpeg, (uint8_t *)start, (int)len, epd_jpeg_draw);
+	    if (!opened) {
+	        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] JPEG openRAM failed (%d)",
+	                 (int)JPEG_getLastError(jpeg));
+	        free(jpeg);
+	        cleanup_if_owned();
+	        return;
+	    }
+	    jpeg->pUser = &ctx;
+
+	    const int subsample = JPEG_getSubSample(jpeg);
+	    int base_mcu_w = 8;
+	    int base_mcu_h = 8;
+	    switch (subsample) {
+	        case 0x12:
+            base_mcu_w = 8;
+            base_mcu_h = 16;
+            break;
+        case 0x21:
+            base_mcu_w = 16;
+            base_mcu_h = 8;
+            break;
+        case 0x22:
+            base_mcu_w = 16;
+            base_mcu_h = 16;
+            break;
+	        default:
+	            base_mcu_w = 8;
+	            base_mcu_h = 8;
+	            break;
+	    }
+
+	    const int img_w = JPEG_getWidth(jpeg);
+	    const int cx = base_mcu_w == 16 ? ((img_w + 15) >> 4) : ((img_w + 7) >> 3);
+	    const size_t aligned_w = (size_t)cx * (size_t)base_mcu_w;
+	    const size_t dither_buf_len = aligned_w * (size_t)base_mcu_h;
+
+	    bool ok = false;
+	    uint8_t *dither_buf = nullptr;
+	    if (dither_buf_len > 0) {
+	        dither_buf = (uint8_t *)malloc(dither_buf_len);
+	    }
+
+	    if (dither_buf) {
+	        JPEG_setPixelType(jpeg, FOUR_BIT_DITHERED);
+	        jpeg->iXOffset = 0;
+	        jpeg->iYOffset = 0;
+	        ok = JPEG_decodeDither(jpeg, dither_buf, 0) != 0;
+	        free(dither_buf);
+	    } else {
+	        if (dither_buf_len > 0) {
+	            ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] dither buffer alloc failed (%u bytes)",
+	                     (unsigned)dither_buf_len);
+	        }
+	        JPEG_setPixelType(jpeg, EIGHT_BIT_GRAYSCALE);
+	        ok = JPEG_decode(jpeg, 0, 0, 0) != 0;
+	    }
+
+	    const int last_err = JPEG_getLastError(jpeg);
+	    JPEG_close(jpeg);
+	    free(jpeg);
+
+	    if (!ok) {
+	        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] JPEG decode failed (%d)", last_err);
+	        cleanup_if_owned();
+        return;
+    }
+
+    const int epd_rc = g_epd.fullUpdate(CLEAR_SLOW, false);
+    if (epd_rc != BBEP_SUCCESS) {
+        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] FastEPD fullUpdate failed (%d)", epd_rc);
+        cleanup_if_owned();
+        return;
+    }
+
+    cleanup_if_owned();
+}
 
 PaperDisplayDriver DisplayFastEpd::driver() {
     return PaperDisplayDriver::fastepd;

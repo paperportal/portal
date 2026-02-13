@@ -249,7 +249,7 @@ int32_t DisplayLgfx::release(wasm_exec_env_t exec_env)
         auto &display = paper_display();
         display.unloadFont();
         auto *panel = static_cast<lgfx::Panel_EPD *>(display.getPanel());
-        panel->deinit();
+// TODO        panel->deinit();
         g_lgfx_inited = false;
         ESP_LOGI(kTag, "release: LGFX EPD task+buffers+i80 bus released");
     }

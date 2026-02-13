@@ -2,6 +2,14 @@
 
 #include "display.h"
 
+// Internal helper (not part of the WASM API surface): perform a full FastEPD update using
+// a slow clear waveform (higher quality, less ghosting) when the active display driver is FastEPD.
+int32_t display_fastepd_full_update_slow();
+
+// Internal helper: render the embedded sleep image using FastEPD.
+// Best-effort only; intended for boot/power-off paths.
+extern "C" void show_sleepimage_with_fastepd_best_effort(void);
+
 class DisplayFastEpd final : public Display {
 public:
     ~DisplayFastEpd() override = default;

@@ -13,10 +13,12 @@
 
 #include "m5papers3_display.h"
 #include "wasm/api/display.h"
+#include "wasm/api/display_fastepd.h"
 #include "wasm/api/errors.h"
 
 namespace {
 
+constexpr bool usePng = false;
 constexpr const char *kTag = "power_service";
 
 extern const uint8_t _binary_sleepimage_jpg_start[] asm("_binary_sleepimage_jpg_start");
@@ -37,7 +39,9 @@ struct SleepImageDrawJob {
     TaskHandle_t caller = nullptr;
 };
 
-void sleep_image_draw_task(void *arg)
+extern "C" void show_sleepimage_with_fastepd_best_effort(void);
+
+void sleepimage_draw_task(void *arg)
 {
     auto *job = static_cast<SleepImageDrawJob *>(arg);
     if (!job) {
@@ -45,108 +49,24 @@ void sleep_image_draw_task(void *arg)
         return;
     }
 
-    auto *display = Display::current();
-    if (!display || display->driver() == PaperDisplayDriver::none) {
-        job->draw_rc = kWasmErrNotReady;
-    } else {
-        if (display->driver() == PaperDisplayDriver::lgfx) {
-            const int32_t mode_rc = display->setEpdMode(nullptr, kLgfxEpdMode4Bpp);
-            if (mode_rc != kWasmOk) {
-                ESP_LOGW(kTag, "sleep image: set 4-bpp mode failed rc=%ld", (long)mode_rc);
-            }
-        } else if (display->driver() == PaperDisplayDriver::fastepd) {
-            const int32_t mode_rc = display->setEpdMode(nullptr, kFastEpdMode4Bpp);
-            if (mode_rc != kWasmOk) {
-                ESP_LOGW(kTag, "sleep image: set 4-bpp mode failed rc=%ld", (long)mode_rc);
-            }
-        }
-        const int32_t max_w = display->width(nullptr);
-        const int32_t max_h = display->height(nullptr);
-        if (max_w > 0 && max_h > 0) {
-            const int32_t clear_rc = display->clear(nullptr);
-            if (clear_rc != kWasmOk) {
-                ESP_LOGW(kTag, "sleep image: clear failed rc=%ld", (long)clear_rc);
-            }
-            //job->draw_rc = display->drawJpgFit(nullptr, job->start, job->len, 0, 0, max_w, max_h);
-            job->draw_rc = display->drawPngFit(nullptr, job->start, job->len, 0, 0, max_w, max_h);
-            if (job->draw_rc == kWasmOk) {
-                job->display_rc = display->display(nullptr);
-                if (job->display_rc == kWasmOk) {
-                    (void)display->waitDisplay(nullptr);
-                }
-            }
-        } else {
-            job->draw_rc = kWasmErrInternal;
-        }
-    }
-
+    show_sleepimage_with_fastepd_best_effort();
     xTaskNotifyGive(job->caller);
     vTaskDelete(nullptr);
-}
-
-static void show_sleep_image_best_effort(void)
-{
-    if (!paper_display_ensure_init()) {
-        ESP_LOGW(kTag, "sleep image: display init failed");
-        return;
-    }
-
-    const uint8_t *start = _binary_sleepimage_png_start;
-    const uint8_t *end = _binary_sleepimage_png_end;
-    if (end <= start) {
-        ESP_LOGW(kTag, "sleep image: missing/empty asset");
-        return;
-    }
-
-    auto *display = Display::current();
-    if (!display || display->driver() == PaperDisplayDriver::none) {
-        ESP_LOGW(kTag, "sleep image: display driver unavailable");
-        return;
-    }
-
-    const size_t len = (size_t)(end - start);
-
-    SleepImageDrawJob job{};
-    job.start = start;
-    job.len = len;
-    job.caller = xTaskGetCurrentTaskHandle();
-
-    BaseType_t ok = xTaskCreate(
-        sleep_image_draw_task,
-        "sleep_img",
-        kSleepImageTaskStackBytes,
-        &job,
-        tskIDLE_PRIORITY + 1,
-        nullptr);
-    if (ok != pdPASS) {
-        ESP_LOGW(kTag, "sleep image: failed to create render task");
-        return;
-    }
-
-    (void)ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    if (job.draw_rc != kWasmOk) {
-        ESP_LOGW(kTag, "sleep image: decode failed");
-        return;
-    }
-    if (job.display_rc != kWasmOk) {
-        ESP_LOGW(kTag, "sleep image: display update failed rc=%ld", (long)job.display_rc);
-        return;
-    }
 }
 
 } // namespace
 
 namespace power_service {
 
-esp_err_t power_off(bool show_sleep_image)
+esp_err_t power_off(bool show_sleepimage)
 {
     if (!paper_display_ensure_init()) {
         ESP_LOGW(kTag, "power off: display init failed");
         return ESP_FAIL;
     }
 
-    if (show_sleep_image) {
-        show_sleep_image_best_effort();
+    if (show_sleepimage) {
+        show_sleepimage_with_fastepd_best_effort();
     }
 
     auto *display = Display::current();

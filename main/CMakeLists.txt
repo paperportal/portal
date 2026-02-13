@@ -21,7 +21,6 @@ idf_component_register(
     "wasm/api/display_images.cpp"
     "wasm/api/display_primitives.cpp"
     "wasm/api/display_text.cpp"
-    "wasm/api/fast_epd.cpp"
     "wasm/api/fs.cpp"
     "wasm/api/gesture.cpp"
     "wasm/api/hal.cpp"

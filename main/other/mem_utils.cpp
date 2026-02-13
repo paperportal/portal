@@ -120,32 +120,27 @@ void log_heap_brief(const char *tag, const char *label)
     const size_t internal_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     const size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     const size_t internal_min_free = heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-    const size_t internal_largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
 
 #ifdef MALLOC_CAP_SPIRAM
     const size_t psram_total = heap_caps_get_total_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     const size_t psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     const size_t psram_min_free = heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    const size_t psram_largest = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 #else
     const size_t psram_total = 0;
     const size_t psram_free = 0;
     const size_t psram_min_free = 0;
-    const size_t psram_largest = 0;
 #endif
 
     ESP_LOGI(tag,
-             "[%s] heap total=%" PRIu32 " free=%" PRIu32 " min_free=%" PRIu32 " largest=%" PRIu32
-             " | psram total=%" PRIu32 " free=%" PRIu32 " min_free=%" PRIu32 " largest=%" PRIu32,
+             "[%s] heap total=%" PRIu32 " free=%" PRIu32 " min_free=%" PRIu32
+             " | psram total=%" PRIu32 " free=%" PRIu32 " min_free=%" PRIu32,
              label,
              static_cast<uint32_t>(internal_total),
              static_cast<uint32_t>(internal_free),
              static_cast<uint32_t>(internal_min_free),
-             static_cast<uint32_t>(internal_largest),
              static_cast<uint32_t>(psram_total),
              static_cast<uint32_t>(psram_free),
-             static_cast<uint32_t>(psram_min_free),
-             static_cast<uint32_t>(psram_largest));
+             static_cast<uint32_t>(psram_min_free));
 }
 
 void log_heap(const char *tag, const char *label)

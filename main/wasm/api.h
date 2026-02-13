@@ -11,7 +11,6 @@ bool wasm_api_register_display_text(void);
 bool wasm_api_register_display_images(void);
 bool wasm_api_register_touch(void);
 bool wasm_api_register_gesture(void);
-bool wasm_api_register_fast_epd(void);
 bool wasm_api_register_speaker(void);
 bool wasm_api_register_rtc(void);
 bool wasm_api_register_power(void);
