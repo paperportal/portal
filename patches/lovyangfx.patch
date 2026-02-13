@@ -135,3 +135,193 @@
              }
            } while (--h);
  
+--- a/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Bus_EPD.h
++++ b/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Bus_EPD.h
+@@ -79,6 +79,7 @@ class Bus_EPD : public Bus_NULL
+     uint8_t bus_width;
+   };
+   bool init(void) override;
++  void release(void) override;
+ 
+   bool busy(void) const override { return _bus_busy; }
+   void wait(void) override;
+--- a/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Bus_EPD.cpp
++++ b/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Bus_EPD.cpp
+@@ -110,6 +110,7 @@ void Bus_EPD::writeScanLine(const uint8_t *data, uint32_t length)
+ 
+ bool Bus_EPD::init(void)
+ {
++  release();
+   _bus_busy = false;
+   _pwr_on = false;
+ 
+@@ -153,10 +154,32 @@ bool Bus_EPD::init(void)
+   io_config.cs_gpio_num = (gpio_num_t)_config.pin_sph;
+ 
+   if (ESP_OK != esp_lcd_new_panel_io_i80(_i80_bus_handle, &io_config, &_io_handle))
+-  { return false; }
++  {
++    esp_lcd_del_i80_bus(_i80_bus_handle);
++    _i80_bus_handle = nullptr;
++    return false;
++  }
+ 
+   return true;
+ }
++
++void Bus_EPD::release(void)
++{
++  wait();
++  powerControl(false);
++  if (_io_handle) {
++    esp_lcd_panel_io_del(_io_handle);
++    _io_handle = nullptr;
++  }
++  if (_i80_bus_handle) {
++    esp_lcd_del_i80_bus(_i80_bus_handle);
++    _i80_bus_handle = nullptr;
++  }
++  _bus_busy = false;
++}
+ 
+ //----------------------------------------------------------------------------
+  }
+--- a/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_EPD.hpp
++++ b/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_EPD.hpp
+@@ -64,6 +64,7 @@ namespace lgfx
+     void endTransaction(void) override;
+ 
+     bool init(bool use_reset) override;
++    void deinit(void);
+ 
+     void waitDisplay(void) override;
+     bool displayBusy(void) override;
+--- a/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_EPD.cpp
++++ b/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_EPD.cpp
+@@ -211,7 +211,18 @@ namespace lgfx
+ 
+   void Panel_EPD::deinit(void)
+   {
+-    waitDisplay();
++    auto *bus = getBusEPD();
++    // Ensure no in-flight update or queued work remains before we tear down
++    // task/buffers/bus resources.
++    while (_display_busy
++        || (_update_queue_handle && uxQueueMessagesWaiting(_update_queue_handle) > 0)
++        || (bus && bus->busy())) {
++      vTaskDelay(1);
++    }
++    if (bus) {
++      bus->wait();
++    }
+ 
+     if (_task_update_handle) {
+       vTaskDelete(_task_update_handle);
+@@ -228,8 +239,8 @@ namespace lgfx
+     if (_dma_bufs[1]) { heap_caps_free(_dma_bufs[1]); _dma_bufs[1] = nullptr; }
+     if (_lut_2pixel) { heap_caps_free(_lut_2pixel); _lut_2pixel = nullptr; }
+ 
+-    if (auto *bus = getBusEPD()) {
++    if (bus) {
+       bus->release();
+     }
+     _display_busy = false;
+--- a/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_EPD.hpp
++++ b/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_EPD.hpp
+@@ -115,6 +115,8 @@ namespace lgfx
+ 
+     TaskHandle_t _task_update_handle = nullptr;
+     QueueHandle_t _update_queue_handle = nullptr;
++    volatile bool _task_shutdown_requested = false;
++    volatile bool _task_shutdown_complete = false;
+   
+     uint8_t* _dma_bufs[2] = { 0, 0 };
+     uint16_t* _step_framebuf = nullptr;
+--- a/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_EPD.cpp
++++ b/components/LovyanGFX/src/lgfx/v1/platforms/esp32/Panel_EPD.cpp
+@@ -212,19 +212,36 @@ namespace lgfx
+   void Panel_EPD::deinit(void)
+   {
+     auto *bus = getBusEPD();
+-    // Ensure no in-flight update or queued work remains before we tear down
+-    // task/buffers/bus resources.
+-    while (_display_busy
+-        || (_update_queue_handle && uxQueueMessagesWaiting(_update_queue_handle) > 0)
+-        || (bus && bus->busy())) {
+-      vTaskDelay(1);
++    _task_shutdown_requested = true;
++    _task_shutdown_complete = false;
++
++    // Wake the task if it is blocked in xQueueReceive().
++    if (_update_queue_handle) {
++      update_data_t wake = {};
++      (void)xQueueSend(_update_queue_handle, &wake, 0);
++    }
++
++    // Wait until the worker task has exited on its own, so freeing buffers is safe.
++    const TickType_t deadline = xTaskGetTickCount() + pdMS_TO_TICKS(1000);
++    while (_task_update_handle && !_task_shutdown_complete) {
++      if ((int32_t)(xTaskGetTickCount() - deadline) >= 0) {
++        break;
++      }
++      vTaskDelay(1);
+     }
++
++    // Ensure no in-flight update or queued work remains before tearing down resources.
++    while (_display_busy
++        || (_update_queue_handle && uxQueueMessagesWaiting(_update_queue_handle) > 0)
++        || (bus && bus->busy())) {
++      vTaskDelay(1);
++    }
+     if (bus) {
+       bus->wait();
+     }
+ 
+-    if (_task_update_handle) {
+-      vTaskDelete(_task_update_handle);
+-      _task_update_handle = nullptr;
+-    }
+     if (_update_queue_handle) {
+       vQueueDelete(_update_queue_handle);
+       _update_queue_handle = nullptr;
+@@ -241,6 +258,8 @@ namespace lgfx
+       bus->release();
+     }
+     _display_busy = false;
++    _task_shutdown_requested = false;
++    _task_shutdown_complete = false;
+   }
+@@ -347,6 +366,8 @@ namespace lgfx
+ 
+     _update_queue_handle = xQueueCreate(8, sizeof(update_data_t));
++    _task_shutdown_requested = false;
++    _task_shutdown_complete = false;
+     auto task_priority = _config_detail.task_priority;
+     auto task_pinned_core = _config_detail.task_pinned_core;
+@@ -973,10 +994,13 @@ namespace lgfx
+         break;
+       }
+       me->_display_busy = remain;
+-      TickType_t wait_tick = remain ? 0 : portMAX_DELAY;
+-      if (xQueueReceive(me->_update_queue_handle, &new_data, wait_tick)) {
+-        me->_display_busy = true;
+-        uint32_t usec = lgfx::micros();
++      TickType_t wait_tick = remain ? 0 : pdMS_TO_TICKS(50);
++      if (!xQueueReceive(me->_update_queue_handle, &new_data, wait_tick)) {
++        continue;
++      }
++      if (me->_task_shutdown_requested) {
++        break;
++      }
++      me->_display_busy = true;
++      uint32_t usec = lgfx::micros();
+@@ -1146,6 +1170,10 @@ namespace lgfx
+       if (remain == false) {
+         bus->powerControl(false);
+       }
+     }
++    me->_display_busy = false;
++    me->_task_shutdown_complete = true;
++    me->_task_update_handle = nullptr;
++    vTaskDelete(nullptr);
+   }
