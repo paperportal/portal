@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 
 #include <FastEPD.h>
 #include <JPEGDEC.h>
@@ -38,6 +39,8 @@ constexpr const char *kTag = "display_fastepd";
 
 constexpr size_t kMaxJpgBytes = 1024 * 1024;
 constexpr size_t kMaxPngBytes = 1024 * 1024;
+constexpr size_t kMaxXthBytes = 1024 * 1024;
+constexpr size_t kMaxXtgBytes = 1024 * 1024;
 
 extern const uint8_t _binary_sleepimage_jpg_start[] asm("_binary_sleepimage_jpg_start");
 extern const uint8_t _binary_sleepimage_jpg_end[] asm("_binary_sleepimage_jpg_end");
@@ -60,7 +63,11 @@ uint8_t gray8_to_epd_color(uint8_t gray, int32_t mode)
     if (mode == BB_MODE_1BPP) {
         return (gray >= 128) ? (uint8_t)BBEP_WHITE : (uint8_t)BBEP_BLACK;
     }
-    return (uint8_t)((gray + 8u) >> 4); // 0..15
+    uint8_t v = (uint8_t)((gray + 8u) >> 4); // nominally 0..15 (but 255 rounds to 16)
+    if (v > 15) {
+        v = 15;
+    }
+    return v;
 }
 
 bool ensure_epd_ready(void)
@@ -103,6 +110,642 @@ int32_t require_epd_ready_or_set_error(const char *context)
     }
     wasm_api_set_last_error(kWasmErrNotReady, context);
     return kWasmErrNotReady;
+}
+
+static inline uint16_t read_le_u16(const uint8_t *p)
+{
+    return (uint16_t)((uint16_t)p[0] | (uint16_t)((uint16_t)p[1] << 8));
+}
+
+static inline uint32_t read_le_u32(const uint8_t *p)
+{
+    return (uint32_t)((uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24));
+}
+
+struct NativeRect {
+    int32_t x0;
+    int32_t y0;
+    int32_t w;
+    int32_t h;
+};
+
+bool compute_native_rect_for_logical_rect(
+    int32_t rotation,
+    int32_t logical_w,
+    int32_t logical_h,
+    int32_t dst_x0,
+    int32_t dst_y0,
+    int32_t draw_w,
+    int32_t draw_h,
+    int32_t *out_native_w,
+    int32_t *out_native_h,
+    NativeRect *out)
+{
+    if (!out_native_w || !out_native_h || !out) {
+        wasm_api_set_last_error(kWasmErrInternal, "compute_native_rect_for_logical_rect: null out pointer");
+        return false;
+    }
+
+    if (logical_w <= 0 || logical_h <= 0 || draw_w < 0 || draw_h < 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "compute_native_rect_for_logical_rect: invalid dimensions");
+        return false;
+    }
+
+    const bool swap = (rotation == 90) || (rotation == 270);
+    const int32_t native_w = swap ? logical_h : logical_w;
+    const int32_t native_h = swap ? logical_w : logical_h;
+
+    NativeRect r = {0, 0, 0, 0};
+    switch (rotation) {
+        case 0:
+            r = {dst_x0, dst_y0, draw_w, draw_h};
+            break;
+        case 90:
+            r = {dst_y0, logical_w - (dst_x0 + draw_w), draw_h, draw_w};
+            break;
+        case 180:
+            r = {logical_w - (dst_x0 + draw_w), logical_h - (dst_y0 + draw_h), draw_w, draw_h};
+            break;
+        case 270:
+            r = {logical_h - (dst_y0 + draw_h), dst_x0, draw_h, draw_w};
+            break;
+        default:
+            wasm_api_set_last_error(kWasmErrInvalidArgument, "compute_native_rect_for_logical_rect: unsupported rotation");
+            return false;
+    }
+
+    if (r.w < 0 || r.h < 0 || r.x0 < 0 || r.y0 < 0 || (r.x0 + r.w) > native_w || (r.y0 + r.h) > native_h) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "compute_native_rect_for_logical_rect: rect out of bounds");
+        return false;
+    }
+
+    *out_native_w = native_w;
+    *out_native_h = native_h;
+    *out = r;
+    return true;
+}
+
+static inline uint8_t get_xtg_pixel_1bpp(const uint8_t *buf, uint32_t w, uint32_t x, uint32_t y)
+{
+    const uint32_t row_bytes = (w + 7u) >> 3;
+    const uint32_t byte_index = y * row_bytes + (x >> 3);
+    const uint8_t bit = (uint8_t)(7u - (x & 7u));
+    return (uint8_t)((buf[byte_index] >> bit) & 0x1u);
+}
+
+static inline uint8_t get_xth_code(const uint8_t *plane1, const uint8_t *plane2, uint32_t w, uint32_t h,
+    uint32_t x, uint32_t y)
+{
+    const uint64_t col = ((uint64_t)w - 1u) - (uint64_t)x; // XTH scans columns right-to-left
+    const uint64_t p = col * (uint64_t)h + (uint64_t)y;
+    const size_t byte_index = (size_t)(p >> 3);
+    const uint8_t mask = (uint8_t)(0x80u >> (uint8_t)(p & 7u));
+    const uint8_t b1 = (plane1[byte_index] & mask) ? 1u : 0u;
+    const uint8_t b2 = (plane2[byte_index] & mask) ? 1u : 0u;
+    return (uint8_t)((b1 << 1) | b2);
+}
+
+void blit_row_1bpp(uint8_t *fb, int32_t native_w, int32_t y, int32_t x0, int32_t w, const uint8_t *row,
+    size_t row_bytes)
+{
+    if (!fb || !row || native_w <= 0 || y < 0 || x0 < 0 || w <= 0) {
+        return;
+    }
+
+    const int32_t pitch = (native_w + 7) >> 3;
+    const int32_t start_byte = x0 >> 3;
+    const uint8_t bit_off = (uint8_t)(x0 & 7);
+    const int32_t total_bits = (int32_t)bit_off + w;
+    const size_t nbytes = (size_t)((total_bits + 7) >> 3);
+    if (nbytes == 0 || row_bytes < nbytes) {
+        return;
+    }
+
+    uint8_t *dst = fb + (size_t)y * (size_t)pitch + (size_t)start_byte;
+
+    const uint8_t mask_first = (uint8_t)(0xFFu >> bit_off);
+    const uint8_t bits_last = (uint8_t)(total_bits & 7);
+    const uint8_t mask_last = (bits_last == 0) ? (uint8_t)0xFFu : (uint8_t)(0xFFu << (8u - bits_last));
+
+    if (nbytes == 1) {
+        const uint8_t mask = (uint8_t)(mask_first & mask_last);
+        dst[0] = (uint8_t)((dst[0] & (uint8_t)~mask) | (row[0] & mask));
+        return;
+    }
+
+    dst[0] = (uint8_t)((dst[0] & (uint8_t)~mask_first) | (row[0] & mask_first));
+    if (nbytes > 2) {
+        memcpy(dst + 1, row + 1, nbytes - 2);
+    }
+    dst[nbytes - 1] = (uint8_t)((dst[nbytes - 1] & (uint8_t)~mask_last) | (row[nbytes - 1] & mask_last));
+}
+
+void blit_row_4bpp(uint8_t *fb, int32_t native_w, int32_t y, int32_t x0, int32_t w, const uint8_t *row,
+    size_t row_bytes)
+{
+    if (!fb || !row || native_w <= 0 || y < 0 || x0 < 0 || w <= 0) {
+        return;
+    }
+
+    const int32_t pitch = native_w >> 1;
+    const int32_t start_byte = x0 >> 1;
+    const uint8_t nib_off = (uint8_t)(x0 & 1);
+    const int32_t total_nibs = (int32_t)nib_off + w;
+    const size_t nbytes = (size_t)((total_nibs + 1) >> 1);
+    if (nbytes == 0 || row_bytes < nbytes) {
+        return;
+    }
+
+    uint8_t *dst = fb + (size_t)y * (size_t)pitch + (size_t)start_byte;
+
+    const uint8_t mask_first = (nib_off == 0) ? (uint8_t)0xFFu : (uint8_t)0x0Fu;
+    const uint8_t mask_last = ((total_nibs & 1) == 0) ? (uint8_t)0xFFu : (uint8_t)0xF0u;
+
+    if (nbytes == 1) {
+        const uint8_t mask = (uint8_t)(mask_first & mask_last);
+        dst[0] = (uint8_t)((dst[0] & (uint8_t)~mask) | (row[0] & mask));
+        return;
+    }
+
+    dst[0] = (uint8_t)((dst[0] & (uint8_t)~mask_first) | (row[0] & mask_first));
+    if (nbytes > 2) {
+        memcpy(dst + 1, row + 1, nbytes - 2);
+    }
+    dst[nbytes - 1] = (uint8_t)((dst[nbytes - 1] & (uint8_t)~mask_last) | (row[nbytes - 1] & mask_last));
+}
+
+int32_t draw_xth_centered_internal(const uint8_t *xth, size_t xth_size, int32_t mode)
+{
+    constexpr size_t kHeaderSize = 22;
+    constexpr uint32_t kXthMark = 0x00485458u; // "XTH\0" little-endian
+
+    if (!xth || xth_size < kHeaderSize) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: buffer too small for header");
+        return kWasmErrInvalidArgument;
+    }
+
+    const uint32_t mark = read_le_u32(xth + 0x00);
+    if (mark != kXthMark) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: bad magic");
+        return kWasmErrInvalidArgument;
+    }
+
+    const uint32_t width = (uint32_t)read_le_u16(xth + 0x04);
+    const uint32_t height = (uint32_t)read_le_u16(xth + 0x06);
+    const uint8_t color_mode = xth[0x08];
+    const uint8_t compression = xth[0x09];
+    (void)read_le_u32(xth + 0x0A); // data_size (informational)
+
+    if (width == 0 || height == 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: invalid dimensions");
+        return kWasmErrInvalidArgument;
+    }
+    if (color_mode != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: unsupported color_mode");
+        return kWasmErrInvalidArgument;
+    }
+    if (compression != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: unsupported compression");
+        return kWasmErrInvalidArgument;
+    }
+
+    const uint64_t pixel_count = (uint64_t)width * (uint64_t)height;
+    if (pixel_count == 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: invalid pixel count");
+        return kWasmErrInvalidArgument;
+    }
+
+    const uint64_t plane_size64 = (pixel_count + 7u) / 8u;
+    const uint64_t data_size64 = plane_size64 * 2u;
+    if (plane_size64 > (uint64_t)SIZE_MAX || data_size64 > (uint64_t)SIZE_MAX) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: image too large");
+        return kWasmErrInvalidArgument;
+    }
+
+    const size_t plane_size = (size_t)plane_size64;
+    const size_t required_size = kHeaderSize + (size_t)data_size64;
+    if (xth_size < required_size) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: truncated data");
+        return kWasmErrInvalidArgument;
+    }
+
+    const uint8_t *plane1 = xth + kHeaderSize;
+    const uint8_t *plane2 = plane1 + plane_size;
+
+    const int32_t logical_w = g_epd.width();
+    const int32_t logical_h = g_epd.height();
+    if (logical_w <= 0 || logical_h <= 0) {
+        wasm_api_set_last_error(kWasmErrNotReady, "draw_xth_centered: display not initialized");
+        return kWasmErrNotReady;
+    }
+
+    const int32_t decoded_w = (int32_t)width;
+    const int32_t decoded_h = (int32_t)height;
+    const int32_t draw_w = decoded_w < logical_w ? decoded_w : logical_w;
+    const int32_t draw_h = decoded_h < logical_h ? decoded_h : logical_h;
+    if (draw_w <= 0 || draw_h <= 0) {
+        return kWasmOk;
+    }
+
+    const int32_t src_x0 = (decoded_w > draw_w) ? ((decoded_w - draw_w) / 2) : 0;
+    const int32_t src_y0 = (decoded_h > draw_h) ? ((decoded_h - draw_h) / 2) : 0;
+    const int32_t dst_x0 = (logical_w > draw_w) ? ((logical_w - draw_w) / 2) : 0;
+    const int32_t dst_y0 = (logical_h > draw_h) ? ((logical_h - draw_h) / 2) : 0;
+
+    uint8_t *fb = g_epd.currentBuffer();
+    if (!fb) {
+        wasm_api_set_last_error(kWasmErrNotReady, "draw_xth_centered: framebuffer missing");
+        return kWasmErrNotReady;
+    }
+
+    const int32_t rotation = (int32_t)g_epd.getRotation();
+    int32_t native_w = 0;
+    int32_t native_h = 0;
+    NativeRect rect = {0, 0, 0, 0};
+    if (!compute_native_rect_for_logical_rect(rotation, logical_w, logical_h, dst_x0, dst_y0, draw_w, draw_h,
+            &native_w, &native_h, &rect)) {
+        return kWasmErrInvalidArgument;
+    }
+    (void)native_h;
+
+    if (mode == BB_MODE_1BPP) {
+        const uint8_t bit_off = (uint8_t)(rect.x0 & 7);
+        const size_t row_bytes = (size_t)(((int32_t)bit_off + rect.w + 7) >> 3);
+        std::vector<uint8_t> row(row_bytes);
+
+        for (int32_t r = 0; r < rect.h; ++r) {
+            memset(row.data(), 0, row_bytes);
+
+            switch (rotation) {
+                case 0: {
+                    const uint32_t sy = (uint32_t)(src_y0 + r);
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sx = (uint32_t)(src_x0 + c);
+                        const uint8_t xth_code = get_xth_code(plane1, plane2, width, height, sx, sy);
+                        const uint8_t white = ((xth_code & 1u) == 0u) ? 1u : 0u;
+                        if (white) {
+                            const uint32_t bitpos = (uint32_t)bit_off + (uint32_t)c;
+                            row[bitpos >> 3] |= (uint8_t)(0x80u >> (bitpos & 7u));
+                        }
+                    }
+                } break;
+                case 180: {
+                    const uint32_t sy = (uint32_t)(src_y0 + (draw_h - 1 - r));
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sx = (uint32_t)(src_x0 + (draw_w - 1 - c));
+                        const uint8_t xth_code = get_xth_code(plane1, plane2, width, height, sx, sy);
+                        const uint8_t white = ((xth_code & 1u) == 0u) ? 1u : 0u;
+                        if (white) {
+                            const uint32_t bitpos = (uint32_t)bit_off + (uint32_t)c;
+                            row[bitpos >> 3] |= (uint8_t)(0x80u >> (bitpos & 7u));
+                        }
+                    }
+                } break;
+                case 90: {
+                    const uint32_t sx = (uint32_t)(src_x0 + (draw_w - 1 - r));
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sy = (uint32_t)(src_y0 + c);
+                        const uint8_t xth_code = get_xth_code(plane1, plane2, width, height, sx, sy);
+                        const uint8_t white = ((xth_code & 1u) == 0u) ? 1u : 0u;
+                        if (white) {
+                            const uint32_t bitpos = (uint32_t)bit_off + (uint32_t)c;
+                            row[bitpos >> 3] |= (uint8_t)(0x80u >> (bitpos & 7u));
+                        }
+                    }
+                } break;
+                case 270: {
+                    const uint32_t sx = (uint32_t)(src_x0 + r);
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sy = (uint32_t)(src_y0 + (draw_h - 1 - c));
+                        const uint8_t xth_code = get_xth_code(plane1, plane2, width, height, sx, sy);
+                        const uint8_t white = ((xth_code & 1u) == 0u) ? 1u : 0u;
+                        if (white) {
+                            const uint32_t bitpos = (uint32_t)bit_off + (uint32_t)c;
+                            row[bitpos >> 3] |= (uint8_t)(0x80u >> (bitpos & 7u));
+                        }
+                    }
+                } break;
+                default:
+                    wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: unsupported rotation");
+                    return kWasmErrInvalidArgument;
+            }
+
+            blit_row_1bpp(fb, native_w, rect.y0 + r, rect.x0, rect.w, row.data(), row_bytes);
+        }
+    } else if (mode == BB_MODE_4BPP) {
+        static constexpr uint8_t kXthCodeTo4bpp[4] = {15, 5, 10, 0};
+        const uint8_t nib_off = (uint8_t)(rect.x0 & 1);
+        const size_t row_bytes = (size_t)(((int32_t)nib_off + rect.w + 1) >> 1);
+        std::vector<uint8_t> row(row_bytes);
+
+        for (int32_t r = 0; r < rect.h; ++r) {
+            memset(row.data(), 0, row_bytes);
+
+            switch (rotation) {
+                case 0: {
+                    const uint32_t sy = (uint32_t)(src_y0 + r);
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sx = (uint32_t)(src_x0 + c);
+                        const uint8_t xth_code = get_xth_code(plane1, plane2, width, height, sx, sy);
+                        const uint8_t v = kXthCodeTo4bpp[xth_code & 3u];
+                        const uint32_t npos = (uint32_t)nib_off + (uint32_t)c;
+                        const size_t bi = (size_t)(npos >> 1);
+                        if ((npos & 1u) == 0u) {
+                            row[bi] = (uint8_t)((row[bi] & 0x0Fu) | (uint8_t)(v << 4));
+                        } else {
+                            row[bi] = (uint8_t)((row[bi] & 0xF0u) | v);
+                        }
+                    }
+                } break;
+                case 180: {
+                    const uint32_t sy = (uint32_t)(src_y0 + (draw_h - 1 - r));
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sx = (uint32_t)(src_x0 + (draw_w - 1 - c));
+                        const uint8_t xth_code = get_xth_code(plane1, plane2, width, height, sx, sy);
+                        const uint8_t v = kXthCodeTo4bpp[xth_code & 3u];
+                        const uint32_t npos = (uint32_t)nib_off + (uint32_t)c;
+                        const size_t bi = (size_t)(npos >> 1);
+                        if ((npos & 1u) == 0u) {
+                            row[bi] = (uint8_t)((row[bi] & 0x0Fu) | (uint8_t)(v << 4));
+                        } else {
+                            row[bi] = (uint8_t)((row[bi] & 0xF0u) | v);
+                        }
+                    }
+                } break;
+                case 90: {
+                    const uint32_t sx = (uint32_t)(src_x0 + (draw_w - 1 - r));
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sy = (uint32_t)(src_y0 + c);
+                        const uint8_t xth_code = get_xth_code(plane1, plane2, width, height, sx, sy);
+                        const uint8_t v = kXthCodeTo4bpp[xth_code & 3u];
+                        const uint32_t npos = (uint32_t)nib_off + (uint32_t)c;
+                        const size_t bi = (size_t)(npos >> 1);
+                        if ((npos & 1u) == 0u) {
+                            row[bi] = (uint8_t)((row[bi] & 0x0Fu) | (uint8_t)(v << 4));
+                        } else {
+                            row[bi] = (uint8_t)((row[bi] & 0xF0u) | v);
+                        }
+                    }
+                } break;
+                case 270: {
+                    const uint32_t sx = (uint32_t)(src_x0 + r);
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sy = (uint32_t)(src_y0 + (draw_h - 1 - c));
+                        const uint8_t xth_code = get_xth_code(plane1, plane2, width, height, sx, sy);
+                        const uint8_t v = kXthCodeTo4bpp[xth_code & 3u];
+                        const uint32_t npos = (uint32_t)nib_off + (uint32_t)c;
+                        const size_t bi = (size_t)(npos >> 1);
+                        if ((npos & 1u) == 0u) {
+                            row[bi] = (uint8_t)((row[bi] & 0x0Fu) | (uint8_t)(v << 4));
+                        } else {
+                            row[bi] = (uint8_t)((row[bi] & 0xF0u) | v);
+                        }
+                    }
+                } break;
+                default:
+                    wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: unsupported rotation");
+                    return kWasmErrInvalidArgument;
+            }
+
+            blit_row_4bpp(fb, native_w, rect.y0 + r, rect.x0, rect.w, row.data(), row_bytes);
+        }
+    } else {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: unsupported mode");
+        return kWasmErrInvalidArgument;
+    }
+
+    return kWasmOk;
+}
+
+int32_t draw_xtg_centered_internal(const uint8_t *xtg, size_t xtg_size, int32_t mode)
+{
+    constexpr size_t kHeaderSize = 22;
+    constexpr uint32_t kXtgMark = 0x00475458u; // "XTG\0" little-endian
+
+    if (!xtg || xtg_size < kHeaderSize) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: buffer too small for header");
+        return kWasmErrInvalidArgument;
+    }
+
+    const uint32_t mark = read_le_u32(xtg + 0x00);
+    if (mark != kXtgMark) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: bad magic");
+        return kWasmErrInvalidArgument;
+    }
+
+    const uint32_t width = (uint32_t)read_le_u16(xtg + 0x04);
+    const uint32_t height = (uint32_t)read_le_u16(xtg + 0x06);
+    const uint8_t color_mode = xtg[0x08];
+    const uint8_t compression = xtg[0x09];
+    (void)read_le_u32(xtg + 0x0A); // data_size (informational)
+
+    if (width == 0 || height == 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: invalid dimensions");
+        return kWasmErrInvalidArgument;
+    }
+    if (color_mode != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: unsupported color_mode");
+        return kWasmErrInvalidArgument;
+    }
+    if (compression != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: unsupported compression");
+        return kWasmErrInvalidArgument;
+    }
+
+    const uint64_t row_bytes64 = ((uint64_t)width + 7u) / 8u;
+    const uint64_t data_size64 = row_bytes64 * (uint64_t)height;
+    if (row_bytes64 > (uint64_t)SIZE_MAX || data_size64 > (uint64_t)SIZE_MAX) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: image too large");
+        return kWasmErrInvalidArgument;
+    }
+
+    const size_t expected_data_size = (size_t)data_size64;
+    const size_t required_size = kHeaderSize + expected_data_size;
+    if (xtg_size < required_size) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: truncated data");
+        return kWasmErrInvalidArgument;
+    }
+
+    const uint8_t *image_data = xtg + kHeaderSize;
+
+    const int32_t logical_w = g_epd.width();
+    const int32_t logical_h = g_epd.height();
+    if (logical_w <= 0 || logical_h <= 0) {
+        wasm_api_set_last_error(kWasmErrNotReady, "draw_xtg_centered: display not initialized");
+        return kWasmErrNotReady;
+    }
+
+    const int32_t decoded_w = (int32_t)width;
+    const int32_t decoded_h = (int32_t)height;
+    const int32_t draw_w = decoded_w < logical_w ? decoded_w : logical_w;
+    const int32_t draw_h = decoded_h < logical_h ? decoded_h : logical_h;
+    if (draw_w <= 0 || draw_h <= 0) {
+        return kWasmOk;
+    }
+
+    const int32_t src_x0 = (decoded_w > draw_w) ? ((decoded_w - draw_w) / 2) : 0;
+    const int32_t src_y0 = (decoded_h > draw_h) ? ((decoded_h - draw_h) / 2) : 0;
+    const int32_t dst_x0 = (logical_w > draw_w) ? ((logical_w - draw_w) / 2) : 0;
+    const int32_t dst_y0 = (logical_h > draw_h) ? ((logical_h - draw_h) / 2) : 0;
+
+    uint8_t *fb = g_epd.currentBuffer();
+    if (!fb) {
+        wasm_api_set_last_error(kWasmErrNotReady, "draw_xtg_centered: framebuffer missing");
+        return kWasmErrNotReady;
+    }
+
+    const int32_t rotation = (int32_t)g_epd.getRotation();
+    int32_t native_w = 0;
+    int32_t native_h = 0;
+    NativeRect rect = {0, 0, 0, 0};
+    if (!compute_native_rect_for_logical_rect(rotation, logical_w, logical_h, dst_x0, dst_y0, draw_w, draw_h,
+            &native_w, &native_h, &rect)) {
+        return kWasmErrInvalidArgument;
+    }
+    (void)native_h;
+
+    if (mode == BB_MODE_1BPP) {
+        const uint8_t bit_off = (uint8_t)(rect.x0 & 7);
+        const size_t row_bytes = (size_t)(((int32_t)bit_off + rect.w + 7) >> 3);
+        std::vector<uint8_t> row(row_bytes);
+
+        for (int32_t r = 0; r < rect.h; ++r) {
+            memset(row.data(), 0, row_bytes);
+
+            switch (rotation) {
+                case 0: {
+                    const uint32_t sy = (uint32_t)(src_y0 + r);
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sx = (uint32_t)(src_x0 + c);
+                        const uint8_t v = get_xtg_pixel_1bpp(image_data, width, sx, sy);
+                        if (v) {
+                            const uint32_t bitpos = (uint32_t)bit_off + (uint32_t)c;
+                            row[bitpos >> 3] |= (uint8_t)(0x80u >> (bitpos & 7u));
+                        }
+                    }
+                } break;
+                case 180: {
+                    const uint32_t sy = (uint32_t)(src_y0 + (draw_h - 1 - r));
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sx = (uint32_t)(src_x0 + (draw_w - 1 - c));
+                        const uint8_t v = get_xtg_pixel_1bpp(image_data, width, sx, sy);
+                        if (v) {
+                            const uint32_t bitpos = (uint32_t)bit_off + (uint32_t)c;
+                            row[bitpos >> 3] |= (uint8_t)(0x80u >> (bitpos & 7u));
+                        }
+                    }
+                } break;
+                case 90: {
+                    const uint32_t sx = (uint32_t)(src_x0 + (draw_w - 1 - r));
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sy = (uint32_t)(src_y0 + c);
+                        const uint8_t v = get_xtg_pixel_1bpp(image_data, width, sx, sy);
+                        if (v) {
+                            const uint32_t bitpos = (uint32_t)bit_off + (uint32_t)c;
+                            row[bitpos >> 3] |= (uint8_t)(0x80u >> (bitpos & 7u));
+                        }
+                    }
+                } break;
+                case 270: {
+                    const uint32_t sx = (uint32_t)(src_x0 + r);
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sy = (uint32_t)(src_y0 + (draw_h - 1 - c));
+                        const uint8_t v = get_xtg_pixel_1bpp(image_data, width, sx, sy);
+                        if (v) {
+                            const uint32_t bitpos = (uint32_t)bit_off + (uint32_t)c;
+                            row[bitpos >> 3] |= (uint8_t)(0x80u >> (bitpos & 7u));
+                        }
+                    }
+                } break;
+                default:
+                    wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: unsupported rotation");
+                    return kWasmErrInvalidArgument;
+            }
+
+            blit_row_1bpp(fb, native_w, rect.y0 + r, rect.x0, rect.w, row.data(), row_bytes);
+        }
+    } else if (mode == BB_MODE_4BPP) {
+        const uint8_t nib_off = (uint8_t)(rect.x0 & 1);
+        const size_t row_bytes = (size_t)(((int32_t)nib_off + rect.w + 1) >> 1);
+        std::vector<uint8_t> row(row_bytes);
+
+        for (int32_t r = 0; r < rect.h; ++r) {
+            memset(row.data(), 0, row_bytes);
+
+            switch (rotation) {
+                case 0: {
+                    const uint32_t sy = (uint32_t)(src_y0 + r);
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sx = (uint32_t)(src_x0 + c);
+                        const uint8_t on = get_xtg_pixel_1bpp(image_data, width, sx, sy);
+                        const uint8_t v = on ? (uint8_t)0xFu : (uint8_t)0u;
+                        const uint32_t npos = (uint32_t)nib_off + (uint32_t)c;
+                        const size_t bi = (size_t)(npos >> 1);
+                        if ((npos & 1u) == 0u) {
+                            row[bi] = (uint8_t)((row[bi] & 0x0Fu) | (uint8_t)(v << 4));
+                        } else {
+                            row[bi] = (uint8_t)((row[bi] & 0xF0u) | v);
+                        }
+                    }
+                } break;
+                case 180: {
+                    const uint32_t sy = (uint32_t)(src_y0 + (draw_h - 1 - r));
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sx = (uint32_t)(src_x0 + (draw_w - 1 - c));
+                        const uint8_t on = get_xtg_pixel_1bpp(image_data, width, sx, sy);
+                        const uint8_t v = on ? (uint8_t)0xFu : (uint8_t)0u;
+                        const uint32_t npos = (uint32_t)nib_off + (uint32_t)c;
+                        const size_t bi = (size_t)(npos >> 1);
+                        if ((npos & 1u) == 0u) {
+                            row[bi] = (uint8_t)((row[bi] & 0x0Fu) | (uint8_t)(v << 4));
+                        } else {
+                            row[bi] = (uint8_t)((row[bi] & 0xF0u) | v);
+                        }
+                    }
+                } break;
+                case 90: {
+                    const uint32_t sx = (uint32_t)(src_x0 + (draw_w - 1 - r));
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sy = (uint32_t)(src_y0 + c);
+                        const uint8_t on = get_xtg_pixel_1bpp(image_data, width, sx, sy);
+                        const uint8_t v = on ? (uint8_t)0xFu : (uint8_t)0u;
+                        const uint32_t npos = (uint32_t)nib_off + (uint32_t)c;
+                        const size_t bi = (size_t)(npos >> 1);
+                        if ((npos & 1u) == 0u) {
+                            row[bi] = (uint8_t)((row[bi] & 0x0Fu) | (uint8_t)(v << 4));
+                        } else {
+                            row[bi] = (uint8_t)((row[bi] & 0xF0u) | v);
+                        }
+                    }
+                } break;
+                case 270: {
+                    const uint32_t sx = (uint32_t)(src_x0 + r);
+                    for (int32_t c = 0; c < rect.w; ++c) {
+                        const uint32_t sy = (uint32_t)(src_y0 + (draw_h - 1 - c));
+                        const uint8_t on = get_xtg_pixel_1bpp(image_data, width, sx, sy);
+                        const uint8_t v = on ? (uint8_t)0xFu : (uint8_t)0u;
+                        const uint32_t npos = (uint32_t)nib_off + (uint32_t)c;
+                        const size_t bi = (size_t)(npos >> 1);
+                        if ((npos & 1u) == 0u) {
+                            row[bi] = (uint8_t)((row[bi] & 0x0Fu) | (uint8_t)(v << 4));
+                        } else {
+                            row[bi] = (uint8_t)((row[bi] & 0xF0u) | v);
+                        }
+                    }
+                } break;
+                default:
+                    wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: unsupported rotation");
+                    return kWasmErrInvalidArgument;
+            }
+
+            blit_row_4bpp(fb, native_w, rect.y0 + r, rect.x0, rect.w, row.data(), row_bytes);
+        }
+    } else {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: unsupported mode");
+        return kWasmErrInvalidArgument;
+    }
+
+    return kWasmOk;
 }
 
 } // namespace
@@ -1526,26 +2169,62 @@ int32_t DisplayFastEpd::readRectRgb565(
 
 int32_t DisplayFastEpd::drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y)
 {
-    (void)exec_env;
     return draw_png_internal(ptr, len, x, y, 0, 0, false);
 }
 
 int32_t DisplayFastEpd::drawXthCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
-    (void)exec_env;
-    (void)ptr;
-    (void)len;
-    warn_unimplemented("drawXthCentered");
-    return kWasmOk;
+    if (!ptr && len != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: ptr is null");
+        return kWasmErrInvalidArgument;
+    }
+    if (len == 0) {
+        return kWasmOk;
+    }
+    if (len > kMaxXthBytes) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: len too large");
+        return kWasmErrInvalidArgument;
+    }
+    const int32_t ready_rc = require_epd_ready_or_set_error("draw_xth_centered: framebuffer not ready");
+    if (ready_rc != kWasmOk) {
+        return ready_rc;
+    }
+
+    const int32_t mode = g_epd.getMode();
+    if (mode != BB_MODE_1BPP && mode != BB_MODE_4BPP) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: unsupported mode (expected 1-bpp or 4-bpp)");
+        return kWasmErrInvalidArgument;
+    }
+
+    return draw_xth_centered_internal(ptr, len, mode);
 }
 
 int32_t DisplayFastEpd::drawXtgCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
     (void)exec_env;
-    (void)ptr;
-    (void)len;
-    warn_unimplemented("drawXtgCentered");
-    return kWasmOk;
+    if (!ptr && len != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: ptr is null");
+        return kWasmErrInvalidArgument;
+    }
+    if (len == 0) {
+        return kWasmOk;
+    }
+    if (len > kMaxXtgBytes) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: len too large");
+        return kWasmErrInvalidArgument;
+    }
+    const int32_t ready_rc = require_epd_ready_or_set_error("draw_xtg_centered: framebuffer not ready");
+    if (ready_rc != kWasmOk) {
+        return ready_rc;
+    }
+
+    const int32_t mode = g_epd.getMode();
+    if (mode != BB_MODE_1BPP && mode != BB_MODE_4BPP) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: unsupported mode (expected 1-bpp or 4-bpp)");
+        return kWasmErrInvalidArgument;
+    }
+
+    return draw_xtg_centered_internal(ptr, len, mode);
 }
 
 int32_t DisplayFastEpd::drawJpgFit(

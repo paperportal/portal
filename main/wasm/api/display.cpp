@@ -65,149 +65,79 @@ void Display::setCurrent(PaperDisplayDriver driver) {
 
 namespace {
 
-Display *get_current_or_set_error()
-{
-    auto *display = Display::current();
-    if (!display || display->driver() == PaperDisplayDriver::none) {
-        wasm_api_set_last_error(kWasmErrNotReady, "display not ready (driver not selected)");
-        return nullptr;
-    }
-    return display;
-}
-
 int32_t width(wasm_exec_env_t exec_env)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->width(exec_env);
+    return Display::current()->width(exec_env);
 }
 
 int32_t height(wasm_exec_env_t exec_env)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->height(exec_env);
+    return Display::current()->height(exec_env);
 }
 
 int32_t getRotation(wasm_exec_env_t exec_env)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->getRotation(exec_env);
+    return Display::current()->getRotation(exec_env);
 }
 
 int32_t setRotation(wasm_exec_env_t exec_env, int32_t rot)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->setRotation(exec_env, rot);
+    return Display::current()->setRotation(exec_env, rot);
 }
 
 int32_t clear(wasm_exec_env_t exec_env)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->clear(exec_env);
+    return Display::current()->clear(exec_env);
 }
 
 int32_t fillScreen(wasm_exec_env_t exec_env, int32_t rgb888)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->fillScreen(exec_env, rgb888);
+    return Display::current()->fillScreen(exec_env, rgb888);
 }
 
 int32_t display(wasm_exec_env_t exec_env)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->display(exec_env);
+    return Display::current()->display(exec_env);
 }
 
 int32_t displayRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->displayRect(exec_env, x, y, w, h);
+    return Display::current()->displayRect(exec_env, x, y, w, h);
 }
 
 int32_t waitDisplay(wasm_exec_env_t exec_env)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->waitDisplay(exec_env);
+    return Display::current()->waitDisplay(exec_env);
 }
 
 int32_t startWrite(wasm_exec_env_t exec_env)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->startWrite(exec_env);
+    return Display::current()->startWrite(exec_env);
 }
 
 int32_t endWrite(wasm_exec_env_t exec_env)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->endWrite(exec_env);
+    return Display::current()->endWrite(exec_env);
 }
 
 int32_t setBrightness(wasm_exec_env_t exec_env, int32_t v)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->setBrightness(exec_env, v);
+    return Display::current()->setBrightness(exec_env, v);
 }
 
 int32_t getBrightness(wasm_exec_env_t exec_env)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->getBrightness(exec_env);
+    return Display::current()->getBrightness(exec_env);
 }
 
 int32_t setEpdMode(wasm_exec_env_t exec_env, int32_t mode)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->setEpdMode(exec_env, mode);
+    return Display::current()->setEpdMode(exec_env, mode);
 }
 
 int32_t getEpdMode(wasm_exec_env_t exec_env)
 {
-    auto *display = get_current_or_set_error();
-    if (!display) {
-        return kWasmErrNotReady;
-    }
-    return display->getEpdMode(exec_env);
+    return Display::current()->getEpdMode(exec_env);
 }
 
 /* clang-format off */
