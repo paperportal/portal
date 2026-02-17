@@ -1,5 +1,6 @@
 #include "services/power_service.h"
 
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -13,7 +14,6 @@
 
 #include "m5papers3_display.h"
 #include "wasm/api/display.h"
-#include "wasm/api/display_fastepd.h"
 #include "wasm/api/errors.h"
 
 namespace {
@@ -27,46 +27,98 @@ extern const uint8_t _binary_sleepimage_png_start[] asm("_binary_sleepimage_png_
 extern const uint8_t _binary_sleepimage_png_end[] asm("_binary_sleepimage_png_end");
 
 constexpr gpio_num_t kPaperS3PowerHoldPin = GPIO_NUM_44;
-constexpr uint32_t kSleepImageTaskStackBytes = 32 * 1024;
-constexpr int32_t kLgfxEpdMode4Bpp = 2;
-constexpr int32_t kFastEpdMode4Bpp = 2;
+constexpr int32_t kEpdMode4Bpp = 2;
 
-struct SleepImageDrawJob {
-    const uint8_t *start = nullptr;
-    size_t len = 0;
-    int32_t draw_rc = kWasmErrInternal;
-    int32_t display_rc = kWasmErrInternal;
-    TaskHandle_t caller = nullptr;
-};
-
-extern "C" void show_sleepimage_with_fastepd_best_effort(void);
-
-void sleepimage_draw_task(void *arg)
+void show_sleepimage()
 {
-    auto *job = static_cast<SleepImageDrawJob *>(arg);
-    if (!job) {
-        vTaskDelete(nullptr);
+    auto *display = Display::current();
+    if (!display || display->driver() == PaperDisplayDriver::none) {
         return;
     }
 
-    show_sleepimage_with_fastepd_best_effort();
-    xTaskNotifyGive(job->caller);
-    vTaskDelete(nullptr);
+    const uint8_t *start = usePng ? _binary_sleepimage_png_start : _binary_sleepimage_jpg_start;
+    const uint8_t *end = usePng ? _binary_sleepimage_png_end : _binary_sleepimage_jpg_end;
+    if (!start || !end || end <= start) {
+        ESP_LOGW(kTag, "sleep image asset missing/empty");
+        return;
+    }
+    const size_t len = (size_t)(end - start);
+
+    int32_t desired_rotation = 1; // portrait on FastEPD
+    if (display->driver() == PaperDisplayDriver::lgfx) {
+        // In LGFX mode, pick a rotation that results in a portrait geometry (w < h) so that
+        // the portrait-authored sleep image fills the screen correctly.
+        const int32_t candidates[] = {0, 1, 2, 3};
+        for (const int32_t candidate : candidates) {
+            const int32_t cand_rc = display->setRotation(nullptr, candidate);
+            if (cand_rc != kWasmOk) {
+                continue;
+            }
+            const int32_t cw = display->width(nullptr);
+            const int32_t ch = display->height(nullptr);
+            if (cw > 0 && ch > 0 && cw < ch) {
+                desired_rotation = candidate;
+                break;
+            }
+        }
+    }
+
+    const int32_t rot_rc = display->setRotation(nullptr, desired_rotation);
+    if (rot_rc != kWasmOk) {
+        ESP_LOGW(kTag, "sleep image: setRotation(%" PRId32 ") failed rc=%" PRId32, desired_rotation, rot_rc);
+    }
+
+    const int32_t mode_rc = display->setEpdMode(nullptr, kEpdMode4Bpp);
+    if (mode_rc != kWasmOk) {
+        ESP_LOGW(kTag, "sleep image: setEpdMode(%ld) failed rc=%" PRId32, (long)kEpdMode4Bpp, mode_rc);
+    }
+
+    const int32_t fill_rc = display->fillScreen(nullptr, 0xFFFFFF);
+    if (fill_rc != kWasmOk) {
+        ESP_LOGW(kTag, "sleep image: fillScreen failed rc=%" PRId32, fill_rc);
+    }
+
+    const int32_t w = display->width(nullptr);
+    const int32_t h = display->height(nullptr);
+    if (w <= 0 || h <= 0) {
+        ESP_LOGW(kTag, "sleep image: invalid display size w=%" PRId32 " h=%" PRId32, w, h);
+        return;
+    }
+
+    int32_t draw_rc = kWasmErrInternal;
+    if (usePng) {
+        draw_rc = display->drawPngFit(nullptr, start, len, 0, 0, w, h);
+    } else {
+        draw_rc = display->drawJpgFit(nullptr, start, len, 0, 0, w, h);
+    }
+    if (draw_rc != kWasmOk) {
+        ESP_LOGW(kTag, "sleep image: draw failed rc=%" PRId32, draw_rc);
+    }
+
+    const int32_t flush_rc = display->fullUpdateSlow(nullptr);
+    if (flush_rc != kWasmOk) {
+        ESP_LOGW(kTag, "sleep image: fullUpdateSlow failed rc=%" PRId32, flush_rc);
+    }
+
+    const int32_t wait_rc = display->waitDisplay(nullptr);
+    if (wait_rc != kWasmOk) {
+        ESP_LOGW(kTag, "sleep image: waitDisplay failed rc=%" PRId32, wait_rc);
+    }
 }
 
 } // namespace
 
 namespace power_service {
 
-esp_err_t power_off(bool show_sleepimage)
+esp_err_t power_off(bool show_sleep_image)
 {
     if (!paper_display_ensure_init()) {
         ESP_LOGW(kTag, "power off: display init failed");
         return ESP_FAIL;
     }
 
-    if (show_sleepimage) {
-        show_sleepimage_with_fastepd_best_effort();
+    if (show_sleep_image) {
+        show_sleepimage();
     }
 
     auto *display = Display::current();

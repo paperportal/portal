@@ -11,8 +11,6 @@
 
 static const char *kTag = "paperportal-runner";
 
-extern "C" void show_sleepimage_with_fastepd_best_effort(void);
-
 void init_nvs() {
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {

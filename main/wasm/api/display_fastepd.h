@@ -6,10 +6,6 @@
 // a slow clear waveform (higher quality, less ghosting) when the active display driver is FastEPD.
 int32_t display_fastepd_full_update_slow();
 
-// Internal helper: render the embedded sleep image using FastEPD.
-// Best-effort only; intended for boot/power-off paths.
-extern "C" void show_sleepimage_with_fastepd_best_effort(void);
-
 class DisplayFastEpd final : public Display {
 public:
     ~DisplayFastEpd() override = default;
@@ -25,6 +21,7 @@ public:
     int32_t fillScreen(wasm_exec_env_t exec_env, int32_t rgb888) override;
     int32_t display(wasm_exec_env_t exec_env) override;
     int32_t displayRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h) override;
+    int32_t fullUpdateSlow(wasm_exec_env_t exec_env) override;
     int32_t waitDisplay(wasm_exec_env_t exec_env) override;
     int32_t startWrite(wasm_exec_env_t exec_env) override;
     int32_t endWrite(wasm_exec_env_t exec_env) override;

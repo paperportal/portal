@@ -1502,137 +1502,6 @@ void fill_ellipse_scanlines(int32_t cx, int32_t cy, int32_t rx, int32_t ry, uint
 
 } // namespace
 
-	extern "C" void show_sleepimage_with_fastepd_best_effort(void)
-	{
-    constexpr int kPortraitRotationDeg = 90;
-
-    const uint8_t *start = _binary_sleepimage_jpg_start;
-    const uint8_t *end = _binary_sleepimage_jpg_end;
-    if (end <= start) {
-        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] sleepimage asset missing/empty");
-        return;
-    }
-
-    const bool was_inited = g_epd_inited;
-    auto cleanup_if_owned = [&]() {
-        if (was_inited) {
-            return;
-        }
-        g_epd.deInit();
-        bbepDeinitBus();
-        g_epd_inited = false;
-    };
-
-    if (!ensure_epd_ready()) {
-        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] FastEPD init failed");
-        cleanup_if_owned();
-        return;
-    }
-
-    (void)g_epd.setMode(BB_MODE_4BPP);
-    (void)g_epd.setRotation(kPortraitRotationDeg);
-    g_epd.fillScreen(0xF);
-
-    if (!g_epd.currentBuffer()) {
-        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] FastEPD framebuffer missing");
-        cleanup_if_owned();
-        return;
-    }
-
-    const size_t len = (size_t)(end - start);
-    JpegDrawContext ctx = {};
-    ctx.epd = &g_epd;
-    ctx.mode = g_epd.getMode();
-    ctx.clip_x0 = 0;
-	    ctx.clip_y0 = 0;
-	    ctx.clip_x1 = g_epd.width();
-	    ctx.clip_y1 = g_epd.height();
-
-	    JPEGIMAGE *jpeg = (JPEGIMAGE *)calloc(1, sizeof(JPEGIMAGE));
-	    if (!jpeg) {
-	        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] JPEGIMAGE alloc failed");
-	        cleanup_if_owned();
-	        return;
-	    }
-
-	    const int opened = JPEG_openRAM(jpeg, (uint8_t *)start, (int)len, epd_jpeg_draw);
-	    if (!opened) {
-	        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] JPEG openRAM failed (%d)",
-	                 (int)JPEG_getLastError(jpeg));
-	        free(jpeg);
-	        cleanup_if_owned();
-	        return;
-	    }
-	    jpeg->pUser = &ctx;
-
-	    const int subsample = JPEG_getSubSample(jpeg);
-	    int base_mcu_w = 8;
-	    int base_mcu_h = 8;
-	    switch (subsample) {
-	        case 0x12:
-            base_mcu_w = 8;
-            base_mcu_h = 16;
-            break;
-        case 0x21:
-            base_mcu_w = 16;
-            base_mcu_h = 8;
-            break;
-        case 0x22:
-            base_mcu_w = 16;
-            base_mcu_h = 16;
-            break;
-	        default:
-	            base_mcu_w = 8;
-	            base_mcu_h = 8;
-	            break;
-	    }
-
-	    const int img_w = JPEG_getWidth(jpeg);
-	    const int cx = base_mcu_w == 16 ? ((img_w + 15) >> 4) : ((img_w + 7) >> 3);
-	    const size_t aligned_w = (size_t)cx * (size_t)base_mcu_w;
-	    const size_t dither_buf_len = aligned_w * (size_t)base_mcu_h;
-
-	    bool ok = false;
-	    uint8_t *dither_buf = nullptr;
-	    if (dither_buf_len > 0) {
-	        dither_buf = (uint8_t *)malloc(dither_buf_len);
-	    }
-
-	    if (dither_buf) {
-	        JPEG_setPixelType(jpeg, FOUR_BIT_DITHERED);
-	        jpeg->iXOffset = 0;
-	        jpeg->iYOffset = 0;
-	        ok = JPEG_decodeDither(jpeg, dither_buf, 0) != 0;
-	        free(dither_buf);
-	    } else {
-	        if (dither_buf_len > 0) {
-	            ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] dither buffer alloc failed (%u bytes)",
-	                     (unsigned)dither_buf_len);
-	        }
-	        JPEG_setPixelType(jpeg, EIGHT_BIT_GRAYSCALE);
-	        ok = JPEG_decode(jpeg, 0, 0, 0) != 0;
-	    }
-
-	    const int last_err = JPEG_getLastError(jpeg);
-	    JPEG_close(jpeg);
-	    free(jpeg);
-
-	    if (!ok) {
-	        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] JPEG decode failed (%d)", last_err);
-	        cleanup_if_owned();
-        return;
-    }
-
-    const int epd_rc = g_epd.fullUpdate(CLEAR_SLOW, false);
-    if (epd_rc != BBEP_SUCCESS) {
-        ESP_LOGW(kTag, "[show_sleepimage_with_fastepd_best_effort] FastEPD fullUpdate failed (%d)", epd_rc);
-        cleanup_if_owned();
-        return;
-    }
-
-    cleanup_if_owned();
-}
-
 PaperDisplayDriver DisplayFastEpd::driver() {
     return PaperDisplayDriver::fastepd;
 }
@@ -1802,6 +1671,12 @@ int32_t DisplayFastEpd::displayRect(wasm_exec_env_t exec_env, int32_t x, int32_t
         return kWasmErrInternal;
     }
     return kWasmOk;
+}
+
+int32_t DisplayFastEpd::fullUpdateSlow(wasm_exec_env_t exec_env)
+{
+    (void)exec_env;
+    return display_fastepd_full_update_slow();
 }
 
 int32_t DisplayFastEpd::waitDisplay(wasm_exec_env_t exec_env)

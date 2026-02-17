@@ -43,6 +43,10 @@ public:
     virtual int32_t fillScreen(wasm_exec_env_t exec_env, int32_t rgb888) = 0;
     virtual int32_t display(wasm_exec_env_t exec_env) = 0;
     virtual int32_t displayRect(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h) = 0;
+    virtual int32_t fullUpdateSlow(wasm_exec_env_t exec_env)
+    {
+        return this->display(exec_env);
+    }
     virtual int32_t waitDisplay(wasm_exec_env_t exec_env) = 0;
     virtual int32_t startWrite(wasm_exec_env_t exec_env) = 0;
     virtual int32_t endWrite(wasm_exec_env_t exec_env) = 0;

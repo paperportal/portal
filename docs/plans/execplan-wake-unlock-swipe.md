@@ -60,7 +60,7 @@ Relevant code and assets:
 - Power off and sleep image drawing:
   - `/Users/mika/code/paperportal/portal/main/services/power_service.h`
   - `/Users/mika/code/paperportal/portal/main/services/power_service.cpp`
-  - `power_service::power_off(true)` draws embedded `sleepimage.jpg` using `_binary_sleepimage_jpg_*` symbols, then deep-sleeps.
+  - `power_service::power_off(true)` draws embedded `sleepimage.jpg` (from `_binary_sleepimage_jpg_*`) via `Display::current()` and the `main/wasm/api/display.h` API surface, then deep-sleeps.
 - Wake/sleep images embedded into firmware:
   - `/Users/mika/code/paperportal/portal/main/assets/sleepimage.jpg`
   - `/Users/mika/code/paperportal/portal/main/assets/wakeimage.jpg`
@@ -74,7 +74,7 @@ Relevant code and assets:
 - Display initialization and drawing:
   - `/Users/mika/code/paperportal/portal/main/m5papers3_display.h`
   - `/Users/mika/code/paperportal/portal/main/m5papers3_display.cpp`
-  - `paper_display_ensure_init()` and `paper_display().drawJpg(...)` are used in `power_service`.
+  - `paper_display_ensure_init()` selects/initializes the active display driver; `power_service` draws via `Display::current()` (e.g. `drawJpgFit`, `display`/`fullUpdateSlow`).
 
 ## Plan of Work
 
@@ -261,4 +261,3 @@ Key ESP-IDF dependencies used:
 - `esp_sleep_get_wakeup_cause()` from `esp_sleep.h` to distinguish normal boots from deep-sleep wake boots.
 - `esp_rtc_get_time_us()` (declared in `soc/rtc.h`) to measure elapsed time across deep sleep.
 - `RTC_DATA_ATTR` (from `esp_attr.h`) to retain marker/timestamp across deep sleep.
-
