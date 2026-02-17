@@ -30,6 +30,7 @@ static constexpr const char *kTag = "host_event_loop";
 static constexpr uint32_t kQueueDepth = 16;
 static constexpr uint32_t kEventLoopStack = 8 * 1024;
 static constexpr int32_t kTickIntervalMs = 50;
+static constexpr int32_t kIdleSleepTimeoutMs = 3 * 60 * 1000;
 
 static QueueHandle_t g_event_queue = nullptr;
 static pthread_t g_event_thread = {};
@@ -415,10 +416,10 @@ void emit_gesture(WasmController *wasm, int32_t now, int32_t kind, int32_t x, in
     dispatch_event(wasm, ev);
 }
 
-void process_touch(WasmController *wasm, GestureState &state, int32_t now)
+bool process_touch(WasmController *wasm, GestureState &state, int32_t now)
 {
     if (!paper_display_ensure_init()) {
-        return;
+        return false;
     }
 
     const bool dispatch_to_wasm = (wasm != nullptr) && wasm->HasGestureHandler();
@@ -428,12 +429,13 @@ void process_touch(WasmController *wasm, GestureState &state, int32_t now)
 
     if (tracker.getCount() == 0) {
         if (!state.active) {
-            return;
+            return false;
         }
     }
 
     const TouchDetail &det = tracker.getDetail(0);
     const bool pressed = (det.state & touch_state_t::mask_touch) != 0;
+    const bool did_input = pressed || state.active;
 
     if (!state.active && pressed) {
         state.active = true;
@@ -453,7 +455,7 @@ void process_touch(WasmController *wasm, GestureState &state, int32_t now)
             .y = (float)det.y,
             .time_ms = (uint64_t)now,
         });
-        return;
+        return did_input;
     }
 
     if (state.active && pressed) {
@@ -492,7 +494,7 @@ void process_touch(WasmController *wasm, GestureState &state, int32_t now)
 
         state.last_x = det.x;
         state.last_y = det.y;
-        return;
+        return did_input;
     }
 
     if (state.active && !pressed) {
@@ -513,7 +515,7 @@ void process_touch(WasmController *wasm, GestureState &state, int32_t now)
         if (custom_handle > 0 && custom_handle == g_system_sleep_gesture_handle) {
             ESP_LOGI(kTag, "System sleep gesture detected; powering off");
             (void)power_service::power_off(true);
-            return;
+            return did_input;
         }
 
         if (dispatch_to_wasm && custom_handle > 0) {
@@ -536,8 +538,10 @@ void process_touch(WasmController *wasm, GestureState &state, int32_t now)
         state.active = false;
         state.dragging = false;
         state.long_press_sent = false;
-        return;
+        return did_input;
     }
+
+    return did_input;
 }
 
 void maybe_recover_uploaded_crash(WasmController *wasm)
@@ -591,6 +595,8 @@ void host_event_loop_run(WasmController *wasm)
     GestureState gesture_state;
     ensure_system_gestures_registered();
     int32_t last_tick = now_ms();
+    int32_t last_input_ms = last_tick;
+    bool devserver_active = false;
 
     while (g_event_loop_running) {
         HostEvent event{};
@@ -713,13 +719,28 @@ void host_event_loop_run(WasmController *wasm)
 
         const int32_t now = now_ms();
         if ((now - last_tick) >= kTickIntervalMs) {
+            devserver_active = devserver::is_running() || devserver::is_starting();
+            if (devserver_active) {
+                last_input_ms = now;
+            } else {
+                const int32_t idle_ms = now - last_input_ms;
+                if (idle_ms < 0) {
+                    last_input_ms = now;
+                } else if (idle_ms >= kIdleSleepTimeoutMs) {
+                    ESP_LOGI(kTag, "Idle timeout elapsed; powering off (idle_ms=%" PRId32 ")", idle_ms);
+                    (void)power_service::power_off(true);
+                }
+            }
+
             HostEvent tick = MakeTickEvent(now);
             dispatch_event(wasm, tick);
             last_tick = now;
             maybe_recover_uploaded_crash(wasm);
         }
 
-        process_touch(wasm, gesture_state, now);
+        if (process_touch(wasm, gesture_state, now)) {
+            last_input_ms = now;
+        }
     }
 }
 
