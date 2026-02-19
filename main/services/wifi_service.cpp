@@ -498,11 +498,6 @@ esp_err_t subscribe(EventCallback cb, void *user_ctx, Subscription *out_sub)
         return ESP_ERR_INVALID_ARG;
     }
 
-    esp_err_t err = init_once();
-    if (err != ESP_OK) {
-        return err;
-    }
-
     std::lock_guard<std::mutex> lock(g_mutex);
     for (int i = 0; i < kMaxSubscribers; i++) {
         if (g_subs[i].in_use) {

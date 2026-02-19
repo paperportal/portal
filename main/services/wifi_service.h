@@ -230,14 +230,16 @@ esp_err_t init_once(void);
 /**
  * @brief Subscribe to Wi-Fi service events.
  *
+ * This function does not initialize Wi-Fi. Callbacks will only begin firing after `init_once()` has been called and the
+ * Wi-Fi service has registered its ESP-IDF event handlers.
+ *
  * @param cb Callback invoked for Wi-Fi lifecycle events.
  * @param user_ctx Opaque pointer forwarded to `cb` (may be nullptr).
  * @param out_sub Output subscription handle.
  *
  * @return `ESP_OK` on success;
  * `ESP_ERR_INVALID_ARG` if `cb` or `out_sub` is null;
- * `ESP_ERR_NO_MEM` if the subscriber table is full;
- * otherwise an ESP-IDF error code.
+ * `ESP_ERR_NO_MEM` if the subscriber table is full.
  */
 esp_err_t subscribe(EventCallback cb, void *user_ctx, Subscription *out_sub);
 
