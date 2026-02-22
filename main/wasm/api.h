@@ -5,6 +5,7 @@
 bool wasm_api_register_core(void);
 bool wasm_api_register_log(void);
 bool wasm_api_register_m5(void);
+bool wasm_api_register_microtask(void);
 bool wasm_api_register_display(void);
 bool wasm_api_register_display_primitives(void);
 bool wasm_api_register_display_text(void);

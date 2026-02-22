@@ -195,7 +195,15 @@ Touch polling vs. battery:
 - When touch is inactive, touch polling should be less frequent.
 - When touch is active (pressed/dragging), touch polling should be more frequent to keep gestures responsive.
 
-The exact values are an implementation choice, but they must be documented alongside MicroTasks because they affect wake behavior.
+Current firmware values (v0 implementation):
+
+- Inactive touch polling interval: **50ms**
+- Active touch polling interval: **20ms**
+
+Rationale:
+
+- 50ms idle polling lowers baseline wakeups compared with a tight spin loop.
+- 20ms active polling keeps drag/flick responsiveness acceptable while a task workload is running.
 
 ## Zig SDK expectations
 

@@ -16,6 +16,7 @@
 #include "services/devserver_service.h"
 #include "host/events.h"
 #include "host/httpd_host.h"
+#include "host/microtask_scheduler.h"
 #include "input/gesture_engine.h"
 #include "input/touch_tracker.h"
 #include "m5papers3_display.h"
@@ -29,8 +30,10 @@ namespace {
 static constexpr const char *kTag = "host_event_loop";
 static constexpr uint32_t kQueueDepth = 16;
 static constexpr uint32_t kEventLoopStack = 8 * 1024;
-static constexpr int32_t kTickIntervalMs = 50;
 static constexpr int32_t kIdleSleepTimeoutMs = 3 * 60 * 1000;
+static constexpr uint32_t kTouchPollIdleMs = 50;
+static constexpr uint32_t kTouchPollActiveMs = 20;
+static constexpr int kMicroTaskMaxStepsPerWake = 16;
 
 static QueueHandle_t g_event_queue = nullptr;
 static pthread_t g_event_thread = {};
@@ -63,6 +66,41 @@ int32_t now_ms()
     return (int32_t)(esp_timer_get_time() / 1000);
 }
 
+uint32_t now_u32_ms()
+{
+    return (uint32_t)now_ms();
+}
+
+bool time_reached(uint32_t now, uint32_t target)
+{
+    return (uint32_t)(now - target) < 0x80000000u;
+}
+
+uint32_t time_until(uint32_t now, uint32_t target)
+{
+    if (time_reached(now, target)) {
+        return 0;
+    }
+    return (uint32_t)(target - now);
+}
+
+void set_earliest_deadline(uint32_t now, uint32_t *deadline, bool *has_deadline, uint32_t candidate)
+{
+    if (!deadline || !has_deadline) {
+        return;
+    }
+    if (!*has_deadline) {
+        *deadline = candidate;
+        *has_deadline = true;
+        return;
+    }
+    const uint32_t current_wait = time_until(now, *deadline);
+    const uint32_t candidate_wait = time_until(now, candidate);
+    if (candidate_wait < current_wait) {
+        *deadline = candidate;
+    }
+}
+
 void ensure_system_gestures_registered()
 {
     if (g_system_sleep_gesture_handle > 0) {
@@ -86,6 +124,12 @@ void ensure_system_gestures_registered()
 void clear_custom_gestures()
 {
     gesture_engine().ClearCustom();
+}
+
+void clear_app_runtime_state()
+{
+    clear_custom_gestures();
+    microtask_scheduler().ClearAll();
 }
 
 void wifi_service_event_cb(const wifi::Event &event, void *user_ctx)
@@ -191,7 +235,7 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
 
     auto reload_launcher = [&]() -> bool {
         wasm->UnloadModule();
-        clear_custom_gestures();
+        clear_app_runtime_state();
 
         if (!wasm->LoadEntrypoint()) {
             return false;
@@ -214,7 +258,7 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
 
         wasm->CallShutdown();
         wasm->UnloadModule();
-        clear_custom_gestures();
+        clear_app_runtime_state();
 
         char err[256] = {};
         if (!wasm->LoadFromBytes(cmd->wasm_bytes, cmd->wasm_len, cmd->args, err, sizeof(err))) {
@@ -271,7 +315,7 @@ void dispatch_event(WasmController *wasm, const HostEvent &event)
 
     switch (event.type) {
         case HostEventType::Tick:
-            wasm->CallTick(event.now_ms);
+            // Tick events are reserved for host-internal scheduling only.
             break;
         case HostEventType::Gesture: {
             const HostEventGesture &g = event.data.gesture;
@@ -557,7 +601,7 @@ void maybe_recover_uploaded_crash(WasmController *wasm)
     }
 
     wasm->UnloadModule();
-    clear_custom_gestures();
+    clear_app_runtime_state();
     if (!wasm->LoadEntrypoint()) {
         devserver::notify_server_error("crash recovery: reload launcher failed");
         devserver::notify_uploaded_stopped();
@@ -593,14 +637,43 @@ void host_event_loop_run(WasmController *wasm)
 
     g_event_loop_running = true;
     GestureState gesture_state;
+    MicroTaskScheduler &scheduler = microtask_scheduler();
+    scheduler.ClearAll();
     ensure_system_gestures_registered();
-    int32_t last_tick = now_ms();
-    int32_t last_input_ms = last_tick;
+    uint32_t last_input_ms = now_u32_ms();
+    uint32_t next_touch_poll_ms = last_input_ms;
     bool devserver_active = false;
 
     while (g_event_loop_running) {
+        const uint32_t wait_now = now_u32_ms();
+        uint32_t next_deadline = 0;
+        bool has_deadline = false;
+
+        set_earliest_deadline(wait_now, &next_deadline, &has_deadline, next_touch_poll_ms);
+
+        if (scheduler.HasTasks()) {
+            const uint32_t next_due = scheduler.NextDueMs(wait_now);
+            if (next_due != MicroTaskScheduler::kNoDueMs) {
+                set_earliest_deadline(wait_now, &next_deadline, &has_deadline, next_due);
+            }
+        }
+
+        devserver_active = devserver::is_running() || devserver::is_starting();
+        if (!devserver_active) {
+            const uint32_t idle_deadline = last_input_ms + (uint32_t)kIdleSleepTimeoutMs;
+            set_earliest_deadline(wait_now, &next_deadline, &has_deadline, idle_deadline);
+        }
+
+        TickType_t wait_ticks = portMAX_DELAY;
+        if (has_deadline) {
+            const uint32_t wait_ms = time_until(wait_now, next_deadline);
+            wait_ticks = (wait_ms == 0) ? 0 : pdMS_TO_TICKS(wait_ms);
+            if (wait_ms > 0 && wait_ticks == 0) {
+                wait_ticks = 1;
+            }
+        }
+
         HostEvent event{};
-        const TickType_t wait_ticks = pdMS_TO_TICKS(10);
         if (xQueueReceive(g_event_queue, &event, wait_ticks) == pdTRUE) {
             dispatch_event(wasm, event);
             maybe_recover_uploaded_crash(wasm);
@@ -618,7 +691,7 @@ void host_event_loop_run(WasmController *wasm)
 
             auto reload_launcher = [&]() -> bool {
                 wasm->UnloadModule();
-                clear_custom_gestures();
+                clear_app_runtime_state();
 
                 if (!wasm->LoadEmbeddedEntrypoint()) {
                     return false;
@@ -637,7 +710,7 @@ void host_event_loop_run(WasmController *wasm)
                 wasm->CallShutdown();
             }
             wasm->UnloadModule();
-            clear_custom_gestures();
+            clear_app_runtime_state();
 
             // Load the requested app
             bool load_ok = false;
@@ -696,7 +769,7 @@ void host_event_loop_run(WasmController *wasm)
                 wasm->CallShutdown();
             }
             wasm->UnloadModule();
-            clear_custom_gestures();
+            clear_app_runtime_state();
 
             // Relaunch launcher (SD override first, embedded fallback)
             if (!wasm->LoadEntrypoint()) {
@@ -717,29 +790,31 @@ void host_event_loop_run(WasmController *wasm)
             g_pending_app_exit = false;
         }
 
-        const int32_t now = now_ms();
-        if ((now - last_tick) >= kTickIntervalMs) {
-            devserver_active = devserver::is_running() || devserver::is_starting();
-            if (devserver_active) {
+        const uint32_t now = now_u32_ms();
+        devserver_active = devserver::is_running() || devserver::is_starting();
+        if (devserver_active) {
+            last_input_ms = now;
+        } else {
+            const uint32_t idle_deadline = last_input_ms + (uint32_t)kIdleSleepTimeoutMs;
+            if (time_reached(now, idle_deadline)) {
+                const uint32_t idle_ms = now - last_input_ms;
+                ESP_LOGI(kTag, "Idle timeout elapsed; powering off (idle_ms=%" PRIu32 ")", idle_ms);
+                (void)power_service::power_off(true);
                 last_input_ms = now;
-            } else {
-                const int32_t idle_ms = now - last_input_ms;
-                if (idle_ms < 0) {
-                    last_input_ms = now;
-                } else if (idle_ms >= kIdleSleepTimeoutMs) {
-                    ESP_LOGI(kTag, "Idle timeout elapsed; powering off (idle_ms=%" PRId32 ")", idle_ms);
-                    (void)power_service::power_off(true);
-                }
             }
-
-            HostEvent tick = MakeTickEvent(now);
-            dispatch_event(wasm, tick);
-            last_tick = now;
-            maybe_recover_uploaded_crash(wasm);
         }
 
-        if (process_touch(wasm, gesture_state, now)) {
-            last_input_ms = now;
+        if (time_reached(now, next_touch_poll_ms)) {
+            if (process_touch(wasm, gesture_state, (int32_t)now)) {
+                last_input_ms = now;
+            }
+            const uint32_t poll_interval_ms = gesture_state.active ? kTouchPollActiveMs : kTouchPollIdleMs;
+            next_touch_poll_ms = now + poll_interval_ms;
+        }
+
+        if (scheduler.HasDue(now)) {
+            scheduler.RunDue(wasm, now, kMicroTaskMaxStepsPerWake);
+            maybe_recover_uploaded_crash(wasm);
         }
     }
 }

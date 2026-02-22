@@ -96,6 +96,7 @@ bool WasmController::LookupExports()
     exports_.contract_version = wasm_runtime_lookup_function(inst_, pp_contract::kExportContractVersion);
     exports_.init = wasm_runtime_lookup_function(inst_, pp_contract::kExportInit);
     exports_.tick = wasm_runtime_lookup_function(inst_, pp_contract::kExportTick);
+    exports_.microtask_step = wasm_runtime_lookup_function(inst_, pp_contract::kExportPortalMicroTaskStep);
     exports_.alloc = wasm_runtime_lookup_function(inst_, pp_contract::kExportAlloc);
     exports_.free = wasm_runtime_lookup_function(inst_, pp_contract::kExportFree);
 
@@ -105,7 +106,7 @@ bool WasmController::LookupExports()
     exports_.shutdown = wasm_runtime_lookup_function(inst_, pp_contract::kExportShutdown);
 
     if (!exports_.contract_version || !exports_.init || !exports_.alloc || !exports_.free) {
-        ESP_LOGE(kTag, "Missing required exports (contract/init/tick/alloc/free)");
+        ESP_LOGE(kTag, "Missing required exports (contract/init/alloc/free)");
         return false;
     }
 

@@ -78,6 +78,27 @@ bool WasmController::CallTick(int32_t now_ms)
     return CallWasm(exports_.tick, 1, argv, pp_contract::kExportTick);
 }
 
+bool WasmController::CallMicroTaskStep(int32_t handle, int32_t now_ms, int64_t *out_action)
+{
+    if (!out_action) {
+        return false;
+    }
+
+    *out_action = 0;
+    if (!dispatch_enabled_ || !exports_.microtask_step) {
+        return false;
+    }
+
+    uint32_t argv[2] = { (uint32_t)handle, (uint32_t)now_ms };
+    if (!CallWasm(exports_.microtask_step, 2, argv, pp_contract::kExportPortalMicroTaskStep)) {
+        return false;
+    }
+
+    uint64_t bits = ((uint64_t)argv[1] << 32) | (uint64_t)argv[0];
+    memcpy(out_action, &bits, sizeof(bits));
+    return true;
+}
+
 bool WasmController::CallOnGesture(int32_t kind, int32_t x, int32_t y, int32_t dx, int32_t dy,
     int32_t duration_ms, int32_t now_ms, int32_t flags)
 {

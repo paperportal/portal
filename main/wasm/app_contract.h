@@ -12,7 +12,7 @@ constexpr int32_t kContractVersion = 1;
 // Exported handler names (required).
 constexpr const char *kExportContractVersion = "portalContractVersion";
 constexpr const char *kExportInit = "ppInit";
-constexpr const char *kExportTick = "ppTick";
+constexpr const char *kExportPortalMicroTaskStep = "portalMicroTaskStep";
 constexpr const char *kExportAlloc = "portalAlloc";
 constexpr const char *kExportFree = "portalFree";
 
@@ -24,10 +24,23 @@ constexpr const char *kExportFree = "portalFree";
 // The JSON string is NOT null-terminated; use args_len for bounds checking.
 
 // Exported handler names (optional).
+constexpr const char *kExportTick = "ppTick";
 constexpr const char *kExportOnGesture = "ppOnGesture";
 constexpr const char *kExportOnHttpRequest = "ppOnHttpRequest";
 constexpr const char *kExportOnWifiEvent = "ppOnWifiEvent";
 constexpr const char *kExportShutdown = "ppShutdown";
+
+// portalMicroTaskStep signature:
+//   int64_t portalMicroTaskStep(int32_t handle, int32_t now_ms)
+//
+// Return encoding:
+//   high 32 bits: action kind
+//   low  32 bits: action argument (milliseconds for SLEEP_MS; otherwise 0)
+enum PpMicroTaskActionKind : uint32_t {
+    kMicroTaskActionDone = 0,
+    kMicroTaskActionYield = 1,
+    kMicroTaskActionSleepMs = 2,
+};
 
 // Gesture kinds (ppOnGesture kind argument).
 enum PpGestureKind : int32_t {

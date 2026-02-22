@@ -66,6 +66,9 @@ public:
     /** @brief Call `ppTick` in the WASM module. */
     bool CallTick(int32_t now_ms);
 
+    /** @brief Call `portalMicroTaskStep` in the WASM module. */
+    bool CallMicroTaskStep(int32_t handle, int32_t now_ms, int64_t *out_action);
+
     /** @brief Call `ppOnGesture` in the WASM module. */
     bool CallOnGesture(int32_t kind, int32_t x, int32_t y, int32_t dx, int32_t dy, int32_t duration_ms,
         int32_t now_ms, int32_t flags);
@@ -107,6 +110,9 @@ public:
     /** @brief True if the module exports a Wi-Fi event handler. */
     bool HasWifiEventHandler() const { return exports_.on_wifi_event != nullptr; }
 
+    /** @brief True if the module exports a microtask step handler. */
+    bool HasMicroTaskStepHandler() const { return exports_.microtask_step != nullptr; }
+
 private:
     /** @brief Cached function pointers for WASM exports used by the app contract. */
     struct Exports {
@@ -116,6 +122,8 @@ private:
         wasm_function_inst_t init = nullptr;
         /** @brief Export: periodic tick callback. */
         wasm_function_inst_t tick = nullptr;
+        /** @brief Export: microtask step callback. */
+        wasm_function_inst_t microtask_step = nullptr;
         /** @brief Export: allocator entrypoint. */
         wasm_function_inst_t alloc = nullptr;
         /** @brief Export: free entrypoint. */

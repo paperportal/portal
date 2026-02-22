@@ -22,20 +22,23 @@ Observable result: a demo WASM app can start multiple MicroTasks (periodic, dela
 
 - [x] (2026-02-18) Update plan to reflect “no `ppTick`” and host-driven scheduling.
 - [x] (2026-02-18) Write `docs/specs/spec-microtasks.md` describing semantics + battery intent.
-- [ ] (2026-02-18) Implement firmware MicroTask scheduler + integrate into `main/host/event_loop.cpp`.
-- [ ] (2026-02-18) Add WASM import module `portal_microtask` (start/cancel/clear).
-- [ ] (2026-02-18) Add host→WASM `portalMicroTaskStep` export + calling plumbing in `WasmController`.
-- [ ] (2026-02-18) Implement Zig SDK module `sdk/microtask.zig` (authoring + dispatch + FFI).
-- [ ] (2026-02-18) Add Zig tests for encoding/dispatch.
-- [ ] (2026-02-18) Add `apps/microtask-demo/` proving behavior without `ppTick`.
-- [ ] (2026-02-18) Validate on hardware; record evidence and battery-related observations.
+- [x] (2026-02-19) Implement firmware MicroTask scheduler + integrate into `main/host/event_loop.cpp`.
+- [x] (2026-02-19) Add WASM import module `portal_microtask` (start/cancel/clear).
+- [x] (2026-02-19) Add host→WASM `portalMicroTaskStep` export + calling plumbing in `WasmController`.
+- [x] (2026-02-19) Implement Zig SDK module `sdk/microtask.zig` (authoring + dispatch + FFI).
+- [x] (2026-02-19) Add Zig tests for encoding/dispatch.
+- [x] (2026-02-19) Add `apps/microtask-demo/` proving behavior without `ppTick`.
+- [ ] (2026-02-19) Validate on hardware; record evidence and battery-related observations (remaining: flash/run + capture device logs).
 
 ## Surprises & Discoveries
 
 Record unexpected behaviors that affect semantics, correctness, or battery usage.
 
-- Observation: (fill in)
-  Evidence: (fill in)
+- Observation: `wasm_runtime_call_wasm(...)` returns `i64` values via two `uint32` result cells (`argv[0]` low bits, `argv[1]` high bits), not a single cell.
+  Evidence: WAMR docs at `components/wamr/doc/embed_wamr.md` plus runtime implementation in `components/wamr/core/iwasm/common/wasm_runtime_common.c` (`parse_uint32_array_to_results`).
+
+- Observation: `idf.py` is unavailable in this execution environment, so firmware compile/hardware validation cannot be completed from this run.
+  Evidence: `zsh:1: command not found: idf.py` while running `idf.py build` in `/Users/mika/code/paperportal/portal`.
 
 ## Decision Log
 
@@ -55,13 +58,34 @@ Record unexpected behaviors that affect semantics, correctness, or battery usage
   Rationale: The millisecond timer wraps; scheduling must be correct across wrap.
   Date/Author: 2026-02-18 / GPT-5.2
 
+- Decision: Use touch poll intervals of 50ms when inactive and 20ms when active.
+  Rationale: 50ms reduces wake pressure while idle compared with tight polling; 20ms keeps gestures responsive during active interaction.
+  Date/Author: 2026-02-19 / GPT-5.2
+
+- Decision: Decode `portalMicroTaskStep` `i64` results in host C++ by combining two return cells from WAMR (`low=argv[0]`, `high=argv[1]`).
+  Rationale: This matches WAMR ABI behavior for 64-bit returns and avoids marshalling ambiguity.
+  Date/Author: 2026-02-19 / GPT-5.2
+
 ## Outcomes & Retrospective
 
-Fill in as milestones complete. At completion, include:
+Implemented in this milestone:
 
-- What shipped (APIs, examples, docs).
-- What was deferred (e.g., deeper power management, touch interrupt support).
-- What to improve next (e.g., better coalescing, jitter handling, profiling).
+- Firmware-side scheduler (`main/host/microtask_scheduler.*`) with generated handles, periodic semantics, fairness budget, and wrap-safe due checks.
+- Event loop migration away from fixed `ppTick` heartbeat to deadline-based waits (touch poll deadline, microtask deadline, idle deadline).
+- New WASM import module `portal_microtask` with start/cancel/clear calls and host error mapping.
+- Host→WASM `portalMicroTaskStep` lookup/call path in `WasmController`.
+- Zig SDK module `sdk/microtask.zig` with action encoding, task adapter, dispatch table, wrappers, tests, and SDK-exported dispatcher.
+- Demo app `apps/microtask-demo` exercising periodic, delayed, and chunked tasks without `ppTick`.
+- Docs updates in both repositories (`spec-microtasks.md`, SDK README, and SDK guide).
+
+Deferred:
+
+- On-device flashing/monitor validation and battery observation logs (environment here lacks `idf.py` + device access).
+
+Next improvements:
+
+- Replace touch polling with interrupt-assisted wake where hardware support allows.
+- Add explicit profiling counters for wake frequency and per-cycle microtask execution time.
 
 ## Context and Orientation
 
@@ -72,9 +96,11 @@ Repository roots:
 
 Relevant firmware code:
 
-- Host event loop that currently dispatches periodic ticks:
+- Host event loop with deadline-driven scheduling (no periodic WASM `ppTick` dispatch):
   - `/Users/mika/code/paperportal/portal/main/host/event_loop.cpp`
-  - It currently uses `kTickIntervalMs = 50` and calls `wasm->CallTick(now_ms)` on that cadence.
+- Host-side microtask scheduler implementation:
+  - `/Users/mika/code/paperportal/portal/main/host/microtask_scheduler.h`
+  - `/Users/mika/code/paperportal/portal/main/host/microtask_scheduler.cpp`
 - WASM app contract constants:
   - `/Users/mika/code/paperportal/portal/main/wasm/app_contract.h`
 - WASM controller that looks up exports and dispatches host→WASM calls:
@@ -330,12 +356,26 @@ Accepted when:
 
 Keep short evidence here:
 
-- Build/test transcripts.
-- A small example log sequence from `microtask-demo`.
-- Any battery-related observations (e.g., reduced wake frequency when idle; changes in responsiveness with chosen touch poll intervals).
+- Build/test transcripts:
+  - `cd /Users/mika/code/paperportal/zig-sdk && zig fmt .` (updated `sdk/microtask.zig` formatting)
+  - `cd /Users/mika/code/paperportal/zig-sdk && zig build` (pass)
+  - `cd /Users/mika/code/paperportal/zig-sdk && zig test sdk/microtask.zig` (pass: 3/3 tests)
+  - `cd /Users/mika/code/paperportal/portal/apps/microtask-demo && zig build` (pass)
+  - `cd /Users/mika/code/paperportal/portal && idf.py build` (blocked: `idf.py` missing in environment)
+- Example demo log intent (to capture on-device in next step):
+  - heartbeat lines every ~500ms
+  - delayed one-shot firing around +2000ms
+  - worker progress in chunks while tap logs continue
+- Battery-related observation from implementation choices:
+  - host no longer enqueues periodic tick events for WASM dispatch;
+  - wakeups are now deadline-driven with explicit touch poll intervals.
 
 ## Interfaces and Dependencies
 
 - New firmware-side WASM import module: `portal_microtask`.
 - New WASM export (provided by `../zig-sdk` for Zig apps): `portalMicroTaskStep(handle, now_ms) -> i64`.
 - Zig SDK adds `sdk.microtask` as the recommended app-facing interface for MicroTasks.
+
+---
+
+Plan update note (2026-02-19): Marked implementation milestones complete, recorded ABI/runtime discoveries and validation evidence, and documented the remaining hardware-validation gap so execution can resume from this file without external context.

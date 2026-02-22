@@ -42,9 +42,6 @@ void GestureEngine::ResetTracking()
 
 void GestureEngine::ClearAll()
 {
-    if (!slots_.empty()) {
-        ESP_LOGI(kTag, "ClearAll: clearing %u registered gestures (x=%.1f y=%.1f)", (unsigned)slots_.size(), 0.0f, 0.0f);
-    }
     slots_.clear();
     ResetTracking();
 }
@@ -55,12 +52,7 @@ void GestureEngine::ClearCustom()
         return;
     }
 
-    size_t before = slots_.size();
     slots_.erase(std::remove_if(slots_.begin(), slots_.end(), [](const Slot &s) { return !s.def.system; }), slots_.end());
-    const size_t after = slots_.size();
-    if (before != after) {
-        ESP_LOGI(kTag, "ClearCustom: cleared %u gestures; kept %u system gestures", (unsigned)(before - after), (unsigned)after);
-    }
     ResetTracking();
 }
 
@@ -139,15 +131,6 @@ int32_t GestureEngine::RegisterPolyline(const char *id_z, std::vector<PointF> po
     reset_track(s.track);
     slots_.push_back(std::move(s));
 
-    const auto &def = slots_.back().def;
-    const PointF p0 = def.points.empty() ? PointF{ 0.0f, 0.0f } : def.points.front();
-    const PointF plast = def.points.empty() ? PointF{ 0.0f, 0.0f } : def.points.back();
-    ESP_LOGI(kTag,
-        "RegisterPolyline: id='%s' handle=%" PRIi32 " points=%u fixed=%d system=%d tol=%.1f pri=%" PRIi32 " max_dur=%" PRIu32
-        " seg=%d p0=(%.1f,%.1f) plast=(%.1f,%.1f)",
-        def.id, def.handle, (unsigned)def.points.size(), fixed ? 1 : 0, system ? 1 : 0, tolerance_px, priority,
-        max_duration_ms, segment_constraint_enabled ? 1 : 0, p0.x, p0.y, plast.x, plast.y);
-
     return slots_.back().def.handle;
 }
 
@@ -159,12 +142,8 @@ int32_t GestureEngine::Remove(int32_t handle)
     for (size_t i = 0; i < slots_.size(); i++) {
         if (slots_[i].def.handle == handle) {
             if (slots_[i].def.system) {
-                ESP_LOGI(kTag, "Remove: handle=%" PRIi32 " id='%s' denied (system)", handle, slots_[i].def.id);
                 return -4;
             }
-            const TrackState &t = slots_[i].track;
-            ESP_LOGI(kTag, "Remove: handle=%" PRIi32 " id='%s' x=%.1f y=%.1f", handle, slots_[i].def.id, t.last_pos.x,
-                t.last_pos.y);
             slots_[i] = std::move(slots_.back());
             slots_.pop_back();
             return 0;
@@ -179,8 +158,6 @@ void GestureEngine::on_down(const TouchEvent &event)
     active_pointer_id_ = event.pointer_id;
 
     const PointF down = { event.x, event.y };
-
-    ESP_LOGI(kTag, "Down: ptr=%d x=%.1f y=%.1f gestures=%u", event.pointer_id, event.x, event.y, (unsigned)slots_.size());
 
     for (auto &s : slots_) {
         TrackState &t = s.track;
@@ -199,8 +176,6 @@ void GestureEngine::on_down(const TouchEvent &event)
 
         if (s.def.fixed && d0 > tol_sq) {
             t.active = false;
-            ESP_LOGI(kTag, "  '%s' handle=%" PRIi32 ": inactive (fixed; x=%.1f y=%.1f d0_sq=%.1f tol_sq=%.1f)", s.def.id,
-                s.def.handle, event.x, event.y, d0, tol_sq);
             continue;
         }
 
@@ -208,15 +183,9 @@ void GestureEngine::on_down(const TouchEvent &event)
         if (d0 <= tol_sq) {
             t.target_index = 1;
             t.approach_armed = false;
-            ESP_LOGI(kTag, "  '%s' handle=%" PRIi32 ": reached waypoint 0 on Down (x=%.1f y=%.1f)", s.def.id, s.def.handle,
-                event.x, event.y);
             if (t.target_index < s.def.points.size()) {
                 t.last_dist_to_target = dist_sq(down, abs_point(s.def, t, t.target_index));
             }
-        }
-        else {
-            ESP_LOGI(kTag, "  '%s' handle=%" PRIi32 ": active (x=%.1f y=%.1f target=0 d0_sq=%.1f tol_sq=%.1f)", s.def.id,
-                s.def.handle, event.x, event.y, d0, tol_sq);
         }
     }
 }
@@ -237,8 +206,6 @@ void GestureEngine::on_move_or_up(const TouchEvent &event)
             const uint64_t duration = (event.time_ms >= t.start_time_ms) ? (event.time_ms - t.start_time_ms) : 0;
             if (duration > (uint64_t)s.def.max_duration_ms) {
                 t.active = false;
-                ESP_LOGI(kTag, "  '%s' handle=%" PRIi32 ": inactive (x=%.1f y=%.1f duration %" PRIu64 "ms > max %" PRIu32 "ms)",
-                    s.def.id, s.def.handle, event.x, event.y, duration, s.def.max_duration_ms);
                 continue;
             }
         }
@@ -252,8 +219,6 @@ void GestureEngine::on_move_or_up(const TouchEvent &event)
             const PointF target = abs_point(s.def, t, t.target_index);
             const float d = dist_sq(pos, target);
             if (d <= tol_sq) {
-                ESP_LOGI(kTag, "  '%s' handle=%" PRIi32 ": reached waypoint %u (x=%.1f y=%.1f)", s.def.id, s.def.handle,
-                    (unsigned)t.target_index, event.x, event.y);
                 t.target_index++;
                 t.consecutive_fail_approach = 0;
                 t.consecutive_fail_segment = 0;
@@ -288,8 +253,6 @@ void GestureEngine::on_move_or_up(const TouchEvent &event)
                 t.approach_armed = true;
                 t.consecutive_fail_approach = 0;
                 t.last_dist_to_target = d_to_target;
-                ESP_LOGI(kTag, "  '%s' handle=%" PRIi32 ": approach armed (x=%.1f y=%.1f target=%u)", s.def.id, s.def.handle,
-                    event.x, event.y, (unsigned)t.target_index);
             }
             else {
                 t.last_dist_to_target = d_to_target;
@@ -319,13 +282,8 @@ void GestureEngine::on_move_or_up(const TouchEvent &event)
             t.consecutive_fail_segment = 0;
         }
 
-        if (t.consecutive_fail_approach >= kConsecutiveFailThreshold
-            || t.consecutive_fail_segment >= kConsecutiveFailThreshold) {
+        if (t.consecutive_fail_approach >= kConsecutiveFailThreshold || t.consecutive_fail_segment >= kConsecutiveFailThreshold) {
             t.active = false;
-            ESP_LOGI(kTag,
-                "  '%s' handle=%" PRIi32 ": inactive (x=%.1f y=%.1f approach_fail=%d segment_fail=%d target=%u)",
-                s.def.id, s.def.handle, event.x, event.y, t.consecutive_fail_approach, t.consecutive_fail_segment,
-                (unsigned)t.target_index);
         }
     }
 }
@@ -337,8 +295,6 @@ int32_t GestureEngine::on_up_and_select_winner(const TouchEvent &event)
     int32_t best_handle = 0;
     int32_t best_priority = INT32_MIN;
     float best_score = 0.0f;
-
-    ESP_LOGI(kTag, "Up: ptr=%d x=%.1f y=%.1f", event.pointer_id, event.x, event.y);
 
     for (auto &s : slots_) {
         TrackState &t = s.track;
@@ -364,14 +320,8 @@ int32_t GestureEngine::on_up_and_select_winner(const TouchEvent &event)
         const bool all_waypoints_reached = (t.target_index >= s.def.points.size());
         const bool up_near_last = (score <= tol_sq);
         if (!all_waypoints_reached || !up_near_last) {
-            ESP_LOGI(kTag,
-                "  '%s' handle=%" PRIi32 ": not eligible (x=%.1f y=%.1f reached=%d/%u score_sq=%.1f tol_sq=%.1f)",
-                s.def.id, s.def.handle, event.x, event.y, (int)t.target_index, (unsigned)s.def.points.size(), score, tol_sq);
             continue;
         }
-
-        ESP_LOGI(kTag, "  '%s' handle=%" PRIi32 ": eligible (x=%.1f y=%.1f pri=%" PRIi32 " score_sq=%.1f)", s.def.id,
-            s.def.handle, event.x, event.y, s.def.priority, score);
 
         if (best_handle == 0 || s.def.priority > best_priority
             || (s.def.priority == best_priority && score < best_score)
@@ -380,14 +330,6 @@ int32_t GestureEngine::on_up_and_select_winner(const TouchEvent &event)
             best_priority = s.def.priority;
             best_score = score;
         }
-    }
-
-    if (best_handle > 0) {
-        ESP_LOGI(kTag, "Winner: handle=%" PRIi32 " pri=%" PRIi32 " score_sq=%.1f x=%.1f y=%.1f", best_handle, best_priority,
-            best_score, event.x, event.y);
-    }
-    else {
-        ESP_LOGI(kTag, "Winner: none (x=%.1f y=%.1f)", event.x, event.y);
     }
 
     return best_handle;
