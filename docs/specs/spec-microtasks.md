@@ -10,8 +10,6 @@ A MicroTask is a unit of app-defined work that:
 - Performs a small amount of work per invocation.
 - Yields by returning a scheduling action to the host (run again soon, sleep, or done).
 
-Unlike a classic “game loop tick”, MicroTasks are **not** driven by `ppTick`. The firmware should not periodically call `ppTick` because it causes unnecessary wakeups and hurts battery life. MicroTasks are instead driven on-demand: the firmware wakes when a task is due or an external event occurs (touch/event queue), then dispatches the due MicroTasks.
-
 ## Goals
 
 - Enable apps to do incremental work (chunked computation, staged I/O, UI animations) without blocking the device.
@@ -217,5 +215,4 @@ The SDK must also provide thin wrappers for `portal_microtask` imports so apps c
 
 ## Compatibility notes
 
-- Apps should not depend on `ppTick`. If `ppTick` exists, the host may ignore it or stop calling it entirely.
 - MicroTasks are per-app. The host must clear all tasks when switching/unloading the current WASM module.

@@ -82,7 +82,6 @@ fn drawUi() void {
     display.text.setSize(3, 3) catch {};
 
     display.text.drawCstr("MicroTask demo", 12, 16) catch {};
-    display.text.drawCstr("No ppTick: host-scheduled tasks", 12, 46) catch {};
     display.text.drawCstr("Heartbeat: 500ms periodic", 12, 78) catch {};
     display.text.drawCstr("Delayed one-shot: 2000ms", 12, 108) catch {};
     display.text.drawCstr("Chunked worker: 20 steps/80ms", 12, 138) catch {};

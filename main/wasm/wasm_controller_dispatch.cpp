@@ -69,15 +69,6 @@ bool WasmController::CallInit(int32_t api_version,
     return true;
 }
 
-bool WasmController::CallTick(int32_t now_ms)
-{
-    if (!dispatch_enabled_ || !exports_.tick) {
-        return false;
-    }
-    uint32_t argv[1] = { (uint32_t)now_ms };
-    return CallWasm(exports_.tick, 1, argv, pp_contract::kExportTick);
-}
-
 bool WasmController::CallMicroTaskStep(int32_t handle, int32_t now_ms, int64_t *out_action)
 {
     if (!out_action) {

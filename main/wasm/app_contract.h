@@ -24,7 +24,6 @@ constexpr const char *kExportFree = "portalFree";
 // The JSON string is NOT null-terminated; use args_len for bounds checking.
 
 // Exported handler names (optional).
-constexpr const char *kExportTick = "ppTick";
 constexpr const char *kExportOnGesture = "ppOnGesture";
 constexpr const char *kExportOnHttpRequest = "ppOnHttpRequest";
 constexpr const char *kExportOnWifiEvent = "ppOnWifiEvent";

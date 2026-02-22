@@ -3,8 +3,8 @@
     .version = "0.1.0",
     .dependencies = .{
         .paper_portal_sdk = .{
-            .url = "git+https://github.com/paperportal/zig-sdk#8b863ea81373b3d567362ba860cea1ec8199a917",
-            .hash = "paper_portal_sdk-0.0.0-TiKtz0OoAgDPhwvUhOeQV7up_tdUEPho4r7m9o5_tGRz",
+            .url = "git+https://github.com/paperportal/zig-sdk#7765f4f6f861da836a70c20d6547bbce012356d4",
+            .hash = "paper_portal_sdk-0.0.0-TiKtzwbPAgDIdEpNv5lHZRO1VF7mAHZ6FLpuYWJkprD3",
         },
     },
     .paths = .{""},

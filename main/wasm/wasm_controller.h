@@ -63,9 +63,6 @@ public:
     /** @brief Call `ppInit` in the WASM module. */
     bool CallInit(int32_t api_version, int32_t args_ptr = 0, int32_t args_len = 0);
 
-    /** @brief Call `ppTick` in the WASM module. */
-    bool CallTick(int32_t now_ms);
-
     /** @brief Call `portalMicroTaskStep` in the WASM module. */
     bool CallMicroTaskStep(int32_t handle, int32_t now_ms, int64_t *out_action);
 

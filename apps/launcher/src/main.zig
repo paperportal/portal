@@ -3,16 +3,24 @@ const sdk = @import("paper_portal_sdk");
 const title_bar = @import("ui/title_bar.zig");
 const core = sdk.core;
 const display = sdk.display;
+const microtask = sdk.microtask;
 const Error = sdk.errors.Error;
 
 const header_png_bytes = @embedFile("assets/main-header.png");
 
 const allocator = std.heap.wasm_allocator;
 
-const Controller = @import("apps/controller.zig").Controller;
+const Controller = @import("controller.zig").Controller;
 
 var g_initialized: bool = false;
 var g_controller: ?Controller = null;
+var g_controller_task_handle: i32 = 0;
+
+fn cancelHandle(handle: *i32) void {
+    if (handle.* <= 0) return;
+    microtask.cancel(handle.*) catch {};
+    handle.* = 0;
+}
 
 pub export fn ppInit(api_version: i32, args_ptr: i32, args_len: i32) i32 {
     _ = api_version;
@@ -39,13 +47,12 @@ pub export fn ppInit(api_version: i32, args_ptr: i32, args_len: i32) i32 {
         return -1;
     };
 
-    core.log.info("Launcher header drawn.");
-    return 0;
-}
-
-pub export fn ppTick(now_ms: i32) i32 {
     if (g_controller) |*c| {
-        c.tick(now_ms);
+        g_controller_task_handle = microtask.start(microtask.Task.from(Controller, c), 0, 0) catch |err| {
+            core.log.ferr("ppInit: controller microtask start failed: {s}", .{@errorName(err)});
+            g_controller_task_handle = 0;
+            return -1;
+        };
     }
     return 0;
 }
@@ -65,6 +72,8 @@ pub export fn ppOnGesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duration_
 }
 
 pub export fn ppShutdown() void {
+    cancelHandle(&g_controller_task_handle);
+    microtask.clearAll() catch {};
     if (g_controller) |*c| {
         c.deinit();
         g_controller = null;

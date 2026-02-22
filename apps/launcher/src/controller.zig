@@ -3,13 +3,14 @@ const std = @import("std");
 const sdk = @import("paper_portal_sdk");
 const core = sdk.core;
 const fs = sdk.fs;
+const microtask = sdk.microtask;
 const Error = sdk.errors.Error;
 
 const catalog_mod = @import("catalog.zig");
 const installer = @import("installer.zig");
 const paths = @import("paths.zig");
-const grid = @import("../ui/grid.zig");
-const popup = @import("../ui/popup.zig");
+const grid = @import("ui/grid.zig");
+const popup = @import("ui/popup.zig");
 
 pub const Controller = struct {
     allocator: std.mem.Allocator,
@@ -31,7 +32,7 @@ pub const Controller = struct {
         BootDrawn,
         PruneMissingFolders: struct { index: usize, dirty: bool },
         ScanForPapps,
-        ShowInstallPopup: struct { until_ms: i32 },
+        ShowInstallPopup: struct { until_ms: u32 },
         InstallQueue: struct { files: []PappFile, index: usize, dirty: bool },
         Done,
     };
@@ -93,7 +94,7 @@ pub const Controller = struct {
         self.* = undefined;
     }
 
-    pub fn tick(self: *Controller, now_ms: i32) void {
+    pub fn step(self: *Controller, now_ms: u32) anyerror!microtask.Action {
         const budget_ms: i32 = 5;
         const start_ms = core.time.millis();
         while (core.time.millis() - start_ms <= budget_ms) {
@@ -151,7 +152,10 @@ pub const Controller = struct {
                     self.pending_install_files = files;
                 },
                 .ShowInstallPopup => |s| {
-                    if (now_ms < s.until_ms) break;
+                    if (now_ms < s.until_ms) {
+                        const delta = s.until_ms - now_ms;
+                        return microtask.Action.sleepMs(delta);
+                    }
 
                     if (self.pending_install_files) |files| {
                         self.pending_install_files = null;
@@ -195,11 +199,13 @@ pub const Controller = struct {
                     fs.remove(file.path_z) catch {};
                     s.index += 1;
                 },
-                .Done => break,
+                .Done => return microtask.Action.doneNow(),
             }
 
             break;
         }
+
+        return microtask.Action.yieldSoon();
     }
 
     pub fn onTap(self: *Controller, x: i32, y: i32) void {

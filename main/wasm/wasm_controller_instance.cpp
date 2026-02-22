@@ -95,7 +95,6 @@ bool WasmController::LookupExports()
 {
     exports_.contract_version = wasm_runtime_lookup_function(inst_, pp_contract::kExportContractVersion);
     exports_.init = wasm_runtime_lookup_function(inst_, pp_contract::kExportInit);
-    exports_.tick = wasm_runtime_lookup_function(inst_, pp_contract::kExportTick);
     exports_.microtask_step = wasm_runtime_lookup_function(inst_, pp_contract::kExportPortalMicroTaskStep);
     exports_.alloc = wasm_runtime_lookup_function(inst_, pp_contract::kExportAlloc);
     exports_.free = wasm_runtime_lookup_function(inst_, pp_contract::kExportFree);

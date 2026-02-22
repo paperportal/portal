@@ -6,7 +6,7 @@ const display = sdk.display;
 const fs = sdk.fs;
 const Error = sdk.errors.Error;
 
-const paths = @import("../apps/paths.zig");
+const paths = @import("../paths.zig");
 
 const settings_icon_png_bytes = @embedFile("../assets/icon-settings.png");
 
