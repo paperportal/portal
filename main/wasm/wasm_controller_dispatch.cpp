@@ -51,21 +51,36 @@ bool WasmController::CallShutdown()
     return true;
 }
 
-bool WasmController::CallInit(int32_t api_version,
-    int32_t args_ptr, int32_t args_len)
+bool WasmController::CallMain()
 {
-    if (!dispatch_enabled_ || !exports_.init) {
+    if (!dispatch_enabled_ || !inst_) {
         return false;
     }
 
-    uint32_t argv[3];
-    argv[0] = (uint32_t)api_version;
-    argv[1] = (uint32_t)args_ptr;
-    argv[2] = (uint32_t)args_len;
+    if (main_called_) {
+        return true;
+    }
 
-    if (!CallWasm(exports_.init, 3, argv, pp_contract::kExportInit)) {
+    if (!wasm_application_execute_main(inst_, 0, nullptr)) {
+        const char *exception = wasm_runtime_get_exception(inst_);
+        ESP_LOGE(kTag, "WASM main failed: %s", exception ? exception : "(no exception)");
+        if (exception) {
+            devserver::notify_uploaded_crashed(exception);
+        }
+        DisableDispatch("main failed");
         return false;
     }
+
+    if (wasm_runtime_is_wasi_mode(inst_)) {
+        const uint32_t exit_code = wasm_runtime_get_wasi_exit_code(inst_);
+        if (exit_code != 0) {
+            ESP_LOGE(kTag, "WASM main exited with code=%" PRIu32, exit_code);
+            DisableDispatch("wasi exit");
+            return false;
+        }
+    }
+
+    main_called_ = true;
     return true;
 }
 

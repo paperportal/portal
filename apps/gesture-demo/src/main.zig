@@ -111,16 +111,13 @@ fn registerGestures() void {
     }
 }
 
-pub export fn ppInit(api_version: i32, args_ptr: i32, args_len: i32) i32 {
-    _ = api_version;
-    _ = args_ptr;
-    _ = args_len;
-
-    if (g_initialized) return 0;
+pub fn main() !void {
+    if (g_initialized) return;
     g_initialized = true;
 
-    core.begin() catch {
-        return -1;
+    core.begin() catch |err| {
+        core.log.ferr("main: core.begin failed: {s}", .{@errorName(err)});
+        return err;
     };
 
     display.vlw.useSystem(display.vlw.SystemFont.inter, 12) catch {};
@@ -129,7 +126,6 @@ pub export fn ppInit(api_version: i32, args_ptr: i32, args_len: i32) i32 {
     drawScreen();
 
     core.log.finfo("gesture-demo: ready (L={} V={} Z={})", .{ g_handle_l, g_handle_v, g_handle_z });
-    return 0;
 }
 
 pub export fn ppOnGesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duration_ms: i32, now_ms: i32, flags: i32) i32 {

@@ -11,17 +11,13 @@ constexpr int32_t kContractVersion = 1;
 
 // Exported handler names (required).
 constexpr const char *kExportContractVersion = "portalContractVersion";
-constexpr const char *kExportInit = "ppInit";
 constexpr const char *kExportPortalMicroTaskStep = "portalMicroTaskStep";
 constexpr const char *kExportAlloc = "portalAlloc";
 constexpr const char *kExportFree = "portalFree";
-
-// ppInit signature:
-//   int32_t ppInit(int32_t api_version, int32_t args_ptr, int32_t args_len)
-// Returns 0 on success, negative on failure.
-// - args_ptr: pointer to JSON string in wasm memory (null if no args)
-// - args_len: length of JSON string (0 if no args)
-// The JSON string is NOT null-terminated; use args_len for bounds checking.
+//
+// Entrypoint:
+// The host executes the module's WASI entrypoint (typically `_start`), which calls `main`.
+// WASI argv is configured via the WAMR load helpers (see `WasmController::LoadFrom*`).
 
 // Exported handler names (optional).
 constexpr const char *kExportOnGesture = "ppOnGesture";

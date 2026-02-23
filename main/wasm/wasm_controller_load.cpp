@@ -56,8 +56,9 @@ bool WasmController::LoadModuleFromOwnedBuffer(size_t len, const char *args, cha
     }
 
     SetWasiArgsFromString(args);
-    wasm_runtime_set_wasi_args(module_, wasi_argv_.empty() ? nullptr : wasi_argv_.data(), (uint32_t)wasi_argv_.size(),
-        nullptr, 0, nullptr, 0, nullptr, 0);
+    wasm_runtime_set_wasi_args(module_,
+        nullptr, 0, nullptr, 0, nullptr, 0,
+        wasi_argv_.empty() ? nullptr : const_cast<char**>(wasi_argv_.data()), (uint32_t)wasi_argv_.size());
 
     return true;
 }
@@ -67,7 +68,13 @@ void WasmController::SetWasiArgsFromString(const char *args)
     wasi_args_.clear();
     wasi_argv_.clear();
 
+    // WASI convention: argv[0] is the program name.
+    wasi_args_.emplace_back("app");
+
     if (!args || args[0] == '\0') {
+        for (const std::string &s : wasi_args_) {
+            wasi_argv_.push_back(s.c_str());
+        }
         return;
     }
 
@@ -147,7 +154,7 @@ bool WasmController::LoadEntrypoint()
     return LoadEmbeddedEntrypoint();
 }
 
-bool WasmController::LoadEmbeddedEntrypoint()
+bool WasmController::LoadEmbeddedEntrypoint(const char *wasi_args)
 {
     if (!runtime_initialized_) {
         ESP_LOGE(kTag, "LoadEntrypoint called before Init");
@@ -170,7 +177,7 @@ bool WasmController::LoadEmbeddedEntrypoint()
     memcpy(wasm_module_buf_, wasm_module, wasm_module_size);
 
     char error_buf[1000] = "";
-    if (!LoadModuleFromOwnedBuffer(wasm_module_size, nullptr, error_buf, sizeof(error_buf))) {
+    if (!LoadModuleFromOwnedBuffer(wasm_module_size, wasi_args, error_buf, sizeof(error_buf))) {
         ESP_LOGE(kTag, "Failed to load wasm module -- %s", error_buf);
         return false;
     }
@@ -178,7 +185,7 @@ bool WasmController::LoadEmbeddedEntrypoint()
     return true;
 }
 
-bool WasmController::LoadEmbeddedSettings()
+bool WasmController::LoadEmbeddedSettings(const char *wasi_args)
 {
     if (!runtime_initialized_) {
         ESP_LOGE(kTag, "LoadEmbeddedSettings called before Init");
@@ -201,7 +208,7 @@ bool WasmController::LoadEmbeddedSettings()
     memcpy(wasm_module_buf_, wasm_module, wasm_module_size);
 
     char error_buf[1000] = "";
-    if (!LoadModuleFromOwnedBuffer(wasm_module_size, nullptr, error_buf, sizeof(error_buf))) {
+    if (!LoadModuleFromOwnedBuffer(wasm_module_size, wasi_args, error_buf, sizeof(error_buf))) {
         ESP_LOGE(kTag, "Failed to load wasm module -- %s", error_buf);
         return false;
     }

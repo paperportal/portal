@@ -18,7 +18,7 @@ This Zig project implements the Paper Portal launcher UI. It compiles to WebAsse
 
 ## Code structure
 
-- `src/main.zig`: WebAssembly exports (`ppInit`, `ppOnGesture`, `ppShutdown`) and initial header draw.
+- `src/main.zig`: WebAssembly entrypoint (`main`) and exports (`ppOnGesture`, `ppShutdown`) and initial header draw.
 - `src/controller.zig`: launcher state machine (mount FS, load catalog, prune missing apps, scan/install `.papp`, rebuild/redraw grid, handle taps).
 - `src/ui/title_bar.zig`: header rendering and status icons.
 - `src/ui/grid.zig`: grid layout, tile drawing, icon loading (embedded settings icon vs `icon.png` from installed apps), hit‑testing.

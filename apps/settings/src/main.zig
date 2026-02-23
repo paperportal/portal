@@ -38,7 +38,6 @@ var g_view: View = .Settings;
 var g_layout: UiLayout = undefined;
 var g_status_buf: [96]u8 = [_]u8{0} ** 96;
 var g_status_len: usize = 0;
-var g_initialized: bool = false;
 
 fn clearStatus() void {
     g_status_len = 0;
@@ -222,28 +221,19 @@ fn drawDevServer() Error!void {
     try display.updateRect(0, 0, screen_w, screen_h);
 }
 
-pub fn main() void {}
-
-pub export fn ppInit(api_version: i32, args_ptr: i32, args_len: i32) i32 {
-    _ = api_version;
-    _ = args_ptr;
-    _ = args_len;
-
-    if (g_initialized) return 0;
-    g_initialized = true;
-
+pub fn main() !void {
     core.begin() catch {
         core.log.err("ppInit: core.begin failed");
-        return -1;
+        return;
     };
 
     drawSettings() catch {
         core.log.err("ppInit: drawSettings failed");
-        return -1;
+        return;
     };
 
     core.log.info("Settings app initialized.");
-    return 0;
+    return;
 }
 
 pub export fn ppOnGesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duration_ms: i32, now_ms: i32, flags: i32) i32 {

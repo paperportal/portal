@@ -17,10 +17,10 @@ public:
     bool LoadEntrypoint();
 
     /** @brief Load the embedded entrypoint module. */
-    bool LoadEmbeddedEntrypoint();
+    bool LoadEmbeddedEntrypoint(const char *wasi_args = nullptr);
 
     /** @brief Load the embedded settings module. */
-    bool LoadEmbeddedSettings();
+    bool LoadEmbeddedSettings(const char *wasi_args = nullptr);
 
     /**
      * @brief Load a module from a provided byte buffer, replacing any currently loaded module.
@@ -60,8 +60,8 @@ public:
     /** @brief Destroy runtime state and free the WAMR heap pool if allocated. */
     void Shutdown();
 
-    /** @brief Call `ppInit` in the WASM module. */
-    bool CallInit(int32_t api_version, int32_t args_ptr = 0, int32_t args_len = 0);
+    /** @brief Execute the module entrypoint (`main` via WASI `_start`). */
+    bool CallMain();
 
     /** @brief Call `portalMicroTaskStep` in the WASM module. */
     bool CallMicroTaskStep(int32_t handle, int32_t now_ms, int64_t *out_action);
@@ -115,8 +115,6 @@ private:
     struct Exports {
         /** @brief Export: contract version getter. */
         wasm_function_inst_t contract_version = nullptr;
-        /** @brief Export: init entrypoint. */
-        wasm_function_inst_t init = nullptr;
         /** @brief Export: periodic tick callback. */
         wasm_function_inst_t tick = nullptr;
         /** @brief Export: microtask step callback. */
@@ -182,6 +180,9 @@ private:
 
     /** @brief Enables/disables event dispatch into the module. */
     bool dispatch_enabled_ = true;
+
+    /** @brief True once `main` has been executed for this module instance. */
+    bool main_called_ = false;
 
     /** @brief Backing storage for parsed WASI arguments. */
     std::vector<std::string> wasi_args_;

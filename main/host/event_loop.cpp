@@ -245,7 +245,7 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
         if (!wasm->Instantiate(err, sizeof(err))) {
             return false;
         }
-        if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
+        if (!wasm->CallMain()) {
             return false;
         }
         return true;
@@ -274,10 +274,10 @@ void handle_dev_command(WasmController *wasm, devserver::DevCommand *cmd)
             return;
         }
 
-        if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
-            devserver::notify_server_error("ppInit failed");
+        if (!wasm->CallMain()) {
+            devserver::notify_server_error("main failed");
             (void)reload_launcher();
-            finish_dev_command(cmd, -2, "ppInit failed");
+            finish_dev_command(cmd, -2, "main failed");
             return;
         }
 
@@ -616,8 +616,8 @@ void maybe_recover_uploaded_crash(WasmController *wasm)
     }
 
     microtask_scheduler().ClearAll();
-    if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
-        devserver::notify_server_error("crash recovery: launcher ppInit failed");
+    if (!wasm->CallMain()) {
+        devserver::notify_server_error("crash recovery: launcher main failed");
         devserver::notify_uploaded_stopped();
         return;
     }
@@ -703,7 +703,7 @@ void host_event_loop_run(WasmController *wasm)
                     return false;
                 }
 
-                return wasm->CallInit(pp_contract::kContractVersion, 0, 0);
+                return wasm->CallMain();
             };
 
             // Shutdown and unload current app
@@ -718,33 +718,20 @@ void host_event_loop_run(WasmController *wasm)
             bool load_ok = false;
             char load_err[256] = {};
             if (strcmp(g_pending_app_id, "launcher") == 0) {
-                load_ok = wasm->LoadEmbeddedEntrypoint();
+                load_ok = wasm->LoadEmbeddedEntrypoint(g_pending_app_args[0] ? g_pending_app_args : nullptr);
             } else if (strcmp(g_pending_app_id, "settings") == 0) {
-                load_ok = wasm->LoadEmbeddedSettings();
+                load_ok = wasm->LoadEmbeddedSettings(g_pending_app_args[0] ? g_pending_app_args : nullptr);
             } else {
                 char app_path[256] = {};
                 snprintf(app_path, sizeof(app_path), "/sdcard/portal/apps/%s/app.wasm", g_pending_app_id);
-                load_ok = wasm->LoadFromFile(app_path, nullptr, load_err, sizeof(load_err));
+                load_ok = wasm->LoadFromFile(app_path, g_pending_app_args[0] ? g_pending_app_args : nullptr, load_err,
+                    sizeof(load_err));
             }
 
             if (load_ok) {
                 char err[256] = {};
                 if (wasm->Instantiate(err, sizeof(err))) {
-                    // Parse args if provided
-                    int32_t args_ptr = 0;
-                    int32_t args_len = 0;
-                    if (g_pending_app_args[0] != '\0') {
-                        args_len = (int32_t)strlen(g_pending_app_args);
-                        args_ptr = wasm->CallAlloc(args_len);
-                        if (args_ptr > 0) {
-                            wasm->WriteAppMemory(args_ptr, g_pending_app_args, (uint32_t)args_len);
-                        }
-                    }
-
-                    wasm->CallInit(pp_contract::kContractVersion, args_ptr, args_len);
-                    if (args_ptr > 0) {
-                        wasm->CallFree(args_ptr, args_len);
-                    }
+                    (void)wasm->CallMain();
 
                     ESP_LOGI(kTag, "Successfully switched to app '%s'", g_pending_app_id);
                 } else {
@@ -782,8 +769,8 @@ void host_event_loop_run(WasmController *wasm)
                     ESP_LOGE(kTag, "Failed to instantiate launcher after app exit: %s", err);
                 } else {
                     microtask_scheduler().ClearAll();
-                    if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
-                        ESP_LOGE(kTag, "Launcher ppInit failed after app exit");
+                    if (!wasm->CallMain()) {
+                        ESP_LOGE(kTag, "Launcher main failed after app exit");
                     } else {
                         ESP_LOGI(kTag, "Returned to launcher after app exit");
                     }
@@ -847,8 +834,8 @@ void *event_loop_thread(void *arg)
     }
 
     microtask_scheduler().ClearAll();
-    if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
-        ESP_LOGE(kTag, "ppInit failed; continuing without wasm dispatch");
+    if (!wasm->CallMain()) {
+        ESP_LOGE(kTag, "main failed; continuing without wasm dispatch");
     }
 
     host_event_loop_run(wasm);

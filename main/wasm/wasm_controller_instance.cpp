@@ -64,6 +64,7 @@ bool WasmController::Instantiate(char *error, size_t error_len)
 void WasmController::UnloadModule()
 {
     dispatch_enabled_ = false;
+    main_called_ = false;
 
     exports_ = {};
 
@@ -94,7 +95,6 @@ void WasmController::UnloadModule()
 bool WasmController::LookupExports()
 {
     exports_.contract_version = wasm_runtime_lookup_function(inst_, pp_contract::kExportContractVersion);
-    exports_.init = wasm_runtime_lookup_function(inst_, pp_contract::kExportInit);
     exports_.microtask_step = wasm_runtime_lookup_function(inst_, pp_contract::kExportPortalMicroTaskStep);
     exports_.alloc = wasm_runtime_lookup_function(inst_, pp_contract::kExportAlloc);
     exports_.free = wasm_runtime_lookup_function(inst_, pp_contract::kExportFree);
@@ -104,8 +104,8 @@ bool WasmController::LookupExports()
     exports_.on_wifi_event = wasm_runtime_lookup_function(inst_, pp_contract::kExportOnWifiEvent);
     exports_.shutdown = wasm_runtime_lookup_function(inst_, pp_contract::kExportShutdown);
 
-    if (!exports_.contract_version || !exports_.init || !exports_.alloc || !exports_.free) {
-        ESP_LOGE(kTag, "Missing required exports (contract/init/alloc/free)");
+    if (!exports_.contract_version || !exports_.microtask_step || !exports_.alloc || !exports_.free) {
+        ESP_LOGE(kTag, "Missing required exports (contract/microtask/alloc/free)");
         return false;
     }
 
