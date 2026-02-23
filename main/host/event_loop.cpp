@@ -615,6 +615,7 @@ void maybe_recover_uploaded_crash(WasmController *wasm)
         return;
     }
 
+    microtask_scheduler().ClearAll();
     if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
         devserver::notify_server_error("crash recovery: launcher ppInit failed");
         devserver::notify_uploaded_stopped();
@@ -638,7 +639,6 @@ void host_event_loop_run(WasmController *wasm)
     g_event_loop_running = true;
     GestureState gesture_state;
     MicroTaskScheduler &scheduler = microtask_scheduler();
-    scheduler.ClearAll();
     ensure_system_gestures_registered();
     uint32_t last_input_ms = now_u32_ms();
     uint32_t next_touch_poll_ms = last_input_ms;
@@ -692,6 +692,7 @@ void host_event_loop_run(WasmController *wasm)
             auto reload_launcher = [&]() -> bool {
                 wasm->UnloadModule();
                 clear_app_runtime_state();
+                microtask_scheduler().ClearAll();
 
                 if (!wasm->LoadEmbeddedEntrypoint()) {
                     return false;
@@ -711,6 +712,7 @@ void host_event_loop_run(WasmController *wasm)
             }
             wasm->UnloadModule();
             clear_app_runtime_state();
+            microtask_scheduler().ClearAll();
 
             // Load the requested app
             bool load_ok = false;
@@ -779,6 +781,7 @@ void host_event_loop_run(WasmController *wasm)
                 if (!wasm->Instantiate(err, sizeof(err))) {
                     ESP_LOGE(kTag, "Failed to instantiate launcher after app exit: %s", err);
                 } else {
+                    microtask_scheduler().ClearAll();
                     if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
                         ESP_LOGE(kTag, "Launcher ppInit failed after app exit");
                     } else {
@@ -843,6 +846,7 @@ void *event_loop_thread(void *arg)
         return nullptr;
     }
 
+    microtask_scheduler().ClearAll();
     if (!wasm->CallInit(pp_contract::kContractVersion, 0, 0)) {
         ESP_LOGE(kTag, "ppInit failed; continuing without wasm dispatch");
     }
