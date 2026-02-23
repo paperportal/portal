@@ -654,13 +654,14 @@ int32_t DisplayLgfx::vlwUse(wasm_exec_env_t exec_env, int32_t handle)
     return kWasmOk;
 }
 
-int32_t DisplayLgfx::vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id)
+int32_t DisplayLgfx::vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id, int32_t font_size)
 {
     auto *display = get_display_or_set_error();
     if (!display) {
         ESP_LOGI(kTag, "vlwUseSystem aborted: display not ready");
         return kWasmErrNotReady;
     }
+    (void)font_size;
 
     const uint8_t *font_ptr = nullptr;
     const char *font_name = nullptr;

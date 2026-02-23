@@ -87,7 +87,7 @@ fn drawSettings() Error!void {
     const screen_h = display.height();
     if (screen_w <= 0 or screen_h <= 0) return Error.Internal;
 
-    try display.vlw.useSystem(display.vlw.SystemFont.inter);
+    try display.vlw.useSystem(display.vlw.SystemFont.inter, 12);
     try display.text.setEncodingUtf8();
     try display.text.setWrap(false, false);
     try display.text.setColor(display.colors.BLACK, display.colors.WHITE);
@@ -150,7 +150,7 @@ fn drawDevServer() Error!void {
     const screen_h = display.height();
     if (screen_w <= 0 or screen_h <= 0) return Error.Internal;
 
-    try display.vlw.useSystem(display.vlw.SystemFont.inter);
+    try display.vlw.useSystem(display.vlw.SystemFont.inter, 12);
     try display.text.setEncodingUtf8();
     try display.text.setWrap(false, false);
     try display.text.setColor(display.colors.BLACK, display.colors.WHITE);
@@ -232,7 +232,7 @@ pub export fn ppInit(api_version: i32, args_ptr: i32, args_len: i32) i32 {
     if (g_initialized) return 0;
     g_initialized = true;
 
-    core.begin(.lgfx) catch {
+    core.begin() catch {
         core.log.err("ppInit: core.begin failed");
         return -1;
     };

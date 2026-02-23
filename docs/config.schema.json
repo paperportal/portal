@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://paperportal.org/schemas/config.json",
   "title": "Paper Portal Configuration",
-  "description": "Configuration file for Paper Portal application, which manages WiFi connectivity settings.",
+  "description": "Configuration file for Paper Portal, which manages WiFi connectivity and device settings.",
   "type": "object",
   "properties": {
     "wifi": {
@@ -18,6 +18,19 @@
         "password": {
           "type": "string",
           "description": "The password for the WiFi network. For WPA2-PSK and WPA3-Personal networks, this is the pre-shared key."
+        }
+      },
+      "additionalProperties": false
+    },
+    "display": {
+      "type": "object",
+      "description": "Display configuration for the device.",
+      "properties": {
+        "driver": {
+          "type": "string",
+          "description": "Display backend to use. If omitted, defaults to 'fastepd'.",
+          "enum": ["fastepd", "lgfx"],
+          "default": "fastepd"
         }
       },
       "additionalProperties": false

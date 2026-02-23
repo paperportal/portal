@@ -17,8 +17,23 @@
 #include "../api.h"
 #include "errors.h"
 
-extern const uint8_t _binary_inter_medium_32_bbf_start[] asm("_binary_inter_medium_32_bbf_start");
-extern const uint8_t _binary_inter_medium_32_bbf_end[] asm("_binary_inter_medium_32_bbf_end");
+extern const uint8_t _binary_inter_medium_8_bbf[] asm("_binary_inter_medium_8_bbf_start");
+extern const uint8_t _binary_inter_medium_9_bbf[] asm("_binary_inter_medium_8_bbf_start");
+extern const uint8_t _binary_inter_medium_10_bbf[] asm("_binary_inter_medium_10_bbf_start");
+extern const uint8_t _binary_inter_medium_11_bbf[] asm("_binary_inter_medium_10_bbf_start");
+extern const uint8_t _binary_inter_medium_12_bbf[] asm("_binary_inter_medium_12_bbf_start");
+extern const uint8_t _binary_inter_medium_13_bbf[] asm("_binary_inter_medium_12_bbf_start");
+extern const uint8_t _binary_inter_medium_14_bbf[] asm("_binary_inter_medium_14_bbf_start");
+extern const uint8_t _binary_inter_medium_15_bbf[] asm("_binary_inter_medium_14_bbf_start");
+extern const uint8_t _binary_inter_medium_16_bbf[] asm("_binary_inter_medium_16_bbf_start");
+extern const uint8_t _binary_inter_medium_18_bbf[] asm("_binary_inter_medium_18_bbf_start");
+extern const uint8_t _binary_inter_medium_20_bbf[] asm("_binary_inter_medium_20_bbf_start");
+extern const uint8_t _binary_inter_medium_22_bbf[] asm("_binary_inter_medium_22_bbf_start");
+extern const uint8_t _binary_inter_medium_24_bbf[] asm("_binary_inter_medium_24_bbf_start");
+extern const uint8_t _binary_inter_medium_26_bbf[] asm("_binary_inter_medium_26_bbf_start");
+extern const uint8_t _binary_inter_medium_28_bbf[] asm("_binary_inter_medium_28_bbf_start");
+extern const uint8_t _binary_inter_medium_30_bbf[] asm("_binary_inter_medium_30_bbf_start");
+extern const uint8_t _binary_inter_medium_32_bbf[] asm("_binary_inter_medium_32_bbf_start");
 
 extern void hold_pwroff_pulse_low();
 
@@ -39,6 +54,55 @@ void paper_touch_set_rotation(uint_fast8_t rot);
 namespace {
 
 constexpr const char *kTag = "display_fastepd";
+
+struct SystemBbfFont {
+    int32_t size;
+    const uint8_t *ptr;
+};
+
+constexpr SystemBbfFont kInterMediumBbfFonts[] = {
+    {8, _binary_inter_medium_8_bbf},
+    {9, _binary_inter_medium_9_bbf},
+    {10, _binary_inter_medium_10_bbf},
+    {11, _binary_inter_medium_11_bbf},
+    {12, _binary_inter_medium_12_bbf},
+    {13, _binary_inter_medium_13_bbf},
+    {14, _binary_inter_medium_14_bbf},
+    {15, _binary_inter_medium_15_bbf},
+    {16, _binary_inter_medium_16_bbf},
+    {18, _binary_inter_medium_18_bbf},
+    {20, _binary_inter_medium_20_bbf},
+    {22, _binary_inter_medium_22_bbf},
+    {24, _binary_inter_medium_24_bbf},
+    {26, _binary_inter_medium_26_bbf},
+    {28, _binary_inter_medium_28_bbf},
+    {30, _binary_inter_medium_30_bbf},
+    {32, _binary_inter_medium_32_bbf},
+};
+
+const uint8_t *pick_closest_system_bbf_font(const SystemBbfFont *fonts, size_t count, int32_t want_size,
+    int32_t *out_selected_size)
+{
+    if (!fonts || count == 0) {
+        return nullptr;
+    }
+
+    size_t best_index = 0;
+    uint64_t best_diff = UINT64_MAX;
+    for (size_t i = 0; i < count; ++i) {
+        const int64_t diff = (int64_t)want_size - (int64_t)fonts[i].size;
+        const uint64_t abs_diff = (diff < 0) ? (uint64_t)(-diff) : (uint64_t)diff;
+        if (abs_diff < best_diff || (abs_diff == best_diff && fonts[i].size < fonts[best_index].size)) {
+            best_index = i;
+            best_diff = abs_diff;
+        }
+    }
+
+    if (out_selected_size) {
+        *out_selected_size = fonts[best_index].size;
+    }
+    return fonts[best_index].ptr;
+}
 
 constexpr size_t kMaxJpgBytes = 1024 * 1024;
 constexpr size_t kMaxPngBytes = 1024 * 1024;
@@ -1636,7 +1700,7 @@ int32_t DisplayFastEpd::display(wasm_exec_env_t exec_env)
     if (rc != kWasmOk) {
         return rc;
     }
-    const int epd_rc = g_epd.fullUpdate(CLEAR_FAST, false);
+    const int epd_rc = g_epd.fullUpdate(CLEAR_SLOW, false);
     if (epd_rc != BBEP_SUCCESS) {
         wasm_api_set_last_error(kWasmErrInternal, "display: FastEPD fullUpdate failed");
         return kWasmErrInternal;
@@ -1845,7 +1909,11 @@ int32_t DisplayFastEpd::drawString(wasm_exec_env_t exec_env, const char *s, int3
         wasm_api_set_last_error(kWasmErrInvalidArgument, "drawString: s is null");
         return kWasmErrInvalidArgument;
     }
-    //g_epd.setCursor(x, y);
+    BB_RECT rect;
+    g_epd.setCursor(0, 0);
+    if (BBEP_SUCCESS == g_epd.getStringBox(s, &rect)) {
+        y -= rect.y;
+    }
     g_epd.drawString(s, x, y);
     return kWasmOk;
 }
@@ -1901,20 +1969,37 @@ int32_t DisplayFastEpd::vlwUse(wasm_exec_env_t exec_env, int32_t handle)
     return kWasmOk;
 }
 
-int32_t DisplayFastEpd::vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id)
+int32_t DisplayFastEpd::vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id, int32_t font_size)
 {
-    const void *font_ptr = nullptr;
+    (void)exec_env;
+    const int32_t rc = require_epd_ready_or_set_error("vlwUseSystem: display not ready");
+    if (rc != kWasmOk) {
+        return rc;
+    }
+    if (font_size <= 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwUseSystem: invalid font_size");
+        return kWasmErrInvalidArgument;
+    }
+
     switch (font_id) {
-    case kVlwSystemFontInter:
-        font_ptr = _binary_inter_medium_32_bbf_start;
+    case kVlwSystemFontInter: {
+        int32_t selected_size = 0;
+        const uint8_t *font_ptr = pick_closest_system_bbf_font(kInterMediumBbfFonts,
+            sizeof(kInterMediumBbfFonts) / sizeof(kInterMediumBbfFonts[0]), font_size, &selected_size);
+        if (!font_ptr) {
+            wasm_api_set_last_error(kWasmErrInternal, "vlwUseSystem: no fonts available");
+            return kWasmErrInternal;
+        }
+        g_epd.setFont(font_ptr, false);
+        ESP_LOGI(kTag, "vlwUseSystem loaded inter_medium_%" PRId32 " (requested=%" PRId32 ")", selected_size,
+            font_size);
         break;
+    }
     default:
         ESP_LOGI(kTag, "vlwUseSystem rejected invalid font_id=%" PRId32, font_id);
         wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwUseSystem: invalid font_id");
         return kWasmErrInvalidArgument;
     }
-    g_epd.setFont(FONT_16x16);
-    //g_epd.setFont(font_ptr, false);
     return kWasmOk;
 }
 

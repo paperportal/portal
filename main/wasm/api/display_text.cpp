@@ -78,9 +78,9 @@ int32_t vlwUse(wasm_exec_env_t exec_env, int32_t handle)
     return Display::current()->vlwUse(exec_env, handle);
 }
 
-int32_t vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id)
+int32_t vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id, int32_t font_size)
 {
-    return Display::current()->vlwUseSystem(exec_env, font_id);
+    return Display::current()->vlwUseSystem(exec_env, font_id, font_size);
 }
 
 int32_t vlwUnload(wasm_exec_env_t exec_env)
@@ -111,7 +111,7 @@ static NativeSymbol g_display_text_native_symbols[] = {
     REG_NATIVE_FUNC(fontHeight, "()i"),
     REG_NATIVE_FUNC(vlwRegister, "(*~)i"),
     REG_NATIVE_FUNC(vlwUse, "(i)i"),
-    REG_NATIVE_FUNC(vlwUseSystem, "(i)i"),
+    REG_NATIVE_FUNC(vlwUseSystem, "(ii)i"),
     REG_NATIVE_FUNC(vlwUnload, "()i"),
     REG_NATIVE_FUNC(vlwClearAll, "()i"),
 };

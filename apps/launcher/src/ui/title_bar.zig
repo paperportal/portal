@@ -72,7 +72,7 @@ fn drawBatteryStatus(screen_w: i32) !void {
         const frac: i32 = @divTrunc(@mod(mv, 1000), 10);
         const volt_str = try std.fmt.bufPrintZ(&volt_buf, "{d}.{d:0>2}V", .{ whole, @as(u32, @intCast(frac)) });
 
-        display.vlw.useSystem(display.vlw.SystemFont.inter) catch {};
+        display.vlw.useSystem(display.vlw.SystemFont.inter, 9) catch {};
         try display.text.setEncodingUtf8();
         try display.text.setWrap(false, false);
         try display.text.setColor(display.colors.BLACK, display.colors.WHITE);

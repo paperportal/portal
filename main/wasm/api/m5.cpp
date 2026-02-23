@@ -8,6 +8,7 @@
 #include "wasm_export.h"
 
 #include "m5papers3_display.h"
+#include "services/settings_service.h"
 
 #include "../api.h"
 #include "errors.h"
@@ -21,19 +22,40 @@ constexpr const char *kWasmLogTag = "wasm";
 // - M5GFX/src/lgfx/boards.hpp: board_M5PaperS3 == 19
 constexpr int32_t kBoardM5PaperS3 = 19;
 
+const char *driver_to_string(PaperDisplayDriver driver)
+{
+    switch (driver) {
+        case PaperDisplayDriver::lgfx:
+            return "lgfx";
+        case PaperDisplayDriver::fastepd:
+            return "fastepd";
+        default:
+            return "unknown";
+    }
+}
+
 // Initializes the M5Paper display.
 //
-// Args:
-//   driver: 0=lgfx, 1=fastepd
+// Driver selection is read from `/sdcard/portal/config.json`:
+//   { "display": { "driver": "fastepd" | "lgfx" } }
+//
+// If not configured, defaults to `fastepd`.
+//
 // Returns kWasmOk on success, or kWasmErrInternal if display initialization fails.
-int32_t begin(wasm_exec_env_t exec_env, int32_t driver)
+int32_t begin(wasm_exec_env_t exec_env)
 {
-    ESP_LOGI(kTag, "begin: driver=%" PRId32, driver);
-    if (driver < 0 || driver > 1) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "begin: driver out of range (expected 0..1)");
-        return kWasmErrInvalidArgument;
+    (void)exec_env;
+
+    PaperDisplayDriver driver = PaperDisplayDriver::fastepd;
+    bool configured = false;
+    const esp_err_t err = settings_service::get_display_driver(&driver, &configured);
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "begin: get_display_driver failed err=0x%x, using default driver=%s",
+                 (unsigned)err, driver_to_string(driver));
     }
-    if (!paper_display_ensure_init(static_cast<PaperDisplayDriver>(driver))) {
+
+    ESP_LOGI(kTag, "begin: driver=%s (configured=%d)", driver_to_string(driver), configured ? 1 : 0);
+    if (!paper_display_ensure_init(driver)) {
         ESP_LOGE(kTag, "begin: display initialization failed");
         wasm_api_set_last_error(kWasmErrInternal, "begin: display init failed");
         return kWasmErrInternal;
@@ -89,7 +111,7 @@ int32_t board(wasm_exec_env_t exec_env)
     { #funcName, (void *)funcName, signature, NULL }
 
 static NativeSymbol g_m5_native_symbols[] = {
-    REG_NATIVE_FUNC(begin, "(i)i"),
+    REG_NATIVE_FUNC(begin, "()i"),
     REG_NATIVE_FUNC(delayMs, "(i)i"),
     REG_NATIVE_FUNC(millis, "()i"),
     REG_NATIVE_FUNC(micros, "()I"),

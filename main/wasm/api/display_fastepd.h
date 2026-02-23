@@ -43,7 +43,7 @@ public:
     int32_t fontHeight(wasm_exec_env_t exec_env) override;
     int32_t vlwRegister(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) override;
     int32_t vlwUse(wasm_exec_env_t exec_env, int32_t handle) override;
-    int32_t vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id) override;
+    int32_t vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id, int32_t font_size) override;
     int32_t vlwUnload(wasm_exec_env_t exec_env) override;
     int32_t vlwClearAll(wasm_exec_env_t exec_env) override;
 

@@ -37,7 +37,7 @@ public:
     int32_t fontHeight(wasm_exec_env_t exec_env) override { return 0; }
     int32_t vlwRegister(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) override { return 0; }
     int32_t vlwUse(wasm_exec_env_t exec_env, int32_t handle) override { return 0; }
-    int32_t vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id) override { return 0; }
+    int32_t vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id, int32_t font_size) override { return 0; }
     int32_t vlwUnload(wasm_exec_env_t exec_env) override { return 0; }
     int32_t vlwClearAll(wasm_exec_env_t exec_env) override { return 0; }
     int32_t pushImageRgb565( wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *ptr, size_t len) override { return 0; }

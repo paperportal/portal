@@ -129,7 +129,7 @@ pub export fn ppInit(api_version: i32, args_ptr: i32, args_len: i32) i32 {
     if (g_initialized) return 0;
     g_initialized = true;
 
-    core.begin(.lgfx) catch {
+    core.begin() catch {
         core.log.err("microtask-demo: core.begin failed");
         return -1;
     };

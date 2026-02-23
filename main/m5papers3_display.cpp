@@ -100,7 +100,7 @@ LGFX_M5PaperS3 &paper_display() {
 
 namespace {
 
-PaperDisplayDriver g_current_driver = PaperDisplayDriver::lgfx;
+PaperDisplayDriver g_current_driver = PaperDisplayDriver::fastepd;
 bool g_lgfx_touch_ready = false;
 
 bool ensure_lgfx_touch_ready()

@@ -3,9 +3,10 @@
     .version = "0.1.0",
     .dependencies = .{
         .paper_portal_sdk = .{
-            .url = "git+https://github.com/paperportal/zig-sdk#766452ce933b7cb95a8a0d5501cf44fee04115e9",
-            .hash = "paper_portal_sdk-0.0.0-TiKtz3-oAgAgW2rymC-XkinkqqmXSBpx6DiWn94N9FyM",
+            .url = "git+https://github.com/paperportal/zig-sdk#05dbfd9e56418395087f124f87f2dc9ee591382a",
+            .hash = "paper_portal_sdk-0.0.0-TiKtz5bOAgBzLV2nBqtIj0CnX1Plxzb3JJE1o2LkBrMr",
         },
+        .paper_portal_sdk_local = .{ .path = "../../../zig-sdk", .lazy = true },
     },
     .paths = .{""},
     .fingerprint = 0xce68a72f8fba618d,

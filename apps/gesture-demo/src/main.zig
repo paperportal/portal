@@ -24,7 +24,7 @@ fn writeZ(buf: []u8, msg: []const u8) [:0]const u8 {
 }
 
 fn drawScreen() void {
-    display.epd.setMode(display.epd.FAST) catch {};
+    display.epd.setMode(display.epd.QUALITY) catch {};
     display.startWrite() catch {};
     defer display.endWrite() catch {};
 
@@ -34,15 +34,15 @@ fn drawScreen() void {
     display.text.setSize(1.0, 1.0) catch {};
     display.text.setColor(display.colors.BLACK, display.colors.WHITE) catch {};
 
-    display.text.drawCstr("Gesture demo", 12, 16) catch {};
+    //display.text.drawCstr("Gesture demo", 12, 16) catch {};
     display.text.drawCstr("Draw one of these:", 12, 44) catch {};
     display.text.drawCstr("- L shape", 12, 68) catch {};
     display.text.drawCstr("- V shape", 12, 92) catch {};
     display.text.drawCstr("- Z shape", 12, 116) catch {};
 
-    var line_buf: [64]u8 = undefined;
-    const handles = std.fmt.bufPrint(&line_buf, "handles: L={} V={} Z={}", .{ g_handle_l, g_handle_v, g_handle_z }) catch "";
-    display.text.draw(handles, 12, 148) catch {};
+    //var line_buf: [64]u8 = undefined;
+    //const handles = std.fmt.bufPrint(&line_buf, "handles: L={} V={} Z={}", .{ g_handle_l, g_handle_v, g_handle_z }) catch "";
+    //display.text.draw(handles, 12, 148) catch {};
 
     const msg = std.mem.sliceTo(&g_last_msg_buf, 0);
     if (msg.len > 0) {
@@ -119,11 +119,12 @@ pub export fn ppInit(api_version: i32, args_ptr: i32, args_len: i32) i32 {
     if (g_initialized) return 0;
     g_initialized = true;
 
-    core.begin(.lgfx) catch {
+    core.begin() catch {
         return -1;
     };
 
-    display.vlw.useSystem(display.vlw.SystemFont.inter) catch {};
+    display.vlw.useSystem(display.vlw.SystemFont.inter, 12) catch {};
+
     registerGestures();
     drawScreen();
 
