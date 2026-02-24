@@ -66,7 +66,7 @@ public:
     /** @brief Call `portalMicroTaskStep` in the WASM module. */
     bool CallMicroTaskStep(int32_t handle, int32_t now_ms, int64_t *out_action);
 
-    /** @brief Call `ppOnGesture` in the WASM module. */
+    /** @brief Call `portalGesture` in the WASM module. */
     bool CallOnGesture(int32_t kind, int32_t x, int32_t y, int32_t dx, int32_t dy, int32_t duration_ms,
         int32_t now_ms, int32_t flags);
 

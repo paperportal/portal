@@ -72,9 +72,9 @@ The host selects:
 
 If no gesture is eligible, no custom gesture event is emitted.
 
-## App notification (ppOnGesture)
+## App notification (portalGesture)
 
-When a winner exists, the host emits a single `ppOnGesture` call:
+When a winner exists, the host emits a single `portalGesture` call:
 
 - `kind = kGestureCustomPolyline` (100)
 - `x,y` = Up coordinates

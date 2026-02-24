@@ -8,7 +8,7 @@ There is no `PLANS.md` file in this repository at the time of writing.
 
 After this change, a WASM app can register one or more single-touch “polyline” gestures (a sequence of waypoints) with the firmware, and the firmware will recognize them using low-rate, noisy touch sampling and notify the app **only on touch Up** when a gesture is recognized. Multiple registered gestures can track the same touch simultaneously; on Up the firmware selects a winner by priority (higher wins) and then by “closeness” to the final waypoint (lower distance wins). This is intended to be e‑ink friendly (polling at ~50ms in the current host event loop) and robust to skipped move samples.
 
-Apps observe recognition via the existing `ppOnGesture(...)` callback, using a new `kind` for “custom polyline gesture” and the winning gesture’s handle in the `flags` parameter. Apps register/clear/remove gestures via a new host-imported WASM API (and a Zig SDK wrapper in `../zig-sdk`).
+Apps observe recognition via the existing `portalGesture(...)` callback, using a new `kind` for “custom polyline gesture” and the winning gesture’s handle in the `flags` parameter. Apps register/clear/remove gestures via a new host-imported WASM API (and a Zig SDK wrapper in `../zig-sdk`).
 
 ## Progress
 
@@ -25,18 +25,18 @@ Apps observe recognition via the existing `ppOnGesture(...)` callback, using a n
 
 - Observation: Touch is currently polled (not interrupt-driven) in `main/host/event_loop.cpp` with `kTickIntervalMs = 50`, and the host’s “built-in” gestures (tap/flick/drag/long-press) are synthesized inside `process_touch()` using `TouchTracker` state.
   Evidence: `/Users/mika/code/paperportal/portal/main/host/event_loop.cpp` (functions `process_touch`, `emit_gesture`).
-- Observation: WASM apps can also read raw touch state directly via the `m5_touch` native module, but the host already has an event callback path (`ppOnGesture`) suitable for “notify only on Up”.
-  Evidence: `/Users/mika/code/paperportal/portal/main/wasm/api/touch.cpp` (module `m5_touch`) and `/Users/mika/code/paperportal/portal/main/wasm/app_contract.h` (export `ppOnGesture`).
+- Observation: WASM apps can also read raw touch state directly via the `m5_touch` native module, but the host already has an event callback path (`portalGesture`) suitable for “notify only on Up”.
+  Evidence: `/Users/mika/code/paperportal/portal/main/wasm/api/touch.cpp` (module `m5_touch`) and `/Users/mika/code/paperportal/portal/main/wasm/app_contract.h` (export `portalGesture`).
 
 ## Decision Log
 
-- Decision: Deliver custom polyline recognition results via the existing `ppOnGesture(kind, x, y, dx, dy, duration_ms, now_ms, flags)` callback, using a new `kind` value and placing the winning gesture handle into `flags`.
+- Decision: Deliver custom polyline recognition results via the existing `portalGesture(kind, x, y, dx, dy, duration_ms, now_ms, flags)` callback, using a new `kind` value and placing the winning gesture handle into `flags`.
   Rationale: This reuses the repo’s existing “gesture event” plumbing (`emit_gesture` → `WasmController::CallOnGesture`) and keeps the host→app event surface small.
   Date/Author: 2026-02-10 / GPT-5.2
 - Decision: Expose registration/removal of gestures via a new WAMR native module (proposed name `m5_gesture`) and wrap it in the Zig SDK under `../zig-sdk` (even though the prompt called it `../wasm-sdk`, which does not exist in this repo today).
   Rationale: The repository’s existing public app SDK is `../zig-sdk` (used by built-in apps in `apps/`); adding a new module there matches established patterns and keeps WASM imports consistent.
   Date/Author: 2026-02-10 / GPT-5.2
-- Decision: Keep the existing built-in host gestures (tap/flick/drag/long-press) behavior unchanged in v0, and emit custom polyline recognition as an additional `ppOnGesture` event on Up when a registered gesture wins.
+- Decision: Keep the existing built-in host gestures (tap/flick/drag/long-press) behavior unchanged in v0, and emit custom polyline recognition as an additional `portalGesture` event on Up when a registered gesture wins.
   Rationale: Keeping existing host gestures unchanged reduces risk and makes it easier to validate the new recognizer in isolation.
   Date/Author: 2026-02-10 / GPT-5.2
 - Decision: Interpret `options` bit 0 as “disable segment constraint when set” (default enabled when `options == 0`).
@@ -64,7 +64,7 @@ Relevant code paths:
   - The function `process_touch(WasmController*, GestureState&, int32_t now)` polls touch, derives high-level gesture events, and calls `emit_gesture()`, which dispatches to WASM via `WasmController::CallOnGesture`.
 - WASM “app contract” (exports from WASM, called by host):
   - `/Users/mika/code/paperportal/portal/main/wasm/app_contract.h`
-  - The host calls `ppOnGesture` (optional) with the fixed signature and gesture kind constants.
+  - The host calls `portalGesture` (optional) with the fixed signature and gesture kind constants.
 - WASM native APIs (imports into WASM, implemented by host):
   - `/Users/mika/code/paperportal/portal/main/wasm/api/*.cpp`
   - Modules are registered in `/Users/mika/code/paperportal/portal/main/wasm/api/core.cpp` via `wasm_api_register_all()`.
@@ -89,7 +89,7 @@ Create a new spec file at:
 This spec should adapt the user-provided “Flexible Gesture Recognizer” proposal to the repository’s current architecture:
 
 - Touch events originate from `TouchTracker` polling in `process_touch()`, not from an interrupt-driven stream.
-- Recognition results are delivered through `ppOnGesture` (existing export) to keep the host→app event surface small and to reuse the existing dispatch plumbing.
+- Recognition results are delivered through `portalGesture` (existing export) to keep the host→app event surface small and to reuse the existing dispatch plumbing.
 - Gesture registration must be via a new native import module (host functions callable from WASM).
 
 The spec must include:
@@ -103,7 +103,7 @@ The spec must include:
 - The recognition rules (waypoint within tolerance, “approaching” constraint, optional “near segment” constraint, duration constraint, and K-consecutive-failure policy) with defaults.
 - Winner selection on Up among all recognizers.
 - The WASM-facing API:
-  - New `ppOnGesture.kind` constant for custom polyline recognition (proposed name `kGestureCustomPolyline`).
+  - New `portalGesture.kind` constant for custom polyline recognition (proposed name `kGestureCustomPolyline`).
   - Encoding: `flags = gesture_handle` (positive int32), `x,y` are Up coordinates, `dx,dy` are `(up - down)`, `duration_ms` is `(up_time - down_time)`, `now_ms` is current host time.
   - Behavior: the host emits this event only when a registered gesture wins on Up; it emits nothing if no registered gesture matches.
 - The WASM import module and function signatures to register/remove gestures (see section 4).
@@ -164,7 +164,7 @@ Specifically, extend `process_touch(WasmController *wasm, GestureState &state, i
    - Emit Move events only when the position changes (to limit noise).
 3. Feeds those `TouchEvent`s to the gesture engine each loop.
 4. On Up (before resetting `state.active`), asks the gesture engine for a winning handle.
-5. If a handle wins, dispatch a custom `ppOnGesture` event:
+5. If a handle wins, dispatch a custom `portalGesture` event:
    - `kind = kGestureCustomPolyline` (new constant).
    - `x,y` = Up position.
    - `dx,dy` = Up minus Down (store Down in the engine track state, or reuse existing `state.start_x/state.start_y`).
@@ -242,7 +242,7 @@ Implement:
    - Define `pub const Options = packed struct(u32) { segment_constraint_enabled: bool = true, _pad: u31 = 0 };` (or an equivalent explicit bitmask API).
    - Provide `registerPolyline(id: [:0]const u8, points: []const PointF, opts: ...) Error!i32` returning the host handle.
    - Provide `remove(handle: i32) Error!void` and `clearAll() Error!void`.
-   - Include small helpers for interpreting `ppOnGesture`:
+   - Include small helpers for interpreting `portalGesture`:
      - A `GestureKind` enum mirroring `pp_contract` constants (including the new `custom_polyline` kind).
      - A note that `flags` carries the handle for `custom_polyline`.
 
@@ -263,7 +263,7 @@ Option A (recommended): add a small WASM app under this firmware repo that can b
 - Create a Zig app in `/Users/mika/code/paperportal/portal/apps/gesture-demo` that:
   - Calls `core.begin()`.
   - Registers 2–3 gestures (for example: a simple “L” shape and a simple “V” shape) using `sdk.gesture.registerPolyline`.
-  - Implements `ppOnGesture` to:
+  - Implements `portalGesture` to:
     - On `kGestureCustomPolyline`, log the handle and (optionally) draw the recognized gesture name on screen.
     - Ignore tap events to avoid confusion.
   - Keep the UI minimal: clear screen and draw text.
@@ -275,7 +275,7 @@ Option B: use `zig-app-template` (outside this repo) to build a WASM and run it 
 Update or create:
 
 - `/Users/mika/code/paperportal/portal/docs/specs/spec-gesture-recognition.md` (new)
-- If needed, add a short section to `/Users/mika/code/paperportal/portal/docs/specs/spec-ui-toolkit.md` describing how apps should interpret `ppOnGesture` events and how custom gestures differ (only fire on Up; use `flags` for handle).
+- If needed, add a short section to `/Users/mika/code/paperportal/portal/docs/specs/spec-ui-toolkit.md` describing how apps should interpret `portalGesture` events and how custom gestures differ (only fire on Up; use `flags` for handle).
 
 ## Concrete Steps
 
@@ -298,7 +298,7 @@ If validating via devserver upload, ensure devserver is running (from Settings) 
 Acceptance is met when all of the following are true:
 
 1. Existing built-in apps (`launcher`, `settings`) still function normally (tap to activate buttons, etc.).
-2. A demo WASM app can register multiple polyline gestures and receives **exactly one** `ppOnGesture` event per recognized touch sequence (only on Up), with:
+2. A demo WASM app can register multiple polyline gestures and receives **exactly one** `portalGesture` event per recognized touch sequence (only on Up), with:
    - `kind == kGestureCustomPolyline`
    - `flags` equal to the handle returned at registration
    - `x,y` equal to the Up position

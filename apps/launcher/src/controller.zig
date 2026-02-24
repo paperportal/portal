@@ -4,6 +4,7 @@ const sdk = @import("paper_portal_sdk");
 const core = sdk.core;
 const fs = sdk.fs;
 const microtask = sdk.microtask;
+const ui = sdk.ui;
 const Error = sdk.errors.Error;
 
 const catalog_mod = @import("catalog.zig");
@@ -206,6 +207,19 @@ pub const Controller = struct {
         }
 
         return microtask.Action.yieldSoon();
+    }
+
+    pub fn draw(self: *Controller, ctx: *ui.Context) anyerror!void {
+        _ = ctx;
+        try self.redrawGrid();
+    }
+
+    pub fn onGesture(self: *Controller, ctx: *ui.Context, nav: *ui.Navigator, ev: ui.GestureEvent) anyerror!void {
+        _ = ctx;
+        _ = nav;
+        if (ev.kind == .tap) {
+            self.onTap(ev.x, ev.y);
+        }
     }
 
     pub fn onTap(self: *Controller, x: i32, y: i32) void {

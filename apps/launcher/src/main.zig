@@ -11,6 +11,7 @@ const header_png_bytes = @embedFile("assets/main-header.png");
 const allocator = std.heap.wasm_allocator;
 
 const Controller = @import("controller.zig").Controller;
+const ui = sdk.ui;
 
 var g_initialized: bool = false;
 var g_controller: ?Controller = null;
@@ -38,6 +39,10 @@ pub fn main() !void {
     };
 
     if (g_controller) |*c| {
+        ui.scene.set(ui.Scene.from(Controller, c)) catch |err| {
+            core.log.ferr("main: ui.scene.set failed: {s}", .{@errorName(err)});
+            return err;
+        };
         g_controller_task_handle = microtask.start(microtask.Task.from(Controller, c), 0, 0) catch |err| {
             core.log.ferr("main: controller microtask start failed: {s}", .{@errorName(err)});
             g_controller_task_handle = 0;
@@ -52,23 +57,10 @@ fn cancelHandle(handle: *i32) void {
     handle.* = 0;
 }
 
-pub export fn ppOnGesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duration_ms: i32, now_ms: i32, flags: i32) i32 {
-    _ = dx;
-    _ = dy;
-    _ = duration_ms;
-    _ = now_ms;
-    _ = flags;
-    if (kind == 1) {
-        if (g_controller) |*c| {
-            c.onTap(x, y);
-        }
-    }
-    return 0;
-}
-
 pub export fn ppShutdown() void {
     cancelHandle(&g_controller_task_handle);
     microtask.clearAll() catch {};
+    ui.scene.deinitStack();
     if (g_controller) |*c| {
         c.deinit();
         g_controller = null;

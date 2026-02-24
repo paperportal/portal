@@ -20,7 +20,7 @@ constexpr const char *kExportFree = "portalFree";
 // WASI argv is configured via the WAMR load helpers (see `WasmController::LoadFrom*`).
 
 // Exported handler names (optional).
-constexpr const char *kExportOnGesture = "ppOnGesture";
+constexpr const char *kExportOnGesture = "portalGesture";
 constexpr const char *kExportOnHttpRequest = "ppOnHttpRequest";
 constexpr const char *kExportOnWifiEvent = "ppOnWifiEvent";
 constexpr const char *kExportShutdown = "ppShutdown";
@@ -37,7 +37,7 @@ enum PpMicroTaskActionKind : uint32_t {
     kMicroTaskActionSleepMs = 2,
 };
 
-// Gesture kinds (ppOnGesture kind argument).
+// Gesture kinds (portalGesture kind argument).
 enum PpGestureKind : int32_t {
     kGestureTap = 1,
     kGestureLongPress = 2,

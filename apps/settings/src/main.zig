@@ -3,6 +3,7 @@ const sdk = @import("paper_portal_sdk");
 const core = sdk.core;
 const display = sdk.display;
 const devserver = sdk.devserver;
+const ui = sdk.ui;
 const Error = sdk.errors.Error;
 
 const View = enum {
@@ -38,6 +39,99 @@ var g_view: View = .Settings;
 var g_layout: UiLayout = undefined;
 var g_status_buf: [96]u8 = [_]u8{0} ** 96;
 var g_status_len: usize = 0;
+
+const SettingsScene = struct {
+    pub fn draw(self: *SettingsScene, ctx: *ui.Context) anyerror!void {
+        _ = self;
+        _ = ctx;
+        switch (g_view) {
+            .Settings => try drawSettings(),
+            .DevServer => try drawDevServer(),
+        }
+    }
+
+    pub fn onGesture(self: *SettingsScene, ctx: *ui.Context, nav: *ui.Navigator, ev: ui.GestureEvent) anyerror!void {
+        _ = self;
+        _ = ctx;
+        _ = nav;
+        if (ev.kind != .tap) return;
+
+        const x = ev.x;
+        const y = ev.y;
+        if (g_view == .Settings) {
+            if (g_layout.back_btn.contains(x, y)) {
+                clearStatus();
+                core.exitApp() catch {
+                    setStatusFromLastError("exit failed");
+                    drawSettings() catch {
+                        core.log.err("drawSettings failed");
+                    };
+                };
+                return;
+            }
+
+            if (g_layout.devmode_row.contains(x, y)) {
+                clearStatus();
+                const state = readDevServerState();
+                if (state != .Stopped) {
+                    devserver.stop() catch {
+                        setStatusFromLastError("stop failed");
+                        drawSettings() catch {
+                            core.log.err("drawSettings failed");
+                        };
+                        return;
+                    };
+                    setStatusZ("Dev server stopped");
+                } else {
+                    devserver.start() catch {
+                        setStatusFromLastError("start failed");
+                        drawSettings() catch {
+                            core.log.err("drawSettings failed");
+                        };
+                        return;
+                    };
+                    setStatusZ("Dev server starting...");
+                }
+
+                drawSettings() catch {
+                    core.log.err("drawSettings failed");
+                };
+                return;
+            }
+
+            if (readDevServerState() != .Stopped and g_layout.devserver_row.contains(x, y)) {
+                drawDevServer() catch {
+                    core.log.err("drawDevServer failed");
+                };
+                return;
+            }
+        } else if (g_view == .DevServer) {
+            if (g_layout.back_btn.contains(x, y)) {
+                drawSettings() catch {
+                    core.log.err("drawSettings failed");
+                };
+                return;
+            }
+            if (g_layout.stop_btn.contains(x, y)) {
+                clearStatus();
+                devserver.stop() catch {
+                    setStatusFromDevServerError("stop failed");
+                    drawSettings() catch {
+                        core.log.err("drawSettings failed");
+                    };
+                    return;
+                };
+                setStatusZ("Dev server stopped");
+                drawSettings() catch {
+                    core.log.err("drawSettings failed");
+                };
+                return;
+            }
+        }
+    }
+};
+
+var g_scene: SettingsScene = .{};
 
 fn clearStatus() void {
     g_status_len = 0;
@@ -232,91 +326,15 @@ pub fn main() !void {
         return;
     };
 
+    ui.scene.set(ui.Scene.from(SettingsScene, &g_scene)) catch |err| {
+        core.log.ferr("main: ui.scene.set failed: {s}", .{@errorName(err)});
+    };
+
     core.log.info("Settings app initialized.");
     return;
 }
 
-pub export fn ppOnGesture(kind: i32, x: i32, y: i32, dx: i32, dy: i32, duration_ms: i32, now_ms: i32, flags: i32) i32 {
-    _ = dx;
-    _ = dy;
-    _ = duration_ms;
-    _ = now_ms;
-    _ = flags;
-    if (kind == 1) {
-        if (g_view == .Settings) {
-            if (g_layout.back_btn.contains(x, y)) {
-                clearStatus();
-                core.exitApp() catch {
-                    setStatusFromLastError("exit failed");
-                    drawSettings() catch {
-                        core.log.err("drawSettings failed");
-                    };
-                };
-                return 0;
-            }
-
-            if (g_layout.devmode_row.contains(x, y)) {
-                clearStatus();
-                const state = readDevServerState();
-                if (state != .Stopped) {
-                    devserver.stop() catch {
-                        setStatusFromLastError("stop failed");
-                        drawSettings() catch {
-                            core.log.err("drawSettings failed");
-                        };
-                        return 0;
-                    };
-                    setStatusZ("Dev server stopped");
-                } else {
-                    devserver.start() catch {
-                        setStatusFromLastError("start failed");
-                        drawSettings() catch {
-                            core.log.err("drawSettings failed");
-                        };
-                        return 0;
-                    };
-                    setStatusZ("Dev server starting...");
-                }
-
-                drawSettings() catch {
-                    core.log.err("drawSettings failed");
-                };
-                return 0;
-            }
-
-            if (readDevServerState() != .Stopped and g_layout.devserver_row.contains(x, y)) {
-                drawDevServer() catch {
-                    core.log.err("drawDevServer failed");
-                };
-                return 0;
-            }
-        } else if (g_view == .DevServer) {
-            if (g_layout.back_btn.contains(x, y)) {
-                drawSettings() catch {
-                    core.log.err("drawSettings failed");
-                };
-                return 0;
-            }
-            if (g_layout.stop_btn.contains(x, y)) {
-                clearStatus();
-                devserver.stop() catch {
-                    setStatusFromDevServerError("stop failed");
-                    drawSettings() catch {
-                        core.log.err("drawSettings failed");
-                    };
-                    return 0;
-                };
-                setStatusZ("Dev server stopped");
-                drawSettings() catch {
-                    core.log.err("drawSettings failed");
-                };
-                return 0;
-            }
-        }
-    }
-    return 0;
-}
-
 pub export fn ppShutdown() void {
+    ui.scene.deinitStack();
     display.vlw.clearAll() catch {};
 }
