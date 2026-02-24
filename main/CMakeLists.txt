@@ -17,6 +17,7 @@ idf_component_register(
     "wasm/api/devserver.cpp"
     "wasm/api/display.cpp"
     "wasm/api/display_fastepd.cpp"
+    "wasm/api/display_fastepd_arc.cpp"
     "wasm/api/display_lgfx.cpp"
     "wasm/api/display.cpp"
     "wasm/api/display_images.cpp"

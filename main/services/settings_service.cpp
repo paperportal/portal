@@ -187,7 +187,7 @@ esp_err_t get_display_driver(PaperDisplayDriver *out_driver, bool *out_configure
         return ESP_ERR_INVALID_ARG;
     }
 
-    *out_driver = PaperDisplayDriver::lgfx;
+    *out_driver = PaperDisplayDriver::fastepd;
     *out_configured = false;
 
     cJSON *json = nullptr;

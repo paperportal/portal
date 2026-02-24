@@ -11,6 +11,7 @@
 #include "lgfx/utility/lgfx_pngle.h"
 
 #include "display_fastepd.h"
+#include "display_fastepd_arc.h"
 
 #include "esp_log.h"
 
@@ -1785,21 +1786,7 @@ int32_t DisplayFastEpd::getBrightness(wasm_exec_env_t exec_env)
 
 int32_t DisplayFastEpd::setEpdMode(wasm_exec_env_t exec_env, int32_t mode)
 {
-    (void)exec_env;
-    const int32_t rc = require_epd_ready_or_set_error("setEpdMode: display not ready");
-    if (rc != kWasmOk) {
-        return rc;
-    }
-    if (mode < 1 || mode > 4) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "setEpdMode: mode out of range (1..4)");
-        return kWasmErrInvalidArgument;
-    }
-    const int32_t new_mode = (mode == 1) ? BB_MODE_1BPP : BB_MODE_4BPP;
-    const int epd_rc = g_epd.setMode(new_mode);
-    if (epd_rc != BBEP_SUCCESS) {
-        wasm_api_set_last_error(kWasmErrInternal, "setEpdMode: FastEPD setMode failed");
-        return kWasmErrInternal;
-    }
+    warn_unimplemented("setEpdMode");
     return kWasmOk;
 }
 
@@ -2456,14 +2443,25 @@ int32_t DisplayFastEpd::fillArc(
     int32_t rgb888)
 {
     (void)exec_env;
-    (void)x;
-    (void)y;
-    (void)r0;
-    (void)r1;
-    (void)angle0;
-    (void)angle1;
-    (void)rgb888;
-    warn_unimplemented("fillArc");
+    const int32_t rc = require_epd_ready_or_set_error("fillArc: display not ready");
+    if (rc != kWasmOk) {
+        return rc;
+    }
+    if (r0 < 0 || r1 < 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "fillArc: r0 < 0 or r1 < 0");
+        return kWasmErrInvalidArgument;
+    }
+    if (r1 > r0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "fillArc: r1 > r0");
+        return kWasmErrInvalidArgument;
+    }
+    if (r0 == r1) {
+        return kWasmOk;
+    }
+
+    const int32_t mode = g_epd.getMode();
+    const uint8_t color = gray8_to_epd_color(rgb888_to_gray8(rgb888), mode);
+    display_fastepd_fill_arc(g_epd, x, y, r0, r1, angle0, angle1, color);
     return kWasmOk;
 }
 
