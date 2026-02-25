@@ -117,14 +117,14 @@ int32_t drawIcon(wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t icon_ra
     return Display::current()->drawPng(exec_env, start, (size_t)(end - start), x, y);
 }
 
-int32_t drawXthCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
-    return Display::current()->drawXthCentered(exec_env, ptr, len);
+    return Display::current()->drawXth(exec_env, ptr, len);
 }
 
-int32_t drawXtgCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
-    return Display::current()->drawXtgCentered(exec_env, ptr, len);
+    return Display::current()->drawXtg(exec_env, ptr, len);
 }
 
 int32_t drawJpgFit(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w,
@@ -158,8 +158,8 @@ static NativeSymbol g_display_images_native_symbols[] = {
     REG_NATIVE_FUNC(readRectRgb565, "(iiii*~)i"),
     REG_NATIVE_FUNC(drawPng, "(*~ii)i"),
     REG_NATIVE_FUNC(drawIcon, "(iii)i"),
-    REG_NATIVE_FUNC(drawXthCentered, "(*~)i"),
-    REG_NATIVE_FUNC(drawXtgCentered, "(*~)i"),
+    REG_NATIVE_FUNC(drawXth, "(*~)i"),
+    REG_NATIVE_FUNC(drawXtg, "(*~)i"),
     REG_NATIVE_FUNC(drawJpgFit, "(*~iiii)i"),
     REG_NATIVE_FUNC(drawPngFit, "(*~iiii)i"),
     REG_NATIVE_FUNC(drawJpgFile, "(*iiii)i"),

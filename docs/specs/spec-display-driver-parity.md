@@ -106,6 +106,5 @@ All remaining primitive functions are otherwise broadly equivalent (subject to t
 - `pushImageRgb565(...)`: Implemented by LGFX (strict alignment + exact length); FastEPD logs `[unimplemented]`.
 - `pushImage(...)`: Implemented by LGFX (multiple depths + palettes); FastEPD logs `[unimplemented]`.
 - `readRectRgb565(...)`: Implemented by LGFX; FastEPD returns `kWasmErrInternal` (“not supported by FastEPD”).
-- `drawXthCentered(ptr, len)`, `drawXtgCentered(ptr, len)`: LGFX draws into the framebuffer only; FastEPD draws **and immediately triggers a full update** (`fullUpdate(CLEAR_SLOW, ...)`), which changes expected “draw vs refresh” control flow.
+- `drawXth(ptr, len)`, `drawXtg(ptr, len)`: LGFX draws into the framebuffer only; FastEPD draws **and immediately triggers a full update** (`fullUpdate(CLEAR_SLOW, ...)`), which changes expected “draw vs refresh” control flow.
 - `drawPngFit(ptr, len, x, y, max_w, max_h)`, `drawPngFile(path, x, y, max_w, max_h)`: LGFX uses its PNG “fit” path (expected to scale/fit); FastEPD’s “fit” logic is **crop/clip only** (limits drawn width/height to `max_w/max_h` and available space, without scaling).
-

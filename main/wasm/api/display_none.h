@@ -45,8 +45,8 @@ public:
     int32_t pushImageGray8( wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *ptr, size_t len) override { return 0; }
     int32_t readRectRgb565( wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, uint8_t *out, size_t out_len) override { return 0; }
     int32_t drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y) override { return 0; }
-    int32_t drawXthCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) override { return 0; }
-    int32_t drawXtgCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) override { return 0; }
+    int32_t drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) override { return 0; }
+    int32_t drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) override { return 0; }
     int32_t drawJpgFit( wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w, int32_t max_h) override { return 0; }
     int32_t drawPngFit( wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w, int32_t max_h) override { return 0; }
     int32_t drawJpgFile( wasm_exec_env_t exec_env, const char *path, int32_t x, int32_t y, int32_t max_w, int32_t max_h) override { return 0; }

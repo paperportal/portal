@@ -11,7 +11,7 @@
 #include "esp_log.h"
 
 #include "m5papers3_display.h"
-#include "other/xteink_image_utils.h"
+#include "other/lovyangfx_xtc.h"
 
 #include "../api.h"
 #include "errors.h"
@@ -967,7 +967,7 @@ int32_t DisplayLgfx::drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, size_
     return kWasmOk;
 }
 
-int32_t DisplayLgfx::drawXthCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t DisplayLgfx::drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -986,7 +986,7 @@ int32_t DisplayLgfx::drawXthCentered(wasm_exec_env_t exec_env, const uint8_t *pt
         return kWasmErrInvalidArgument;
     }
 
-    const bool ok = drawXth(*display, ptr, len);
+    const bool ok = lovyangfx_xtc::drawXth(*display, ptr, len);
     if (!ok) {
         wasm_api_set_last_error(kWasmErrInternal, "draw_xth_centered: decode failed");
         return kWasmErrInternal;
@@ -994,7 +994,7 @@ int32_t DisplayLgfx::drawXthCentered(wasm_exec_env_t exec_env, const uint8_t *pt
     return kWasmOk;
 }
 
-int32_t DisplayLgfx::drawXtgCentered(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t DisplayLgfx::drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -1013,7 +1013,7 @@ int32_t DisplayLgfx::drawXtgCentered(wasm_exec_env_t exec_env, const uint8_t *pt
         return kWasmErrInvalidArgument;
     }
 
-    const bool ok = drawXtg(*display, ptr, len);
+    const bool ok = lovyangfx_xtc::drawXtg(*display, ptr, len);
     if (!ok) {
         wasm_api_set_last_error(kWasmErrInternal, "draw_xtg_centered: decode failed");
         return kWasmErrInternal;

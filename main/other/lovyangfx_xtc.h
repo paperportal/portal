@@ -7,8 +7,10 @@
 
 class LGFX_M5PaperS3;
 
+namespace lovyangfx_xtc {
+
 /**
- * @file xteink_image_utils.h
+ * @file lovyangfx_xtc.h
  * @brief Decode an XTH image into a packed 2bpp (4-level grayscale) buffer.
  *
  * ## XTH file format (as handled by this project)
@@ -60,7 +62,7 @@ class LGFX_M5PaperS3;
  * - pixel 2 -> bits 3..2
  * - pixel 3 -> bits 1..0
  *
- * `out2bpp.size()` will be `ceil(width * height / 4)`.
+ * `out2bpp.size()` will  be `ceil(width * height / 4)`.
  */
 /**
  * @brief Convert an XTH image buffer to a packed 2bpp image.
@@ -99,3 +101,5 @@ bool drawXth(LGFX_M5PaperS3 &display, const uint8_t *xth, size_t xth_size);
  * @return true on success, false on decode/draw failure.
  */
 bool drawXtg(LGFX_M5PaperS3 &display, const uint8_t *xtg, size_t xtg_size);
+
+}

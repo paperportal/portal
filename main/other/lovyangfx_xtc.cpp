@@ -1,4 +1,4 @@
-#include "xteink_image_utils.h"
+#include "lovyangfx_xtc.h"
 
 #include <inttypes.h>
 
@@ -7,6 +7,8 @@
 
 #include "esp_log.h"
 #include "m5papers3_display.h"
+
+namespace lovyangfx_xtc {
 
 static const char *kXthTag = "xth";
 static const char *kXtgTag = "xtg";
@@ -316,4 +318,6 @@ bool drawXtg(LGFX_M5PaperS3 &display, const uint8_t *xtg, size_t xtg_size) {
     display.pushImage(dst_x0, dst_y0, draw_w, draw_h, crop_buf.data(), lgfx::color_depth_t::grayscale_1bit,
                       kGray1Palette);
     return true;
+}
+
 }
