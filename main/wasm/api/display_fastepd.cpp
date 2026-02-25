@@ -215,7 +215,7 @@ int32_t display_fastepd_full_update_slow()
     if (ready_rc != kWasmOk) {
         return ready_rc;
     }
-    const int epd_rc = g_epd.fullUpdate(CLEAR_SLOW, false);
+    const int epd_rc = g_epd.fullUpdate(CLEAR_SLOW, true);
     if (epd_rc != BBEP_SUCCESS) {
         wasm_api_set_last_error(kWasmErrInternal, "full_update_slow: FastEPD fullUpdate failed");
         return kWasmErrInternal;
@@ -1141,7 +1141,7 @@ int32_t DisplayFastEpd::display(wasm_exec_env_t exec_env)
     if (rc != kWasmOk) {
         return rc;
     }
-    const int epd_rc = g_epd.fullUpdate(CLEAR_SLOW, false);
+    const int epd_rc = g_epd.fullUpdate(CLEAR_SLOW, true);
     if (epd_rc != BBEP_SUCCESS) {
         wasm_api_set_last_error(kWasmErrInternal, "display: FastEPD fullUpdate failed");
         return kWasmErrInternal;
@@ -1170,7 +1170,7 @@ int32_t DisplayFastEpd::displayRect(wasm_exec_env_t exec_env, int32_t x, int32_t
     }
 
     BB_RECT rect = {.x = x, .y = y, .w = w, .h = h};
-    const int epd_rc = g_epd.fullUpdate(CLEAR_NONE, false, &rect);
+    const int epd_rc = g_epd.fullUpdate(CLEAR_NONE, true, &rect);
     if (epd_rc != BBEP_SUCCESS) {
         wasm_api_set_last_error(kWasmErrInternal, "displayRect: FastEPD fullUpdate failed");
         return kWasmErrInternal;

@@ -36,6 +36,8 @@ void show_sleepimage()
         return;
     }
 
+    display->setDisplayMode(nullptr, usePng ? 0 : 2);
+
     const uint8_t *start = usePng ? _binary_sleepimage_png_start : _binary_sleepimage_jpg_start;
     const uint8_t *end = usePng ? _binary_sleepimage_png_end : _binary_sleepimage_jpg_end;
     if (!start || !end || end <= start) {

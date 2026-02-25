@@ -146,7 +146,7 @@ void drawXth(FASTEPD* epd, const uint8_t* data, size_t size, bool fast) {
     if (fast) {
         epd->smoothUpdate(true, BBEP_WHITE);
     } else {
-        epd->fullUpdate(CLEAR_WHITE, true);
+        epd->fullUpdate(CLEAR_EXTRA_WHITE, true);
     }
     const int64_t end_us = esp_timer_get_time();
 
@@ -268,11 +268,10 @@ void drawXtg(FASTEPD* epd, const uint8_t* data, size_t size, bool fast) {
     }
 
     const int64_t draw_done_us = esp_timer_get_time();
-//    epd->fullUpdate(fast ? CLEAR_FAST : CLEAR_SLOW, true);
     if (fast) {
         epd->smoothUpdate(true, BBEP_WHITE);
         } else {
-        epd->fullUpdate(CLEAR_WHITE, true);
+        epd->fullUpdate(CLEAR_EXTRA_WHITE, true);
      }
     const int64_t end_us = esp_timer_get_time();
 
