@@ -12,7 +12,7 @@ idf_component_register(
     "services/wifi_service.cpp"
     "other/mem_utils.cpp"
     "other/fastepd_xtc.cpp"
-    "other/lovyangfx_xtc.cpp"
+    "other/lgfx_xtc.cpp"
     "services/settings_service.cpp"
     "wasm/api/core.cpp"
     "wasm/api/devserver.cpp"

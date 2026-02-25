@@ -11,7 +11,7 @@
 #include "esp_log.h"
 
 #include "m5papers3_display.h"
-#include "other/lovyangfx_xtc.h"
+#include "other/lgfx_xtc.h"
 
 #include "../api.h"
 #include "errors.h"
@@ -975,20 +975,20 @@ int32_t DisplayLgfx::drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_
         return kWasmErrNotReady;
     }
     if (!ptr && len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth: ptr is null");
         return kWasmErrInvalidArgument;
     }
     if (len == 0) {
         return kWasmOk;
     }
     if (len > kMaxXthBytes) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: len too large");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth: len too large");
         return kWasmErrInvalidArgument;
     }
 
-    const bool ok = lovyangfx_xtc::drawXth(*display, ptr, len);
+    const bool ok = lgfx_xtc::drawXth(*display, ptr, len);
     if (!ok) {
-        wasm_api_set_last_error(kWasmErrInternal, "draw_xth_centered: decode failed");
+        wasm_api_set_last_error(kWasmErrInternal, "draw_xth: decode failed");
         return kWasmErrInternal;
     }
     return kWasmOk;
@@ -1002,20 +1002,20 @@ int32_t DisplayLgfx::drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_
         return kWasmErrNotReady;
     }
     if (!ptr && len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg: ptr is null");
         return kWasmErrInvalidArgument;
     }
     if (len == 0) {
         return kWasmOk;
     }
     if (len > kMaxXtgBytes) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: len too large");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg: len too large");
         return kWasmErrInvalidArgument;
     }
 
-    const bool ok = lovyangfx_xtc::drawXtg(*display, ptr, len);
+    const bool ok = lgfx_xtc::drawXtg(*display, ptr, len);
     if (!ok) {
-        wasm_api_set_last_error(kWasmErrInternal, "draw_xtg_centered: decode failed");
+        wasm_api_set_last_error(kWasmErrInternal, "draw_xtg: decode failed");
         return kWasmErrInternal;
     }
     return kWasmOk;

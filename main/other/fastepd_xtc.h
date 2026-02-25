@@ -10,6 +10,8 @@
 
 #include <FastEPD.h>
 
+namespace fastepd_xtc {
+
 /**
  * @brief Draw an XTH (2bpp) image buffer to the EPD.
  *
@@ -25,7 +27,7 @@
  * @note Requires `epd->getMode() == BB_MODE_2BPP`.
  * @note Supports rotations 0/90/180/270 (via `epd->getRotation()`).
  */
-void draw_xth(FASTEPD* epd, const uint8_t* data, size_t size, bool fast);
+void drawXth(FASTEPD* epd, const uint8_t* data, size_t size, bool fast);
 
 /**
  * @brief Draw an XTG (1bpp) image buffer to the EPD.
@@ -42,4 +44,6 @@ void draw_xth(FASTEPD* epd, const uint8_t* data, size_t size, bool fast);
  * @note Requires `epd->getMode() == BB_MODE_1BPP`.
  * @note Supports rotations 0/90/180/270 (via `epd->getRotation()`).
  */
-void draw_xtg(FASTEPD* epd, const uint8_t* data, size_t size, bool fast);
+void drawXtg(FASTEPD* epd, const uint8_t* data, size_t size, bool fast);
+
+}

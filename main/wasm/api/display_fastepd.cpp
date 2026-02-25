@@ -4,17 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <vector>
-
 #include <FastEPD.h>
 #include <JPEGDEC.h>
 #include "lgfx/utility/lgfx_pngle.h"
-
 #include "display_fastepd.h"
 #include "display_fastepd_arc.h"
-
+#include "../..//other/fastepd_xtc.h"
 #include "esp_log.h"
-
 #include "../api.h"
 #include "errors.h"
 
@@ -1496,55 +1492,44 @@ int32_t DisplayFastEpd::drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, si
 int32_t DisplayFastEpd::drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
     if (!ptr && len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth: ptr is null");
         return kWasmErrInvalidArgument;
     }
-    if (len == 0) {
-        return kWasmOk;
-    }
-    if (len > kMaxXthBytes) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: len too large");
+    if (len == 0 || len > kMaxXthBytes) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth: invalid len");
         return kWasmErrInvalidArgument;
     }
-    const int32_t ready_rc = require_epd_ready_or_set_error("draw_xth_centered: framebuffer not ready");
+    const int32_t ready_rc = require_epd_ready_or_set_error("draw_xth: framebuffer not ready");
     if (ready_rc != kWasmOk) {
         return ready_rc;
     }
-
-    const int32_t mode = g_epd.getMode();
-    if (mode != BB_MODE_1BPP && mode != BB_MODE_4BPP) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth_centered: unsupported mode (expected 1-bpp or 4-bpp)");
+    if (g_epd.getMode() != BB_MODE_2BPP) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth: unsupported mode (expected 1-bpp or 4-bpp)");
         return kWasmErrInvalidArgument;
     }
-
+    fastepd_xtc::drawXth(&g_epd, ptr, len, false);
     return 0;
 }
 
 int32_t DisplayFastEpd::drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
-    (void)exec_env;
     if (!ptr && len != 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: ptr is null");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg: ptr is null");
         return kWasmErrInvalidArgument;
     }
-    if (len == 0) {
-        return kWasmOk;
-    }
-    if (len > kMaxXtgBytes) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: len too large");
+    if (len == 0 || len > kMaxXtgBytes) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg: invalid len");
         return kWasmErrInvalidArgument;
     }
-    const int32_t ready_rc = require_epd_ready_or_set_error("draw_xtg_centered: framebuffer not ready");
+    const int32_t ready_rc = require_epd_ready_or_set_error("draw_xtg: framebuffer not ready");
     if (ready_rc != kWasmOk) {
         return ready_rc;
     }
-
-    const int32_t mode = g_epd.getMode();
-    if (mode != BB_MODE_1BPP && mode != BB_MODE_4BPP) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg_centered: unsupported mode (expected 1-bpp or 4-bpp)");
+    if (g_epd.getMode() != BB_MODE_1BPP) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg: unsupported mode (expected 1-bpp)");
         return kWasmErrInvalidArgument;
     }
-
+    fastepd_xtc::drawXtg(&g_epd, ptr, len, false);
     return 0;
 }
 

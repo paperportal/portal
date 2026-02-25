@@ -7,10 +7,10 @@
 
 class LGFX_M5PaperS3;
 
-namespace lovyangfx_xtc {
+namespace lgfx_xtc {
 
 /**
- * @file lovyangfx_xtc.h
+ * @file lgfx_xtc.h
  * @brief Decode an XTH image into a packed 2bpp (4-level grayscale) buffer.
  *
  * ## XTH file format (as handled by this project)

@@ -1,6 +1,6 @@
 /**
  * @file fastepd_xtc_utils.h
- * @brief XTG/XTH parsing and blitting utilities used by `draw_xtg()` / `draw_xth()`.
+ * @brief XTG/XTH parsing and blitting utilities used by `drawXtg()` / `drawXth()`.
  *
  * This header intentionally contains `static inline` helpers to keep the XTG/XTH
  * draw implementation in a single translation unit while enabling aggressive
@@ -12,6 +12,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+
+namespace fastepd_xtc_utils {
 
 /// @brief Size in bytes of the XTG/XTH header.
 constexpr size_t kXtxHeaderSize = 22;
@@ -40,7 +42,7 @@ struct XtxImageHeader {
  * @param p Pointer to at least 2 bytes.
  * @return Parsed value.
  */
-static inline uint16_t load_le_u16(const uint8_t* p) {
+static inline uint16_t loadLeU16(const uint8_t* p) {
     return static_cast<uint16_t>(p[0]) | (static_cast<uint16_t>(p[1]) << 8);
 }
 
@@ -49,7 +51,7 @@ static inline uint16_t load_le_u16(const uint8_t* p) {
  * @param p Pointer to at least 4 bytes.
  * @return Parsed value.
  */
-static inline uint32_t load_le_u32(const uint8_t* p) {
+static inline uint32_t loadLeU32(const uint8_t* p) {
     return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) | (static_cast<uint32_t>(p[2]) << 16) |
         (static_cast<uint32_t>(p[3]) << 24);
 }
@@ -64,7 +66,7 @@ static inline uint32_t load_le_u32(const uint8_t* p) {
  * @param payload Output pointer to the start of the payload (immediately after the header).
  * @return `true` on success, `false` if the header is invalid or truncated.
  */
-static inline bool parse_xtx_header(
+static inline bool parseXtxHeader(
     const uint8_t* data,
     size_t size,
     uint32_t expected_magic,
@@ -77,16 +79,16 @@ static inline bool parse_xtx_header(
         return false;
     }
 
-    const uint32_t magic = load_le_u32(data + 0x00);
+    const uint32_t magic = loadLeU32(data + 0x00);
     if (magic != expected_magic) {
         return false;
     }
 
-    out->width = load_le_u16(data + 0x04);
-    out->height = load_le_u16(data + 0x06);
+    out->width = loadLeU16(data + 0x04);
+    out->height = loadLeU16(data + 0x06);
     out->color_mode = data[0x08];
     out->compression = data[0x09];
-    out->data_size = load_le_u32(data + 0x0A);
+    out->data_size = loadLeU32(data + 0x0A);
     memcpy(out->md5_8, data + 0x0E, sizeof(out->md5_8));
 
     *payload = data + kXtxHeaderSize;
@@ -101,8 +103,8 @@ static inline bool parse_xtx_header(
  * @param payload Output pointer to the start of the payload.
  * @return `true` on success.
  */
-static inline bool parse_xtg_header(const uint8_t* data, size_t size, XtxImageHeader* out, const uint8_t** payload) {
-    return parse_xtx_header(data, size, kXtgMagic, out, payload);
+static inline bool parseXtgHeader(const uint8_t* data, size_t size, XtxImageHeader* out, const uint8_t** payload) {
+    return parseXtxHeader(data, size, kXtgMagic, out, payload);
 }
 
 /**
@@ -113,8 +115,8 @@ static inline bool parse_xtg_header(const uint8_t* data, size_t size, XtxImageHe
  * @param payload Output pointer to the start of the payload.
  * @return `true` on success.
  */
-static inline bool parse_xth_header(const uint8_t* data, size_t size, XtxImageHeader* out, const uint8_t** payload) {
-    return parse_xtx_header(data, size, kXthMagic, out, payload);
+static inline bool parseXthHeader(const uint8_t* data, size_t size, XtxImageHeader* out, const uint8_t** payload) {
+    return parseXtxHeader(data, size, kXthMagic, out, payload);
 }
 
 /**
@@ -138,7 +140,7 @@ static inline uint8_t reverse8(uint8_t b) {
  * @param x Packed 8x8 input matrix.
  * @return Packed 8x8 transpose.
  */
-static inline uint64_t transpose8x8_lsb(uint64_t x) {
+static inline uint64_t transpose8x8Lsb(uint64_t x) {
     uint64_t t;
     t = (x ^ (x >> 7)) & 0x00AA00AA00AA00AAULL;
     x ^= t ^ (t << 7);
@@ -155,7 +157,7 @@ static inline uint64_t transpose8x8_lsb(uint64_t x) {
  * @param dst_pitch Bytes per row/column (native pitch for current rotation).
  * @param dst_native_h Native buffer height in rows/columns matching @p dst_pitch.
  */
-static inline void clear_native_white_1bpp(uint8_t* dst, int dst_pitch, int dst_native_h) {
+static inline void clearNativeWhite1bpp(uint8_t* dst, int dst_pitch, int dst_native_h) {
     const size_t bytes = static_cast<size_t>(dst_pitch) * static_cast<size_t>(dst_native_h);
     memset(dst, 0xFF, bytes);
 }
@@ -166,7 +168,7 @@ static inline void clear_native_white_1bpp(uint8_t* dst, int dst_pitch, int dst_
  * @param dst_pitch Bytes per row/column (native pitch for current rotation).
  * @param dst_native_h Native buffer height in rows/columns matching @p dst_pitch.
  */
-static inline void clear_native_white_2bpp(uint8_t* dst, int dst_pitch, int dst_native_h) {
+static inline void clearNativeWhite2bpp(uint8_t* dst, int dst_pitch, int dst_native_h) {
     const size_t bytes = static_cast<size_t>(dst_pitch) * static_cast<size_t>(dst_native_h);
     memset(dst, 0xFF, bytes);
 }
@@ -180,7 +182,7 @@ static inline void clear_native_white_2bpp(uint8_t* dst, int dst_pitch, int dst_
  * @param valid Number of valid pixels in [0..4] within the byte.
  * @return Bit mask over the packed 2bpp byte.
  */
-static constexpr uint8_t xth_mask_2bpp_bytes_for_valid_pixels(int valid) {
+static constexpr uint8_t xthMask2bppBytesForValidPixels(int valid) {
     // valid in [0..4], for a 2bpp byte laid out as:
     //   pix0: bits 7..6, pix1: 5..4, pix2: 3..2, pix3: 1..0
     switch (valid) {
@@ -208,7 +210,7 @@ static constexpr uint8_t xth_mask_2bpp_bytes_for_valid_pixels(int valid) {
  * @param nib2 Low bitplane nibble (4 pixels, top-to-bottom).
  * @return Packed 2bpp byte holding 4 converted pixels.
  */
-static constexpr uint8_t xth_lut4_entry(uint8_t nib1, uint8_t nib2) {
+static constexpr uint8_t xthLut4Entry(uint8_t nib1, uint8_t nib2) {
     uint8_t out = 0;
     // nib1/nib2 are 4 pixels, top-to-bottom:
     //   bit3 => pixel0, bit2 => pixel1, bit1 => pixel2, bit0 => pixel3
@@ -226,11 +228,11 @@ static constexpr uint8_t xth_lut4_entry(uint8_t nib1, uint8_t nib2) {
  * @brief Build the full 256-entry nibble-pair LUT for XTH -> FastEPD conversion.
  * @return Lookup table indexed by `(nib1 << 4) | nib2`.
  */
-static constexpr std::array<uint8_t, 256> make_xth_lut4() {
+static constexpr std::array<uint8_t, 256> makeXthLut4() {
     std::array<uint8_t, 256> lut = {};
     for (int a = 0; a < 16; a++) {
         for (int b = 0; b < 16; b++) {
-            lut[static_cast<size_t>((a << 4) | b)] = xth_lut4_entry(static_cast<uint8_t>(a), static_cast<uint8_t>(b));
+            lut[static_cast<size_t>((a << 4) | b)] = xthLut4Entry(static_cast<uint8_t>(a), static_cast<uint8_t>(b));
         }
     }
     return lut;
@@ -241,7 +243,7 @@ static constexpr std::array<uint8_t, 256> make_xth_lut4() {
  *
  * Index is `((plane1_nibble << 4) | plane2_nibble)`.
  */
-static constexpr auto kXthLut4 = make_xth_lut4();
+static constexpr auto kXthLut4 = makeXthLut4();
 static_assert(kXthLut4[0x00] == 0xFF, "XTH LUT: 00/00 should map to white (0xFF)");
 static_assert(kXthLut4[0xFF] == 0x00, "XTH LUT: FF/FF should map to black (0x00)");
 static_assert(kXthLut4[0xF0] == 0x55, "XTH LUT: 1/0 bits should map to 0x55");
@@ -251,7 +253,7 @@ static_assert(kXthLut4[0xF0] == 0x55, "XTH LUT: 1/0 bits should map to 0x55");
  * @param b Packed 2bpp byte containing pixels `[p0 p1 p2 p3]`.
  * @return Packed 2bpp byte containing pixels `[p3 p2 p1 p0]`.
  */
-static inline uint8_t reverse4pix_2bpp(uint8_t b) {
+static inline uint8_t reverse4Pix2bpp(uint8_t b) {
     // Reverse order of four 2-bit pixels within a byte:
     // [p0 p1 p2 p3] -> [p3 p2 p1 p0]
     return static_cast<uint8_t>(((b & 0x03u) << 6) | ((b & 0x0Cu) << 2) | ((b & 0x30u) >> 2) | ((b & 0xC0u) >> 6));
@@ -267,7 +269,7 @@ static inline uint8_t reverse4pix_2bpp(uint8_t b) {
  * @param src_tail_rows Number of valid rows in the last source byte (0 means 8).
  * @return Mask with 1s for valid rows in MSB-first order.
  */
-static inline uint8_t xth_src_mask_for_y_block(int block_h, int src_tail_rows) {
+static inline uint8_t xthSrcMaskForYBlock(int block_h, int src_tail_rows) {
     // Mask to keep the valid top bits for this 8-row group, clearing rows beyond image (treated as white).
     int valid = block_h;
     if (src_tail_rows != 0 && src_tail_rows < valid) {
@@ -286,12 +288,12 @@ static inline uint8_t xth_src_mask_for_y_block(int block_h, int src_tail_rows) {
  * @brief Pack eight column bytes into a `uint64_t` for SWAR transpose operations.
  *
  * Each input byte is bit-reversed so that the returned `uint64_t` is LSB-first within
- * each byte, which matches `transpose8x8_lsb()`.
+ * each byte, which matches `transpose8x8Lsb()`.
  *
  * @param b Array of 8 column bytes.
  * @return Packed `uint64_t` value.
  */
-static inline uint64_t xth_pack8cols_lsb(const uint8_t b[8]) {
+static inline uint64_t xthPack8ColsLsb(const uint8_t b[8]) {
     return static_cast<uint64_t>(reverse8(b[0])) | (static_cast<uint64_t>(reverse8(b[1])) << 8) |
         (static_cast<uint64_t>(reverse8(b[2])) << 16) | (static_cast<uint64_t>(reverse8(b[3])) << 24) |
         (static_cast<uint64_t>(reverse8(b[4])) << 32) | (static_cast<uint64_t>(reverse8(b[5])) << 40) |
@@ -312,7 +314,7 @@ static inline uint64_t xth_pack8cols_lsb(const uint8_t b[8]) {
  * @param copy_w Number of pixels to copy horizontally.
  * @param copy_h Number of pixels to copy vertically.
  */
-static inline void xth_blit_rot0_topleft_clipped_2bpp(
+static inline void xthBlitRot0TopLeftClipped2bpp(
     uint8_t* dst,
     int dst_pitch,
     const uint8_t* src_plane1,
@@ -330,7 +332,7 @@ static inline void xth_blit_rot0_topleft_clipped_2bpp(
         const int y_byte = y0 >> 3;
         const int remaining_rows_in_src_byte =
             (y_byte == (src_col_bytes - 1)) ? ((src_tail_rows == 0) ? 8 : src_tail_rows) : 8;
-        const uint8_t y_mask = xth_src_mask_for_y_block(block_h, remaining_rows_in_src_byte);
+        const uint8_t y_mask = xthSrcMaskForYBlock(block_h, remaining_rows_in_src_byte);
 
         for (int x0 = 0; x0 < copy_w; x0 += 8) {
             const int block_w = (copy_w - x0 >= 8) ? 8 : (copy_w - x0);
@@ -351,8 +353,8 @@ static inline void xth_blit_rot0_topleft_clipped_2bpp(
                 }
             }
 
-            uint64_t p1 = transpose8x8_lsb(xth_pack8cols_lsb(c1));
-            uint64_t p2 = transpose8x8_lsb(xth_pack8cols_lsb(c2));
+            uint64_t p1 = transpose8x8Lsb(xthPack8ColsLsb(c1));
+            uint64_t p2 = transpose8x8Lsb(xthPack8ColsLsb(c2));
 
             const int dst_byte = x0 >> 2;
             for (int r = 0; r < block_h; r++) {
@@ -370,10 +372,10 @@ static inline void xth_blit_rot0_topleft_clipped_2bpp(
                     d[1] = out1;
                 } else if (block_w > 4) {
                     d[0] = out0;
-                    const uint8_t mask = xth_mask_2bpp_bytes_for_valid_pixels(block_w - 4);
+                    const uint8_t mask = xthMask2bppBytesForValidPixels(block_w - 4);
                     d[1] = static_cast<uint8_t>((out1 & mask) | static_cast<uint8_t>(~mask));
                 } else {
-                    const uint8_t mask = xth_mask_2bpp_bytes_for_valid_pixels(block_w);
+                    const uint8_t mask = xthMask2bppBytesForValidPixels(block_w);
                     d[0] = static_cast<uint8_t>((out0 & mask) | static_cast<uint8_t>(~mask));
                 }
             }
@@ -396,7 +398,7 @@ static inline void xth_blit_rot0_topleft_clipped_2bpp(
  * @param copy_w Number of pixels to copy horizontally.
  * @param copy_h Number of pixels to copy vertically.
  */
-static inline void xth_blit_rot90_topleft_clipped_2bpp(
+static inline void xthBlitRot90TopLeftClipped2bpp(
     uint8_t* dst,
     int dst_pitch,
     int dst_logical_w,
@@ -465,13 +467,13 @@ static inline void xth_blit_rot90_topleft_clipped_2bpp(
         const int out_i = y >> 2;
         if (out_i < dst_col_bytes) {
             const int valid0 = (tail >= 4) ? 4 : tail;
-            const uint8_t mask0 = xth_mask_2bpp_bytes_for_valid_pixels(valid0);
+            const uint8_t mask0 = xthMask2bppBytesForValidPixels(valid0);
             uint8_t* d0 = dcol + out_i;
             *d0 = static_cast<uint8_t>((out0 & mask0) | static_cast<uint8_t>(~mask0));
         }
         if (tail > 4 && (out_i + 1) < dst_col_bytes) {
             const int valid1 = tail - 4;
-            const uint8_t mask1 = xth_mask_2bpp_bytes_for_valid_pixels(valid1);
+            const uint8_t mask1 = xthMask2bppBytesForValidPixels(valid1);
             uint8_t* d1 = dcol + (out_i + 1);
             *d1 = static_cast<uint8_t>((out1 & mask1) | static_cast<uint8_t>(~mask1));
         }
@@ -495,7 +497,7 @@ static inline void xth_blit_rot90_topleft_clipped_2bpp(
  * @param copy_w Number of pixels to copy horizontally.
  * @param copy_h Number of pixels to copy vertically.
  */
-static inline void xth_blit_rot180_topleft_clipped_2bpp(
+static inline void xthBlitRot180TopLeftClipped2bpp(
     uint8_t* dst,
     int dst_pitch,
     int dst_w,
@@ -516,7 +518,7 @@ static inline void xth_blit_rot180_topleft_clipped_2bpp(
         const int y_byte = y0 >> 3;
         const int remaining_rows_in_src_byte =
             (y_byte == (src_col_bytes - 1)) ? ((src_tail_rows == 0) ? 8 : src_tail_rows) : 8;
-        const uint8_t y_mask = xth_src_mask_for_y_block(block_h, remaining_rows_in_src_byte);
+        const uint8_t y_mask = xthSrcMaskForYBlock(block_h, remaining_rows_in_src_byte);
 
         for (int x0 = 0; x0 < copy_w; x0 += 8) {
             const int block_w = (copy_w - x0 >= 8) ? 8 : (copy_w - x0);
@@ -537,8 +539,8 @@ static inline void xth_blit_rot180_topleft_clipped_2bpp(
                 }
             }
 
-            uint64_t p1 = transpose8x8_lsb(xth_pack8cols_lsb(c1));
-            uint64_t p2 = transpose8x8_lsb(xth_pack8cols_lsb(c2));
+            uint64_t p1 = transpose8x8Lsb(xthPack8ColsLsb(c1));
+            uint64_t p2 = transpose8x8Lsb(xthPack8ColsLsb(c2));
 
             const int dest_x_full = dst_w - x0 - 8;
             const int clip_left_px = (dest_x_full < 0) ? -dest_x_full : 0;
@@ -557,8 +559,8 @@ static inline void xth_blit_rot180_topleft_clipped_2bpp(
                 const uint8_t out0 = kXthLut4[static_cast<size_t>(((row1 >> 4) << 4) | (row2 >> 4))];
                 const uint8_t out1 = kXthLut4[static_cast<size_t>(((row1 & 0x0F) << 4) | (row2 & 0x0F))];
 
-                const uint8_t rev0 = reverse4pix_2bpp(out1);
-                const uint8_t rev1 = reverse4pix_2bpp(out0);
+                const uint8_t rev0 = reverse4Pix2bpp(out1);
+                const uint8_t rev1 = reverse4Pix2bpp(out0);
                 uint16_t u = static_cast<uint16_t>((static_cast<uint16_t>(rev0) << 8) | rev1);
                 if (clip_left_px != 0) {
                     u = static_cast<uint16_t>(u << (clip_left_px * 2));
@@ -576,10 +578,10 @@ static inline void xth_blit_rot180_topleft_clipped_2bpp(
                     d[1] = b1;
                 } else if (write_px > 4) {
                     d[0] = b0;
-                    const uint8_t mask = xth_mask_2bpp_bytes_for_valid_pixels(write_px - 4);
+                    const uint8_t mask = xthMask2bppBytesForValidPixels(write_px - 4);
                     d[1] = static_cast<uint8_t>((b1 & mask) | static_cast<uint8_t>(~mask));
                 } else {
-                    const uint8_t mask = xth_mask_2bpp_bytes_for_valid_pixels(write_px);
+                    const uint8_t mask = xthMask2bppBytesForValidPixels(write_px);
                     d[0] = static_cast<uint8_t>((b0 & mask) | static_cast<uint8_t>(~mask));
                 }
             }
@@ -602,7 +604,7 @@ static inline void xth_blit_rot180_topleft_clipped_2bpp(
  * @param copy_w Number of pixels to copy horizontally.
  * @param copy_h Number of pixels to copy vertically.
  */
-static inline void xth_blit_rot270_topleft_clipped_2bpp(
+static inline void xthBlitRot270TopLeftClipped2bpp(
     uint8_t* dst,
     int dst_pitch,
     int dst_logical_h,
@@ -644,10 +646,10 @@ static inline void xth_blit_rot270_topleft_clipped_2bpp(
             const int dst0 = (dst_groups - 1) - group0;
             const int dst1 = dst0 - 1;
             if (dst0 >= 0 && dst0 < dst_pitch) {
-                dcol[dst0] = reverse4pix_2bpp(out0);
+                dcol[dst0] = reverse4Pix2bpp(out0);
             }
             if (dst1 >= 0 && dst1 < dst_pitch) {
-                dcol[dst1] = reverse4pix_2bpp(out1);
+                dcol[dst1] = reverse4Pix2bpp(out1);
             }
         }
 
@@ -673,15 +675,15 @@ static inline void xth_blit_rot270_topleft_clipped_2bpp(
         const int dst1 = dst0 - 1;
         if (dst0 >= 0 && dst0 < dst_pitch) {
             const int valid0 = (tail >= 4) ? 4 : tail;
-            const uint8_t mask0 = xth_mask_2bpp_bytes_for_valid_pixels(valid0);
+            const uint8_t mask0 = xthMask2bppBytesForValidPixels(valid0);
             const uint8_t filled0 = static_cast<uint8_t>((out0 & mask0) | static_cast<uint8_t>(~mask0));
-            dcol[dst0] = reverse4pix_2bpp(filled0);
+            dcol[dst0] = reverse4Pix2bpp(filled0);
         }
         if (tail > 4 && dst1 >= 0 && dst1 < dst_pitch) {
             const int valid1 = tail - 4;
-            const uint8_t mask1 = xth_mask_2bpp_bytes_for_valid_pixels(valid1);
+            const uint8_t mask1 = xthMask2bppBytesForValidPixels(valid1);
             const uint8_t filled1 = static_cast<uint8_t>((out1 & mask1) | static_cast<uint8_t>(~mask1));
-            dcol[dst1] = reverse4pix_2bpp(filled1);
+            dcol[dst1] = reverse4Pix2bpp(filled1);
         }
     }
 }
@@ -696,7 +698,7 @@ static inline void xth_blit_rot270_topleft_clipped_2bpp(
  * @param w Width in pixels.
  * @param h Height in pixels.
  */
-static inline void xtg_blit_rot0_fullscreen_1bpp(uint8_t* dst, const uint8_t* src, int w, int h) {
+static inline void xtgBlitRot0Fullscreen1bpp(uint8_t* dst, const uint8_t* src, int w, int h) {
     const int pitch = (w + 7) >> 3;
     const size_t bytes = static_cast<size_t>(pitch) * static_cast<size_t>(h);
     memcpy(dst, src, bytes);
@@ -724,7 +726,7 @@ static inline void xtg_blit_rot0_fullscreen_1bpp(uint8_t* dst, const uint8_t* sr
  * @param copy_w Number of pixels to copy horizontally.
  * @param copy_h Number of pixels to copy vertically.
  */
-static inline void xtg_blit_rot0_topleft_clipped_1bpp(
+static inline void xtgBlitRot0TopLeftClipped1bpp(
     uint8_t* dst,
     int dst_pitch,
     const uint8_t* src,
@@ -766,7 +768,7 @@ static inline void xtg_blit_rot0_topleft_clipped_1bpp(
  * @param copy_w Number of pixels to copy horizontally.
  * @param copy_h Number of pixels to copy vertically.
  */
-static inline void xtg_blit_rot90_topleft_clipped_1bpp(
+static inline void xtgBlitRot90TopLeftClipped1bpp(
     uint8_t* dst,
     int dst_pitch,
     int dst_logical_w,
@@ -818,7 +820,7 @@ static inline void xtg_blit_rot90_topleft_clipped_1bpp(
                 (static_cast<uint64_t>(reverse8(b4)) << 32) | (static_cast<uint64_t>(reverse8(b5)) << 40) |
                 (static_cast<uint64_t>(reverse8(b6)) << 48) | (static_cast<uint64_t>(reverse8(b7)) << 56);
 
-            x = transpose8x8_lsb(x);
+            x = transpose8x8Lsb(x);
 
             // Destination Y is reversed across X: dy = (w-1) - x.
             uint8_t* d = dst + static_cast<size_t>(dst_logical_w - 1 - base_x) * static_cast<size_t>(dst_pitch) +
@@ -847,7 +849,7 @@ static inline void xtg_blit_rot90_topleft_clipped_1bpp(
  * @param copy_w Number of pixels to copy horizontally.
  * @param copy_h Number of pixels to copy vertically.
  */
-static inline void xtg_blit_rot180_topleft_clipped_1bpp(
+static inline void xtgBlitRot180TopLeftClipped1bpp(
     uint8_t* dst,
     int dst_pitch,
     int dst_w,
@@ -921,7 +923,7 @@ static inline void xtg_blit_rot180_topleft_clipped_1bpp(
  * @param copy_w Number of pixels to copy horizontally.
  * @param copy_h Number of pixels to copy vertically.
  */
-static inline void xtg_blit_rot270_topleft_clipped_1bpp(
+static inline void xtgBlitRot270TopLeftClipped1bpp(
     uint8_t* dst,
     int dst_pitch,
     int dst_logical_h,
@@ -973,7 +975,7 @@ static inline void xtg_blit_rot270_topleft_clipped_1bpp(
                 (static_cast<uint64_t>(reverse8(b4)) << 32) | (static_cast<uint64_t>(reverse8(b5)) << 40) |
                 (static_cast<uint64_t>(reverse8(b6)) << 48) | (static_cast<uint64_t>(reverse8(b7)) << 56);
 
-            x = transpose8x8_lsb(x);
+            x = transpose8x8Lsb(x);
 
             uint8_t* d = dst + static_cast<size_t>(base_x) * static_cast<size_t>(dst_pitch) + static_cast<size_t>(dst_x_byte);
             for (int c = 0; c < valid_cols; c++) {
@@ -984,4 +986,6 @@ static inline void xtg_blit_rot270_topleft_clipped_1bpp(
             }
         }
     }
+}
+
 }

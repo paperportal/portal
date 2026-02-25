@@ -1,4 +1,4 @@
-#include "lovyangfx_xtc.h"
+#include "lgfx_xtc.h"
 
 #include <inttypes.h>
 
@@ -8,7 +8,7 @@
 #include "esp_log.h"
 #include "m5papers3_display.h"
 
-namespace lovyangfx_xtc {
+namespace lgfx_xtc {
 
 static const char *kXthTag = "xth";
 static const char *kXtgTag = "xtg";
