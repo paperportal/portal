@@ -46,7 +46,7 @@ int32_t begin(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
 
-    PaperDisplayDriver driver = PaperDisplayDriver::fastepd;
+    PaperDisplayDriver driver = settings_service::default_display_driver();
     bool configured = false;
     const esp_err_t err = settings_service::get_display_driver(&driver, &configured);
     if (err != ESP_OK) {

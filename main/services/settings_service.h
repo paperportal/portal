@@ -10,6 +10,11 @@ enum class PaperDisplayDriver : int32_t;
 
 namespace settings_service {
 
+// Firmware default when `/sdcard/portal/config.json` does not specify a driver.
+//
+// Keep in sync with `docs/config.schema.json`.
+PaperDisplayDriver default_display_driver();
+
 // WiFi settings structure
 struct WifiSettings {
     char ssid[33];      // SSID (max 32 chars + null terminator)
@@ -27,7 +32,7 @@ esp_err_t load_wifi_settings_from_sd(WifiSettings *out_settings);
 
 // Display driver selection (loaded from /sdcard/portal/config.json).
 //
-// If not configured, `*out_driver` is set to the default driver (fastepd) and
+// If not configured, `*out_driver` is set to `default_display_driver()` and
 // `*out_configured` is false.
 esp_err_t get_display_driver(PaperDisplayDriver *out_driver, bool *out_configured);
 

@@ -72,6 +72,11 @@ esp_err_t read_settings_json_from_sd(cJSON **out_json)
 
 } // namespace
 
+PaperDisplayDriver default_display_driver()
+{
+    return PaperDisplayDriver::fastepd;
+}
+
 esp_err_t get_developer_mode(bool *out_enabled)
 {
     if (!out_enabled) {
@@ -187,7 +192,7 @@ esp_err_t get_display_driver(PaperDisplayDriver *out_driver, bool *out_configure
         return ESP_ERR_INVALID_ARG;
     }
 
-    *out_driver = PaperDisplayDriver::lgfx;
+    *out_driver = default_display_driver();
     *out_configured = false;
 
     cJSON *json = nullptr;

@@ -1,6 +1,7 @@
 #include "m5papers3_display.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
+#include "services/settings_service.h"
 
 static constexpr const char* TAG = "m5papers3_display";
 
@@ -100,7 +101,6 @@ LGFX_M5PaperS3 &paper_display() {
 
 namespace {
 
-PaperDisplayDriver g_current_driver = PaperDisplayDriver::fastepd;
 bool g_lgfx_touch_ready = false;
 
 bool ensure_lgfx_touch_ready()
@@ -133,13 +133,19 @@ bool ensure_lgfx_touch_ready()
 bool paper_display_ensure_init() {
   PaperDisplayDriver driver = Display::current()->driver();
   if (driver == PaperDisplayDriver::none) {
-    driver = g_current_driver;
+    bool configured = false;
+    driver = settings_service::default_display_driver();
+    const esp_err_t err = settings_service::get_display_driver(&driver, &configured);
+    if (err != ESP_OK) {
+      ESP_LOGW(TAG, "get_display_driver failed err=0x%x, using default driver=%d",
+          (unsigned)err, static_cast<int>(driver));
+    }
   }
+
   return paper_display_ensure_init(driver);
 }
 
 bool paper_display_ensure_init(PaperDisplayDriver driver) {
-  g_current_driver = driver;
   if (driver == PaperDisplayDriver::fastepd) {
     if (!ensure_lgfx_touch_ready()) {
       return false;
