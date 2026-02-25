@@ -527,9 +527,9 @@ extern "C" bool paperportal_speaker_tone(float freq_hz, uint32_t duration_ms)
 bool wasm_api_register_speaker(void)
 {
     const uint32_t count = sizeof(g_speaker_native_symbols) / sizeof(g_speaker_native_symbols[0]);
-    bool ok = wasm_runtime_register_natives("m5_speaker", g_speaker_native_symbols, count);
+    bool ok = wasm_runtime_register_natives("portal_speaker", g_speaker_native_symbols, count);
     if (!ok) {
-        ESP_LOGE(kTag, "Failed to register m5_speaker natives (count=%" PRIu32 ")", count);
+        ESP_LOGE(kTag, "Failed to register portal_speaker natives (count=%" PRIu32 ")", count);
         wasm_api_set_last_error(kWasmErrInternal, "register_speaker: wasm_runtime_register_natives failed");
     }
     return ok;

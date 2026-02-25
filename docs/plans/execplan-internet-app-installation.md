@@ -24,9 +24,9 @@ This also introduces a new `platforms` field in each app’s `manifest.json` to 
 
 ## Surprises & Discoveries
 
-- Observation: The current WASM HTTP API (`m5_http.http_get`) performs only a single `esp_http_client_read` call and returns the bytes read; there is no guest-visible loop or streaming interface. This makes downloading `.papp` packages reliably (and showing progress) impractical without new APIs.
+- Observation: The current WASM HTTP API (`portal_http.http_get`) performs only a single `esp_http_client_read` call and returns the bytes read; there is no guest-visible loop or streaming interface. This makes downloading `.papp` packages reliably (and showing progress) impractical without new APIs.
   Evidence: `/Users/mika/code/paperportal/portal/main/wasm/api/http.cpp` implements `http_get` with one `esp_http_client_read`.
-- Observation: `m5_net.net_connect` currently calls `wifi::sta_connect()` without loading credentials from `/sdcard/portal/config.json`. On a fresh device, this may fail unless credentials were previously saved by some other path.
+- Observation: `portal_net.net_connect` currently calls `wifi::sta_connect()` without loading credentials from `/sdcard/portal/config.json`. On a fresh device, this may fail unless credentials were previously saved by some other path.
   Evidence: `/Users/mika/code/paperportal/portal/main/wasm/api/net.cpp` calls `wifi::sta_connect()`; `devserver_service` is currently the only code path that loads SD Wi-Fi credentials and calls `wifi::sta_join()`.
 
 ## Decision Log
@@ -129,7 +129,7 @@ This keeps the guest API unchanged (no new WASM net functions) while making it p
 
 Goal: allow the installer app to download catalogs and `.papp` files incrementally, write to SD card incrementally, and show progress.
 
-Add a streaming interface under module `"m5_http"` in `/Users/mika/code/paperportal/portal/main/wasm/api/http.cpp`, implemented with a small fixed-size handle table (similar in spirit to `/Users/mika/code/paperportal/portal/main/wasm/api/fs.cpp`). The interface must support opening an HTTP GET request, reading response body bytes incrementally, and closing the stream while exposing status code and content length for progress UI.
+Add a streaming interface under module `"portal_http"` in `/Users/mika/code/paperportal/portal/main/wasm/api/http.cpp`, implemented with a small fixed-size handle table (similar in spirit to `/Users/mika/code/paperportal/portal/main/wasm/api/fs.cpp`). The interface must support opening an HTTP GET request, reading response body bytes incrementally, and closing the stream while exposing status code and content length for progress UI.
 
 Concretely, add these new natives:
 
@@ -143,7 +143,7 @@ Concretely, add these new natives:
 
 ### 6) Expose HTTP streaming in the Zig SDK
 
-Add Zig SDK bindings so Zig apps can use the new API without manual FFI. In `/Users/mika/code/paperportal/zig-sdk/sdk/ffi.zig`, add the corresponding `extern "m5_http"` declarations. Then add a new wrapper module at `/Users/mika/code/paperportal/zig-sdk/sdk/http.zig` that exposes a small `Stream` type (handle-owning, with `open/read/status/contentLength/close`). Finally, export it from `/Users/mika/code/paperportal/zig-sdk/sdk.zig` as `pub const http = @import("sdk/http.zig");`.
+Add Zig SDK bindings so Zig apps can use the new API without manual FFI. In `/Users/mika/code/paperportal/zig-sdk/sdk/ffi.zig`, add the corresponding `extern "portal_http"` declarations. Then add a new wrapper module at `/Users/mika/code/paperportal/zig-sdk/sdk/http.zig` that exposes a small `Stream` type (handle-owning, with `open/read/status/contentLength/close`). Finally, export it from `/Users/mika/code/paperportal/zig-sdk/sdk.zig` as `pub const http = @import("sdk/http.zig");`.
 
 ### 7) Add built-in installer app and launcher tile
 
@@ -264,5 +264,5 @@ New/changed interfaces introduced by this plan:
   - Behavior: default URL is used when missing/empty; otherwise use provided URLs in order.
 - New built-in app id:
   - `app-installer` (host must allow switching to it and load embedded WASM from `main/assets/app_installer.wasm`).
-- New WASM host API additions (module `"m5_http"`):
+- New WASM host API additions (module `"portal_http"`):
   - `http_stream_open`, `http_stream_read`, `http_stream_close`, plus status/length query functions.

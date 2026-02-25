@@ -82,7 +82,7 @@ When a winner exists, the host emits a single `portalGesture` call:
 - `duration_ms` = touch duration
 - `flags` = winning `gesture_handle`
 
-## WASM import API (`m5_gesture`)
+## WASM import API (`portal_gesture`)
 
 ### `gestureClearAll() -> i32`
 

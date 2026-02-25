@@ -41,7 +41,7 @@ int32_t update_touch_or_return_error(void)
  * @brief Return the current number of tracked touch points.
  *
  * WebAssembly import:
- * - Module: `m5_touch`
+ * - Module: `portal_touch`
  * - Name: `touchGetCount`
  * - Signature: `()i`
  *
@@ -66,7 +66,7 @@ int32_t touchGetCount(wasm_exec_env_t exec_env)
  * @brief Fetch a raw touch point and write it into a guest-provided buffer.
  *
  * WebAssembly import:
- * - Module: `m5_touch`
+ * - Module: `portal_touch`
  * - Name: `touchGetRaw`
  * - Signature: `(i*~)i`
  *
@@ -126,7 +126,7 @@ int32_t touchGetRaw(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, size_
  * @brief Fetch detailed touch information and write it into a guest buffer.
  *
  * WebAssembly import:
- * - Module: `m5_touch`
+ * - Module: `portal_touch`
  * - Name: `touchGetDetail`
  * - Signature: `(i*~)i`
  *
@@ -200,7 +200,7 @@ int32_t touchGetDetail(wasm_exec_env_t exec_env, int32_t index, uint8_t *out, si
  * @brief Configure the press-and-hold gesture threshold.
  *
  * WebAssembly import:
- * - Module: `m5_touch`
+ * - Module: `portal_touch`
  * - Name: `touchSetHoldThresh`
  * - Signature: `(i)i`
  *
@@ -223,7 +223,7 @@ int32_t touchSetHoldThresh(wasm_exec_env_t exec_env, int32_t ms)
  * @brief Configure the flick gesture distance threshold.
  *
  * WebAssembly import:
- * - Module: `m5_touch`
+ * - Module: `portal_touch`
  * - Name: `touchSetFlickThresh`
  * - Signature: `(i)i`
  *
@@ -258,11 +258,11 @@ static NativeSymbol g_touch_native_symbols[] = {
 } // namespace
 
 /**
- * @brief Register `m5_touch` host functions with WAMR.
+ * @brief Register `portal_touch` host functions with WAMR.
  *
  * This registers all touch-related native symbols defined in this translation
  * unit (e.g. `touchGetCount`, `touchGetRaw`, ... ) under the module name
- * `m5_touch` so wasm modules can import them.
+ * `portal_touch` so wasm modules can import them.
  *
  * On failure, this sets the global last-error to `kWasmErrInternal`.
  *
@@ -271,9 +271,9 @@ static NativeSymbol g_touch_native_symbols[] = {
 bool wasm_api_register_touch(void)
 {
     const uint32_t count = sizeof(g_touch_native_symbols) / sizeof(g_touch_native_symbols[0]);
-    bool ok = wasm_runtime_register_natives("m5_touch", g_touch_native_symbols, count);
+    bool ok = wasm_runtime_register_natives("portal_touch", g_touch_native_symbols, count);
     if (!ok) {
-        ESP_LOGE(kTag, "Failed to register m5_touch natives (count=%" PRIu32 ")", count);
+        ESP_LOGE(kTag, "Failed to register portal_touch natives (count=%" PRIu32 ")", count);
         wasm_api_set_last_error(kWasmErrInternal, "register_touch: wasm_runtime_register_natives failed");
     }
     return ok;

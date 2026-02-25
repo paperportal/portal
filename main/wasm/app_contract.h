@@ -45,7 +45,7 @@ enum PpGestureKind : int32_t {
     kGestureDragStart = 4,
     kGestureDragMove = 5,
     kGestureDragEnd = 6,
-    // Custom polyline gesture recognition (registered by the app via `m5_gesture`).
+    // Custom polyline gesture recognition (registered by the app via `portal_gesture`).
     //
     // For this kind:
     // - `flags` is the winning gesture handle returned by `gestureRegisterPolyline`.

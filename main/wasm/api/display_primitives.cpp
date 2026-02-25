@@ -154,11 +154,10 @@ bool wasm_api_register_display_primitives(void)
 {
     const uint32_t count =
         sizeof(g_display_primitives_native_symbols) / sizeof(g_display_primitives_native_symbols[0]);
-    bool ok = wasm_runtime_register_natives("m5_display", g_display_primitives_native_symbols, count);
+    bool ok = wasm_runtime_register_natives("portal_display", g_display_primitives_native_symbols, count);
     if (!ok) {
-        ESP_LOGE(kTag, "Failed to register m5_display primitives natives (count=%" PRIu32 ")", count);
+        ESP_LOGE(kTag, "Failed to register portal_display primitives natives (count=%" PRIu32 ")", count);
         wasm_api_set_last_error(kWasmErrInternal, "register_display_primitives: wasm_runtime_register_natives failed");
     }
     return ok;
 }
-

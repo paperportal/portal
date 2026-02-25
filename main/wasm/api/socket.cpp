@@ -327,9 +327,9 @@ static NativeSymbol g_socket_native_symbols[] = {
 bool wasm_api_register_socket(void)
 {
     const uint32_t count = sizeof(g_socket_native_symbols) / sizeof(g_socket_native_symbols[0]);
-    bool ok = wasm_runtime_register_natives("m5_socket", g_socket_native_symbols, count);
+    bool ok = wasm_runtime_register_natives("portal_socket", g_socket_native_symbols, count);
     if (!ok) {
-        ESP_LOGE(kTag, "Failed to register m5_socket natives (count=%" PRIu32 ")", count);
+        ESP_LOGE(kTag, "Failed to register portal_socket natives (count=%" PRIu32 ")", count);
         wasm_api_set_last_error(kWasmErrInternal, "register_socket: wasm_runtime_register_natives failed");
     }
     return ok;

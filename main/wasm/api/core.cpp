@@ -169,9 +169,9 @@ const char *wasm_api_get_last_error_message(void)
 bool wasm_api_register_core(void)
 {
     const uint32_t count = sizeof(g_core_native_symbols) / sizeof(g_core_native_symbols[0]);
-    bool ok = wasm_runtime_register_natives("m5", g_core_native_symbols, count);
+    bool ok = wasm_runtime_register_natives("portal", g_core_native_symbols, count);
     if (!ok) {
-        ESP_LOGE(kTag, "Failed to register m5 core natives (count=%" PRIu32 ")", count);
+        ESP_LOGE(kTag, "Failed to register portal core natives (count=%" PRIu32 ")", count);
         wasm_api_set_last_error(kWasmErrInternal, "register_core: wasm_runtime_register_natives failed");
     }
     return ok;

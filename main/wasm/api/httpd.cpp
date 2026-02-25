@@ -382,9 +382,9 @@ bool httpd_host_get_request_info(int32_t req_id, HttpdHostRequestInfo *out_info)
 bool wasm_api_register_httpd(void)
 {
     const uint32_t count = sizeof(g_httpd_native_symbols) / sizeof(g_httpd_native_symbols[0]);
-    bool ok = wasm_runtime_register_natives("m5_httpd", g_httpd_native_symbols, count);
+    bool ok = wasm_runtime_register_natives("portal_httpd", g_httpd_native_symbols, count);
     if (!ok) {
-        ESP_LOGE(kTag, "Failed to register m5_httpd natives (count=%" PRIu32 ")", count);
+        ESP_LOGE(kTag, "Failed to register portal_httpd natives (count=%" PRIu32 ")", count);
         wasm_api_set_last_error(kWasmErrInternal, "register_httpd: wasm_runtime_register_natives failed");
     }
     return ok;

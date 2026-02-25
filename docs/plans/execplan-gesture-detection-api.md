@@ -16,7 +16,7 @@ Apps observe recognition via the existing `portalGesture(...)` callback, using a
 - [x] (2026-02-10) Implement a small C++ gesture engine (`TouchEvent` stream + recognizers + winner selection) under `main/input/`.
 - [x] (2026-02-10) Wire the gesture engine into `main/host/event_loop.cpp:process_touch()` so it receives Down/Move/Up/Cancel derived from `TouchTracker` output.
 - [x] (2026-02-10) Extend the app contract gesture kinds to include a “custom polyline” kind and define how `flags` carries the winning gesture handle.
-- [x] (2026-02-10) Add a new WASM native module (e.g. `m5_gesture`) with APIs to register/remove/clear gestures; register it in `wasm_api_register_all()`.
+- [x] (2026-02-10) Add a new WASM native module (e.g. `portal_gesture`) with APIs to register/remove/clear gestures; register it in `wasm_api_register_all()`.
 - [x] (2026-02-10) Update the Zig SDK at `../zig-sdk` to expose the new gesture registration API (FFI declarations + safe wrapper module).
 - [x] (2026-02-10) Add a small demo/test WASM app (or a devserver-uploadable sample) that registers 2–3 gestures and logs/visualizes recognition on Up.
 - [ ] (2026-02-10) Validate on hardware: confirm recognition with low sampling (default `kTickIntervalMs = 50`) and confirm winner selection + duration/tolerance behavior.
@@ -25,15 +25,15 @@ Apps observe recognition via the existing `portalGesture(...)` callback, using a
 
 - Observation: Touch is currently polled (not interrupt-driven) in `main/host/event_loop.cpp` with `kTickIntervalMs = 50`, and the host’s “built-in” gestures (tap/flick/drag/long-press) are synthesized inside `process_touch()` using `TouchTracker` state.
   Evidence: `/Users/mika/code/paperportal/portal/main/host/event_loop.cpp` (functions `process_touch`, `emit_gesture`).
-- Observation: WASM apps can also read raw touch state directly via the `m5_touch` native module, but the host already has an event callback path (`portalGesture`) suitable for “notify only on Up”.
-  Evidence: `/Users/mika/code/paperportal/portal/main/wasm/api/touch.cpp` (module `m5_touch`) and `/Users/mika/code/paperportal/portal/main/wasm/app_contract.h` (export `portalGesture`).
+- Observation: WASM apps can also read raw touch state directly via the `portal_touch` native module, but the host already has an event callback path (`portalGesture`) suitable for “notify only on Up”.
+  Evidence: `/Users/mika/code/paperportal/portal/main/wasm/api/touch.cpp` (module `portal_touch`) and `/Users/mika/code/paperportal/portal/main/wasm/app_contract.h` (export `portalGesture`).
 
 ## Decision Log
 
 - Decision: Deliver custom polyline recognition results via the existing `portalGesture(kind, x, y, dx, dy, duration_ms, now_ms, flags)` callback, using a new `kind` value and placing the winning gesture handle into `flags`.
   Rationale: This reuses the repo’s existing “gesture event” plumbing (`emit_gesture` → `WasmController::CallOnGesture`) and keeps the host→app event surface small.
   Date/Author: 2026-02-10 / GPT-5.2
-- Decision: Expose registration/removal of gestures via a new WAMR native module (proposed name `m5_gesture`) and wrap it in the Zig SDK under `../zig-sdk` (even though the prompt called it `../wasm-sdk`, which does not exist in this repo today).
+- Decision: Expose registration/removal of gestures via a new WAMR native module (proposed name `portal_gesture`) and wrap it in the Zig SDK under `../zig-sdk` (even though the prompt called it `../wasm-sdk`, which does not exist in this repo today).
   Rationale: The repository’s existing public app SDK is `../zig-sdk` (used by built-in apps in `apps/`); adding a new module there matches established patterns and keeps WASM imports consistent.
   Date/Author: 2026-02-10 / GPT-5.2
 - Decision: Keep the existing built-in host gestures (tap/flick/drag/long-press) behavior unchanged in v0, and emit custom polyline recognition as an additional `portalGesture` event on Up when a registered gesture wins.
@@ -46,7 +46,7 @@ Apps observe recognition via the existing `portalGesture(...)` callback, using a
 ## Outcomes & Retrospective
 
 - Implemented a firmware-side polyline gesture engine with priority+closeness winner selection on Up.
-- Added `m5_gesture` WASM imports and Zig SDK wrappers, plus a devserver-uploadable `apps/gesture-demo`.
+- Added `portal_gesture` WASM imports and Zig SDK wrappers, plus a devserver-uploadable `apps/gesture-demo`.
 - Remaining: on-device validation and potential tuning of tolerances/constraints based on real touch noise.
 
 ## Context and Orientation
@@ -181,7 +181,7 @@ Add a new WAMR native API module implementation:
 
 - `/Users/mika/code/paperportal/portal/main/wasm/api/gesture.cpp`
 
-Expose a small, v0-stable API surface under a new module name (proposed `m5_gesture`):
+Expose a small, v0-stable API surface under a new module name (proposed `portal_gesture`):
 
 - `gestureClearAll() -> i32` clears all registered gestures for the current app.
 - `gestureRegisterPolyline(id_z: const char*, points: u8*, points_len: size_t, fixed: i32, tolerance_px: f32, priority: i32, max_duration_ms: i32, options: i32) -> i32`
@@ -228,9 +228,9 @@ Implement:
 
    Add:
 
-   - `pub extern "m5_gesture" fn gestureClearAll() i32;`
-   - `pub extern "m5_gesture" fn gestureRegisterPolyline(id: [*:0]const u8, points_ptr: [*]const u8, points_len: i32, fixed: i32, tolerance_px: f32, priority: i32, max_duration_ms: i32, options: i32) i32;`
-   - `pub extern "m5_gesture" fn gestureRemove(handle: i32) i32;`
+   - `pub extern "portal_gesture" fn gestureClearAll() i32;`
+   - `pub extern "portal_gesture" fn gestureRegisterPolyline(id: [*:0]const u8, points_ptr: [*]const u8, points_len: i32, fixed: i32, tolerance_px: f32, priority: i32, max_duration_ms: i32, options: i32) i32;`
+   - `pub extern "portal_gesture" fn gestureRemove(handle: i32) i32;`
 
 2. A safe wrapper module:
 
