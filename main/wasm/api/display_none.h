@@ -13,6 +13,7 @@ public:
     int32_t height(wasm_exec_env_t exec_env) override { return 0; }
     int32_t getRotation(wasm_exec_env_t exec_env) override { return 0; }
     int32_t setRotation(wasm_exec_env_t exec_env, int32_t rot) override { return 0; }
+    int32_t setDisplayMode(wasm_exec_env_t exec_env, int32_t mode) override { return 0; }
     int32_t clear(wasm_exec_env_t exec_env) override { return 0; }
     int32_t fillScreen(wasm_exec_env_t exec_env, int32_t rgb888) override { return 0; }
     int32_t display(wasm_exec_env_t exec_env) override { return 0; }
@@ -45,8 +46,8 @@ public:
     int32_t pushImageGray8( wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, const uint8_t *ptr, size_t len) override { return 0; }
     int32_t readRectRgb565( wasm_exec_env_t exec_env, int32_t x, int32_t y, int32_t w, int32_t h, uint8_t *out, size_t out_len) override { return 0; }
     int32_t drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y) override { return 0; }
-    int32_t drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) override { return 0; }
-    int32_t drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) override { return 0; }
+    int32_t drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, bool fast) override { return 0; }
+    int32_t drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, bool fast) override { return 0; }
     int32_t drawJpgFit( wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w, int32_t max_h) override { return 0; }
     int32_t drawPngFit( wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y, int32_t max_w, int32_t max_h) override { return 0; }
     int32_t drawJpgFile( wasm_exec_env_t exec_env, const char *path, int32_t x, int32_t y, int32_t max_w, int32_t max_h) override { return 0; }

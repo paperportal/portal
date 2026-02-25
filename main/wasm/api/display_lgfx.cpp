@@ -39,6 +39,7 @@ struct FontBlob {
 std::mutex g_font_mutex;
 std::vector<FontBlob> g_fonts;
 bool g_lgfx_inited = false;
+int32_t g_display_mode = 3; // default: GRAY256 (8bpp) set by LGFX_M5PaperS3 ctor
 
 LGFX_M5PaperS3 *get_display_or_set_error(void)
 {
@@ -305,6 +306,43 @@ int32_t DisplayLgfx::setRotation(wasm_exec_env_t exec_env, int32_t rot)
         return kWasmErrInvalidArgument;
     }
     display->setRotation((uint_fast8_t)rot);
+    return kWasmOk;
+}
+
+int32_t DisplayLgfx::setDisplayMode(wasm_exec_env_t exec_env, int32_t mode)
+{
+    (void)exec_env;
+    if (mode < 0 || mode > 3) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "setDisplayMode: mode out of range (expected 0..3)");
+        return kWasmErrInvalidArgument;
+    }
+    if (mode == g_display_mode) {
+        return kWasmOk;
+    }
+
+    auto *display = get_display_or_set_error();
+    if (!display) {
+        return kWasmErrNotReady;
+    }
+
+    lgfx::color_depth_t depth = lgfx::color_depth_t::grayscale_8bit;
+    switch (mode) {
+        case 0:
+            depth = lgfx::color_depth_t::grayscale_1bit;
+            break;
+        case 1:
+            depth = lgfx::color_depth_t::grayscale_2bit;
+            break;
+        case 2:
+            depth = lgfx::color_depth_t::grayscale_4bit;
+            break;
+        case 3:
+            depth = lgfx::color_depth_t::grayscale_8bit;
+            break;
+    }
+
+    display->setColorDepth(depth);
+    g_display_mode = mode;
     return kWasmOk;
 }
 
@@ -967,7 +1005,7 @@ int32_t DisplayLgfx::drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, size_
     return kWasmOk;
 }
 
-int32_t DisplayLgfx::drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t DisplayLgfx::drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, bool fast)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();
@@ -994,7 +1032,7 @@ int32_t DisplayLgfx::drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_
     return kWasmOk;
 }
 
-int32_t DisplayLgfx::drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t DisplayLgfx::drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, bool fast)
 {
     (void)exec_env;
     auto *display = get_display_or_set_error();

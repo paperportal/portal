@@ -112,6 +112,7 @@ extern const uint8_t _binary_sleepimage_jpg_end[] asm("_binary_sleepimage_jpg_en
 static FASTEPD g_epd;
 static bool g_epd_inited = false;
 static uint8_t g_brightness = 0;
+static int32_t g_display_mode = 2; // default: GRAY16 (4bpp) set by ensure_epd_ready()
 
 uint8_t rgb888_to_gray8(int32_t rgb888)
 {
@@ -122,16 +123,44 @@ uint8_t rgb888_to_gray8(int32_t rgb888)
     return (uint8_t)((r * 77u + g * 150u + b * 29u + 128u) >> 8);
 }
 
+uint8_t epd_white_for_mode(int32_t mode)
+{
+    if (mode == BB_MODE_1BPP) {
+        return (uint8_t)BBEP_WHITE;
+    }
+    if (mode == BB_MODE_2BPP) {
+        return 3;
+    }
+    return 0xF;
+}
+
 uint8_t gray8_to_epd_color(uint8_t gray, int32_t mode)
 {
     if (mode == BB_MODE_1BPP) {
         return (gray >= 128) ? (uint8_t)BBEP_WHITE : (uint8_t)BBEP_BLACK;
+    }
+    if (mode == BB_MODE_2BPP) {
+        const uint16_t scaled = (uint16_t)gray * 3u + 127u;
+        const uint8_t v2 = (uint8_t)(scaled / 255u);
+        return v2;
     }
     uint8_t v = (uint8_t)((gray + 8u) >> 4); // nominally 0..15 (but 255 rounds to 16)
     if (v > 15) {
         v = 15;
     }
     return v;
+}
+
+uint8_t gray4_to_epd_color(uint8_t v4, int32_t mode)
+{
+    if (mode == BB_MODE_1BPP) {
+        return (v4 >= 8) ? (uint8_t)BBEP_WHITE : (uint8_t)BBEP_BLACK;
+    }
+    if (mode == BB_MODE_2BPP) {
+        const uint8_t v = (uint8_t)((v4 * 3u + 7u) / 15u);
+        return v;
+    }
+    return v4;
 }
 
 bool ensure_epd_ready(void)
@@ -144,6 +173,7 @@ bool ensure_epd_ready(void)
         g_epd.deInit();
         bbepDeinitBus();
         g_epd_inited = false;
+        g_display_mode = 2;
     }
 
     if (!g_epd_inited) {
@@ -154,6 +184,7 @@ bool ensure_epd_ready(void)
             return false;
         }
         (void)g_epd.setMode(BB_MODE_4BPP);
+        g_display_mode = 2;
         (void)g_epd.setRotation(90);
         g_epd.fillScreen(0xF);
         const int update_rc = g_epd.fullUpdate(CLEAR_FAST, false);
@@ -264,11 +295,7 @@ int epd_jpeg_draw(JPEGDRAW *pDraw)
                 const uint8_t packed = src_row[sx / 2];
                 const uint8_t v4 = (uint8_t)((sx & 1) ? (packed & 0x0F) : (packed >> 4));
                 const int32_t dx = draw_x0 + xx;
-                if (ctx->mode == BB_MODE_1BPP) {
-                    ctx->epd->drawPixelFast(dx, dy, v4 >= 8 ? BBEP_WHITE : BBEP_BLACK);
-                } else {
-                    ctx->epd->drawPixelFast(dx, dy, v4);
-                }
+                ctx->epd->drawPixelFast(dx, dy, gray4_to_epd_color(v4, ctx->mode));
             }
         }
     } else {
@@ -279,11 +306,7 @@ int epd_jpeg_draw(JPEGDRAW *pDraw)
             for (int xx = 0; xx < copy_w; ++xx) {
                 const uint8_t v4 = (uint8_t)(src_row[xx] >> 4);
                 const int32_t dx = draw_x0 + xx;
-                if (ctx->mode == BB_MODE_1BPP) {
-                    ctx->epd->drawPixelFast(dx, dy, v4 >= 8 ? BBEP_WHITE : BBEP_BLACK);
-                } else {
-                    ctx->epd->drawPixelFast(dx, dy, v4);
-                }
+                ctx->epd->drawPixelFast(dx, dy, gray4_to_epd_color(v4, ctx->mode));
             }
         }
     }
@@ -328,8 +351,8 @@ int epd_jpeg_draw(JPEGDRAW *pDraw)
     }
 
     const int32_t mode = g_epd.getMode();
-    if (mode != BB_MODE_1BPP && mode != BB_MODE_4BPP) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_jpg: unsupported mode (expected 1-bpp or 4-bpp)");
+    if (mode != BB_MODE_1BPP && mode != BB_MODE_2BPP && mode != BB_MODE_4BPP) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_jpg: unsupported mode (expected 1-bpp, 2-bpp, or 4-bpp)");
         return kWasmErrInvalidArgument;
     }
 
@@ -593,6 +616,18 @@ void epd_png_draw(void *user_data, uint32_t x, uint32_t y, uint_fast8_t div_x, s
                     st->err_next[idx - 1] += dither_mul_div16(err, 3);
                     st->err_next[idx] += dither_mul_div16(err, 5);
                     st->err_next[idx + 1] += dither_mul_div16(err, 1);
+                } else if (st->mode == BB_MODE_2BPP) {
+                    int32_t q = (v * 3 + 127) / 255;
+                    if (q < 0) q = 0;
+                    if (q > 3) q = 3;
+                    st->epd->drawPixelFast(dx, dy, (uint8_t)q);
+
+                    const int32_t recon = (q * 255 + 1) / 3;
+                    const int32_t err = v - recon;
+                    st->err_cur[idx + 1] += dither_mul_div16(err, 7);
+                    st->err_next[idx - 1] += dither_mul_div16(err, 3);
+                    st->err_next[idx] += dither_mul_div16(err, 5);
+                    st->err_next[idx + 1] += dither_mul_div16(err, 1);
                 } else {
                     int32_t q = (v + 8) >> 4;
                     if (q < 0) q = 0;
@@ -651,8 +686,8 @@ int32_t draw_png_internal(
     }
 
     const int32_t mode = g_epd.getMode();
-    if (mode != BB_MODE_1BPP && mode != BB_MODE_4BPP) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_png: unsupported mode (expected 1-bpp or 4-bpp)");
+    if (mode != BB_MODE_1BPP && mode != BB_MODE_2BPP && mode != BB_MODE_4BPP) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_png: unsupported mode (expected 1-bpp, 2-bpp, or 4-bpp)");
         return kWasmErrInvalidArgument;
     }
 
@@ -958,6 +993,7 @@ int32_t DisplayFastEpd::release(wasm_exec_env_t exec_env)
     g_epd.deInit();
     bbepDeinitBus();
     g_epd_inited = false;
+    g_display_mode = 2;
     ESP_LOGI(kTag, "release: FastEPD deinitialized (bus + panel io released)");
     return kWasmOk;
 }
@@ -1029,6 +1065,50 @@ int32_t DisplayFastEpd::setRotation(wasm_exec_env_t exec_env, int32_t rot)
     return kWasmOk;
 }
 
+int32_t DisplayFastEpd::setDisplayMode(wasm_exec_env_t exec_env, int32_t mode)
+{
+    (void)exec_env;
+    if (mode < 0 || mode > 3) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "setDisplayMode: mode out of range (expected 0..3)");
+        return kWasmErrInvalidArgument;
+    }
+    if (mode == g_display_mode) {
+        return kWasmOk;
+    }
+    if (mode == 3) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "setDisplayMode: gray256 (8bpp) not supported on FastEPD");
+        return kWasmErrInvalidArgument;
+    }
+
+    const int32_t rc = require_epd_ready_or_set_error("setDisplayMode: display not ready");
+    if (rc != kWasmOk) {
+        return rc;
+    }
+
+    int target = BB_MODE_4BPP;
+    switch (mode) {
+        case 0:
+            target = BB_MODE_1BPP;
+            break;
+        case 1:
+            target = BB_MODE_2BPP;
+            break;
+        case 2:
+            target = BB_MODE_4BPP;
+            break;
+    }
+
+    const int epd_rc = g_epd.setMode(target);
+    if (epd_rc != BBEP_SUCCESS) {
+        wasm_api_set_last_error(kWasmErrInternal, "setDisplayMode: FastEPD setMode failed");
+        return kWasmErrInternal;
+    }
+
+    g_epd.backupPlane();
+    g_display_mode = mode;
+    return kWasmOk;
+}
+
 int32_t DisplayFastEpd::clear(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
@@ -1037,7 +1117,7 @@ int32_t DisplayFastEpd::clear(wasm_exec_env_t exec_env)
         return rc;
     }
     const int32_t mode = g_epd.getMode();
-    g_epd.fillScreen(mode == BB_MODE_1BPP ? (uint8_t)BBEP_WHITE : (uint8_t)0xF);
+    g_epd.fillScreen(epd_white_for_mode(mode));
     return kWasmOk;
 }
 
@@ -1489,7 +1569,7 @@ int32_t DisplayFastEpd::drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, si
     return draw_png_internal(ptr, len, x, y, 0, 0, false);
 }
 
-int32_t DisplayFastEpd::drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t DisplayFastEpd::drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, bool fast)
 {
     if (!ptr && len != 0) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth: ptr is null");
@@ -1504,14 +1584,14 @@ int32_t DisplayFastEpd::drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, si
         return ready_rc;
     }
     if (g_epd.getMode() != BB_MODE_2BPP) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth: unsupported mode (expected 1-bpp or 4-bpp)");
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xth: unsupported mode (expected 2-bpp)");
         return kWasmErrInvalidArgument;
     }
-    fastepd_xtc::drawXth(&g_epd, ptr, len, false);
+    fastepd_xtc::drawXth(&g_epd, ptr, len, fast);
     return 0;
 }
 
-int32_t DisplayFastEpd::drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
+int32_t DisplayFastEpd::drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, bool fast)
 {
     if (!ptr && len != 0) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg: ptr is null");
@@ -1529,7 +1609,7 @@ int32_t DisplayFastEpd::drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, si
         wasm_api_set_last_error(kWasmErrInvalidArgument, "draw_xtg: unsupported mode (expected 1-bpp)");
         return kWasmErrInvalidArgument;
     }
-    fastepd_xtc::drawXtg(&g_epd, ptr, len, false);
+    fastepd_xtc::drawXtg(&g_epd, ptr, len, fast);
     return 0;
 }
 

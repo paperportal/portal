@@ -81,6 +81,7 @@ All remaining primitive functions are otherwise broadly equivalent (subject to t
 ### Lifecycle / mode selection
 
 - `init()`: Both initialize the display, but FastEPD performs FastEPD-specific panel init, sets mode to 4bpp, sets rotation to 90°, performs an initial clear/full update, and sets up a backup plane; LGFX uses `paper_display().init()` and does not mirror FastEPD’s defaults.
+- `setDisplayMode(mode)`: Selects framebuffer grayscale precision (0..3 => 1/2/4/8bpp). LGFX supports all modes (maps to `setColorDepth(grayscale_*)`); FastEPD supports 0..2 (maps to `setMode(BB_MODE_*BPP)`) and returns `kWasmErrInvalidArgument` for mode 3 (8bpp). Both implementations cache the last successfully applied mode and treat setting the same mode twice as a fast no-op (without forcing initialization). This does not clear the backbuffer and does not trigger a display refresh; callers should redraw after switching modes.
 - `setEpdMode(mode)`: Supported by LGFX (`mode` validated `1..4`); FastEPD logs `[unimplemented]` and does not change mode.
 - `getEpdMode()`: LGFX returns its `epd_mode_t` (typically `1..4`); FastEPD maps internal mode to only `{1 (1bpp), 2 (4bpp)}`.
 

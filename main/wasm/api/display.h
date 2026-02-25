@@ -39,6 +39,7 @@ public:
     virtual int32_t height(wasm_exec_env_t exec_env) = 0;
     virtual int32_t getRotation(wasm_exec_env_t exec_env) = 0;
     virtual int32_t setRotation(wasm_exec_env_t exec_env, int32_t rot) = 0;
+    virtual int32_t setDisplayMode(wasm_exec_env_t exec_env, int32_t mode) = 0;
     virtual int32_t clear(wasm_exec_env_t exec_env) = 0;
     virtual int32_t fillScreen(wasm_exec_env_t exec_env, int32_t rgb888) = 0;
     virtual int32_t display(wasm_exec_env_t exec_env) = 0;
@@ -110,8 +111,8 @@ public:
         uint8_t *out,
         size_t out_len) = 0;
     virtual int32_t drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y) = 0;
-    virtual int32_t drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) = 0;
-    virtual int32_t drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) = 0;
+    virtual int32_t drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, bool fast) = 0;
+    virtual int32_t drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, bool fast) = 0;
     virtual int32_t drawJpgFit(
         wasm_exec_env_t exec_env,
         const uint8_t *ptr,

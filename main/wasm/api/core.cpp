@@ -23,7 +23,7 @@ constexpr int64_t kApiFeatures =
     (int64_t)(kWasmFeatureCore | kWasmFeatureM5 | kWasmFeatureDisplayBasics | kWasmFeatureDisplayPrimitives
         | kWasmFeatureDisplayText | kWasmFeatureDisplayImages | kWasmFeatureTouch | kWasmFeatureFastEPD | kWasmFeatureSpeaker
         | kWasmFeatureRTC | kWasmFeaturePower | kWasmFeatureIMU | kWasmFeatureNet | kWasmFeatureHttp | kWasmFeatureHttpd
-        | kWasmFeatureSocket | kWasmFeatureFS | kWasmFeatureNVS | kWasmFeatureDevServer);
+        | kWasmFeatureSocket | kWasmFeatureFS | kWasmFeatureNVS | kWasmFeatureDevServer | kWasmFeatureDisplayMode);
 
 int32_t g_last_error_code = 0;
 char g_last_error_message[128] = "";

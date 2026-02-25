@@ -17,6 +17,7 @@ public:
     int32_t height(wasm_exec_env_t exec_env) override;
     int32_t getRotation(wasm_exec_env_t exec_env) override;
     int32_t setRotation(wasm_exec_env_t exec_env, int32_t rot) override;
+    int32_t setDisplayMode(wasm_exec_env_t exec_env, int32_t mode) override;
     int32_t clear(wasm_exec_env_t exec_env) override;
     int32_t fillScreen(wasm_exec_env_t exec_env, int32_t rgb888) override;
     int32_t display(wasm_exec_env_t exec_env) override;
@@ -83,8 +84,8 @@ public:
         uint8_t *out,
         size_t out_len) override;
     int32_t drawPng(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, int32_t x, int32_t y) override;
-    int32_t drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) override;
-    int32_t drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len) override;
+    int32_t drawXth(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, bool fast) override;
+    int32_t drawXtg(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len, bool fast) override;
     int32_t drawJpgFit(
         wasm_exec_env_t exec_env,
         const uint8_t *ptr,

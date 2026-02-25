@@ -85,6 +85,11 @@ int32_t setRotation(wasm_exec_env_t exec_env, int32_t rot)
     return Display::current()->setRotation(exec_env, rot);
 }
 
+int32_t setDisplayMode(wasm_exec_env_t exec_env, int32_t mode)
+{
+    return Display::current()->setDisplayMode(exec_env, mode);
+}
+
 int32_t clear(wasm_exec_env_t exec_env)
 {
     return Display::current()->clear(exec_env);
@@ -149,6 +154,7 @@ static NativeSymbol g_display_native_symbols[] = {
     REG_NATIVE_FUNC(height, "()i"),
     REG_NATIVE_FUNC(getRotation, "()i"),
     REG_NATIVE_FUNC(setRotation, "(i)i"),
+    REG_NATIVE_FUNC(setDisplayMode, "(i)i"),
     REG_NATIVE_FUNC(clear, "()i"),
     REG_NATIVE_FUNC(fillScreen, "(i)i"),
     REG_NATIVE_FUNC(display, "()i"),
