@@ -23,7 +23,8 @@ constexpr int64_t kApiFeatures =
     (int64_t)(kWasmFeatureCore | kWasmFeatureM5 | kWasmFeatureDisplayBasics | kWasmFeatureDisplayPrimitives
         | kWasmFeatureDisplayText | kWasmFeatureDisplayImages | kWasmFeatureTouch | kWasmFeatureFastEPD | kWasmFeatureSpeaker
         | kWasmFeatureRTC | kWasmFeaturePower | kWasmFeatureIMU | kWasmFeatureNet | kWasmFeatureHttp | kWasmFeatureHttpd
-        | kWasmFeatureSocket | kWasmFeatureFS | kWasmFeatureNVS | kWasmFeatureDevServer | kWasmFeatureDisplayMode);
+        | kWasmFeatureSocket | kWasmFeatureSocketTls | kWasmFeatureFS | kWasmFeatureNVS | kWasmFeatureDevServer
+        | kWasmFeatureDisplayMode);
 
 int32_t g_last_error_code = 0;
 char g_last_error_message[128] = "";
@@ -198,6 +199,7 @@ bool wasm_api_register_all(void)
         && wasm_api_register_power()
         && wasm_api_register_rtc()
         && wasm_api_register_socket()
+        && wasm_api_register_socket_tls()
         && wasm_api_register_speaker()
         && wasm_api_register_touch()
         && wasm_api_register_gesture()

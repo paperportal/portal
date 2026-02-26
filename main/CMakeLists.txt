@@ -39,6 +39,7 @@ idf_component_register(
     "wasm/api/power.cpp"
     "wasm/api/rtc.cpp"
     "wasm/api/socket.cpp"
+    "wasm/api/socket_tls.cpp"
     "wasm/api/speaker.cpp"
     "wasm/api/touch.cpp"
     "wasm/wasm_controller_globals.cpp"
@@ -48,7 +49,7 @@ idf_component_register(
     "wasm/wasm_controller_dispatch.cpp"
     "wasm/wasm_controller_memory.cpp"
   INCLUDE_DIRS "."
-  PRIV_REQUIRES esp_adc esp_http_client esp_http_server esp_netif esp_psram esp_wifi mdns FastEPD LovyanGFX fatfs sdmmc wamr json jpegdec
+  PRIV_REQUIRES esp_adc esp_http_client esp_http_server esp-tls esp_netif esp_psram esp_wifi mdns FastEPD LovyanGFX fatfs sdmmc wamr json jpegdec
 )
 
 target_add_binary_data(${COMPONENT_LIB} "assets/entrypoint.wasm" BINARY)

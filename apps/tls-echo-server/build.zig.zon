@@ -1,0 +1,13 @@
+.{
+    .name = .tls_echo_server,
+    .version = "0.1.0",
+    .dependencies = .{
+        .paper_portal_sdk = .{
+            .url = "git+https://github.com/paperportal/zig-sdk#634c246ec2202d6c8a134c0ddc8c824526a79957",
+            .hash = "paper_portal_sdk-0.1.0-TiKtz8DXAgBQ9PWMyfZnBjo2chwr3_cPpcdDolLqK7f8",
+        },
+        .paper_portal_sdk_local = .{ .path = "../../../zig-sdk", .lazy = true },
+    },
+    .paths = .{""},
+    .fingerprint = 0x7f1b8eb2e4349cf7,
+}

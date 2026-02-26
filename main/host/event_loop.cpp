@@ -23,6 +23,7 @@
 #include "services/wifi_service.h"
 #include "services/power_service.h"
 #include "wasm/app_contract.h"
+#include "wasm/api.h"
 #include "wasm/wasm_controller.h"
 
 namespace {
@@ -130,6 +131,7 @@ void clear_app_runtime_state()
 {
     clear_custom_gestures();
     microtask_scheduler().ClearAll();
+    wasm_api_socket_tls_close_all();
 }
 
 void wifi_service_event_cb(const wifi::Event &event, void *user_ctx)

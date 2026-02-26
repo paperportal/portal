@@ -21,7 +21,11 @@ bool wasm_api_register_http(void);
 bool wasm_api_register_httpd(void);
 bool wasm_api_register_devserver(void);
 bool wasm_api_register_socket(void);
+bool wasm_api_register_socket_tls(void);
 bool wasm_api_register_fs(void);
 bool wasm_api_register_nvs(void);
 bool wasm_api_register_hal(void);
 bool wasm_api_register_all(void);
+
+// App-switch teardown hooks (host-side resource cleanup).
+void wasm_api_socket_tls_close_all(void);

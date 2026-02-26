@@ -25,4 +25,5 @@ enum wasm_api_feature_bits : uint64_t {
     kWasmFeatureNVS = 1ULL << 17, // Category 13: NVS key-value storage
     kWasmFeatureDevServer = 1ULL << 18, // Category 14: Developer mode devserver control
     kWasmFeatureDisplayMode = 1ULL << 19, // Category 2a: Display color depth / mode selection
+    kWasmFeatureSocketTls = 1ULL << 20, // Category 11e: TLS-protected sockets
 };
