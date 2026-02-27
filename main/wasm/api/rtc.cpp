@@ -2,11 +2,9 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "driver/i2c_master.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "wasm_export.h"
 
@@ -27,8 +25,6 @@ constexpr const char *kTag = "wasm_api_rtc";
 constexpr uint32_t kRtcI2cFreqHz = 400000;
 constexpr uint8_t kRtcI2cAddr = 0x51;
 constexpr int kRtcI2cTimeoutMs = 100;
-
-i2c_master_dev_handle_t g_rtc_dev = nullptr;
 
 bool g_rtc_enabled = false;
 
@@ -57,81 +53,26 @@ uint8_t byte_to_bcd2(uint8_t value)
     return (uint8_t)((bcd_high << 4) | (value - (bcd_high * 10)));
 }
 
-esp_err_t ensure_i2c_initialized(void)
-{
-    if (g_rtc_dev) {
-        return ESP_OK;
-    }
-
-    i2c_master_bus_handle_t bus = nullptr;
-    esp_err_t err = paper_i2c_get_bus(&bus);
-    if (err != ESP_OK) {
-        return err;
-    }
-
-    i2c_device_config_t dev_cfg = {};
-    dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-    dev_cfg.device_address = kRtcI2cAddr;
-    dev_cfg.scl_speed_hz = kRtcI2cFreqHz;
-
-    return i2c_master_bus_add_device(bus, &dev_cfg, &g_rtc_dev);
-}
-
 esp_err_t i2c_write_reg(uint8_t reg, const uint8_t *data, size_t len)
 {
-    if (!g_rtc_dev) {
-        esp_err_t err = ensure_i2c_initialized();
-        if (err != ESP_OK) {
-            return err;
-        }
-    }
-
-    SemaphoreHandle_t mtx = paper_i2c_get_mutex();
-    if (!mtx) {
-        return ESP_ERR_NO_MEM;
-    }
-    if (xSemaphoreTake(mtx, pdMS_TO_TICKS((uint32_t)kRtcI2cTimeoutMs)) != pdTRUE) {
-        return ESP_ERR_TIMEOUT;
-    }
-
     uint8_t buf[1 + 32] = {0};
     if (len > sizeof(buf) - 1) {
-        xSemaphoreGive(mtx);
         return ESP_ERR_INVALID_SIZE;
     }
     buf[0] = reg;
     if (data && len) {
         memcpy(&buf[1], data, len);
     }
-    esp_err_t err = i2c_master_transmit(g_rtc_dev, buf, 1 + len, kRtcI2cTimeoutMs);
-    xSemaphoreGive(mtx);
-    return err;
+    return paper_i2c_write(kRtcI2cAddr, buf, 1 + len, kRtcI2cFreqHz);
 }
 
 esp_err_t i2c_read_reg(uint8_t reg, uint8_t *out, size_t out_len)
 {
-    if (!g_rtc_dev) {
-        esp_err_t err = ensure_i2c_initialized();
-        if (err != ESP_OK) {
-            return err;
-        }
-    }
-
     if (!out && out_len) {
         return ESP_ERR_INVALID_ARG;
     }
 
-    SemaphoreHandle_t mtx = paper_i2c_get_mutex();
-    if (!mtx) {
-        return ESP_ERR_NO_MEM;
-    }
-    if (xSemaphoreTake(mtx, pdMS_TO_TICKS((uint32_t)kRtcI2cTimeoutMs)) != pdTRUE) {
-        return ESP_ERR_TIMEOUT;
-    }
-
-    esp_err_t err = i2c_master_transmit_receive(g_rtc_dev, &reg, 1, out, out_len, kRtcI2cTimeoutMs);
-    xSemaphoreGive(mtx);
-    return err;
+    return paper_i2c_write_read(kRtcI2cAddr, &reg, 1, out, out_len, kRtcI2cFreqHz);
 }
 
 esp_err_t read_reg8(uint8_t reg, uint8_t *out)
@@ -173,7 +114,7 @@ int32_t rtcBegin(wasm_exec_env_t exec_env)
         return kWasmOk;
     }
 
-    esp_err_t err = ensure_i2c_initialized();
+    esp_err_t err = paper_i2c_init();
     if (err != ESP_OK) {
         ESP_LOGE(kTag, "rtcBegin: i2c init failed: %s", esp_err_to_name(err));
         wasm_api_set_last_error(kWasmErrInternal, "rtcBegin: i2c init failed");

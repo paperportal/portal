@@ -2,12 +2,10 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "driver/i2c_master.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
-#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "wasm_export.h"
 
@@ -22,102 +20,31 @@ constexpr const char *kTag = "wasm_api_imu";
 constexpr uint32_t kImuI2cFreqHz = 400000;
 constexpr int kImuI2cTimeoutMs = 100;
 
-struct I2cDeviceHandle
-{
-    uint8_t addr = 0;
-    i2c_master_dev_handle_t dev = nullptr;
-};
-
-I2cDeviceHandle g_i2c_devs[4] = {};
-
 esp_err_t ensure_i2c_initialized(void)
 {
-    i2c_master_bus_handle_t bus = nullptr;
-    return paper_i2c_get_bus(&bus);
-}
-
-i2c_master_dev_handle_t ensure_i2c_dev(uint8_t dev_addr)
-{
-    for (auto &d : g_i2c_devs) {
-        if (d.dev && d.addr == dev_addr) {
-            return d.dev;
-        }
-    }
-
-    i2c_master_bus_handle_t bus = nullptr;
-    if (paper_i2c_get_bus(&bus) != ESP_OK) {
-        return nullptr;
-    }
-
-    for (auto &d : g_i2c_devs) {
-        if (d.dev == nullptr) {
-            i2c_device_config_t dev_cfg = {};
-            dev_cfg.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-            dev_cfg.device_address = dev_addr;
-            dev_cfg.scl_speed_hz = kImuI2cFreqHz;
-
-            if (i2c_master_bus_add_device(bus, &dev_cfg, &d.dev) != ESP_OK) {
-                d.dev = nullptr;
-                d.addr = 0;
-                return nullptr;
-            }
-            d.addr = dev_addr;
-            return d.dev;
-        }
-    }
-    return nullptr;
+    return paper_i2c_init();
 }
 
 esp_err_t i2c_write_reg(uint8_t dev_addr, uint8_t reg, const uint8_t *data, size_t len)
 {
-    i2c_master_dev_handle_t dev = ensure_i2c_dev(dev_addr);
-    if (!dev) {
-        return ESP_ERR_INVALID_STATE;
-    }
-
-    SemaphoreHandle_t mtx = paper_i2c_get_mutex();
-    if (!mtx) {
-        return ESP_ERR_NO_MEM;
-    }
-    if (xSemaphoreTake(mtx, pdMS_TO_TICKS((uint32_t)kImuI2cTimeoutMs)) != pdTRUE) {
-        return ESP_ERR_TIMEOUT;
-    }
-
     uint8_t buf[1 + 32] = {0};
     if (len > sizeof(buf) - 1) {
-        xSemaphoreGive(mtx);
         return ESP_ERR_INVALID_SIZE;
     }
     buf[0] = reg;
     if (data && len) {
         memcpy(&buf[1], data, len);
     }
-    esp_err_t err = i2c_master_transmit(dev, buf, 1 + len, kImuI2cTimeoutMs);
-    xSemaphoreGive(mtx);
-    return err;
+    return paper_i2c_write(dev_addr, buf, 1 + len, kImuI2cFreqHz);
 }
 
 esp_err_t i2c_read_reg(uint8_t dev_addr, uint8_t reg, uint8_t *out, size_t out_len)
 {
-    i2c_master_dev_handle_t dev = ensure_i2c_dev(dev_addr);
-    if (!dev) {
-        return ESP_ERR_INVALID_STATE;
-    }
     if (!out && out_len) {
         return ESP_ERR_INVALID_ARG;
     }
 
-    SemaphoreHandle_t mtx = paper_i2c_get_mutex();
-    if (!mtx) {
-        return ESP_ERR_NO_MEM;
-    }
-    if (xSemaphoreTake(mtx, pdMS_TO_TICKS((uint32_t)kImuI2cTimeoutMs)) != pdTRUE) {
-        return ESP_ERR_TIMEOUT;
-    }
-
-    esp_err_t err = i2c_master_transmit_receive(dev, &reg, 1, out, out_len, kImuI2cTimeoutMs);
-    xSemaphoreGive(mtx);
-    return err;
+    return paper_i2c_write_read(dev_addr, &reg, 1, out, out_len, kImuI2cFreqHz);
 }
 
 esp_err_t write_reg8(uint8_t dev_addr, uint8_t reg, uint8_t value)
