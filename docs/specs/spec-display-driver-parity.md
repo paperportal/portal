@@ -23,6 +23,11 @@ Notes:
 - `setCursor(x, y)`: Sets the text cursor position.
 - `textWidth(s)`: Returns the pixel width of `s` for the currently selected font settings.
 - `fontHeight()`: Returns the current font height in pixels.
+- `vlwRegister(ptr, len)`: Both drivers copy caller-owned VLW bytes into host-managed storage and return a reusable handle.
+- `vlwUse(handle)`: Both drivers activate a previously registered VLW font and reject stale/invalid handles with a real error.
+- `vlwUseSystem(font_id, font_size)`: Both drivers support Inter + Montserrat, load the embedded VLW assets, and ignore `font_size`.
+- `vlwUnload()`: Both drivers unload the active VLW font while leaving registered handles intact.
+- `vlwClearAll()`: Both drivers unload the active VLW font and free all registered handles.
 
 ## B) Partial parity
 
@@ -47,8 +52,10 @@ Notes:
 
 ### Text (partially supported)
 
+- `setTextSize(sx, sy)`, `setTextDatum(datum)`, `setTextEncoding(utf8_enable, cp437_enable)`, `setTextScroll(scroll)`: FastEPD now tracks the same public state as LGFX for the VLW path, but the legacy built-in FastEPD bitmap-font path still ignores some of that state, so parity is effectively “full when a VLW font is active, partial otherwise”.
 - `setTextWrap(wrap_x, wrap_y)`: LGFX supports X and Y wrap independently; FastEPD collapses both into a single boolean (`wrap_x || wrap_y`), so wrap behavior can differ.
 - `setTextColor(fg_rgb888, bg_rgb888, use_bg)`: Both support foreground and optional background, but FastEPD converts RGB888 to grayscale and then quantizes per EPD mode (1bpp/4bpp), while LGFX uses its color conversion + panel pipeline.
+- `drawString(s, x, y)`: Both now return the rendered width, and VLW datum/baseline placement matches closely enough for the built-in apps. Remaining differences are limited to the non-VLW FastEPD bitmap-font path.
 
 ### Images (supported subset / semantic differences)
 
@@ -87,20 +94,7 @@ All remaining primitive functions are otherwise broadly equivalent (subject to t
 
 ### Text (missing features and mismatched semantics)
 
-- `setTextSize(sx, sy)`: Implemented by LGFX; FastEPD logs `[unimplemented]` and does not scale text.
-- `setTextDatum(datum)`: Implemented by LGFX (validated subset); FastEPD logs `[unimplemented]` and does not support datum alignment.
-- `setTextScroll(scroll)`: Implemented by LGFX; FastEPD logs `[unimplemented]`.
 - `setTextFont(font_id)`: Both accept `font_id`, but the **font mapping differs** (LGFX maps ids to LGFX fonts; FastEPD forwards ids to FastEPD’s font selection), so the same `font_id` is not guaranteed to render the same font/metrics.
-- `setTextEncoding(utf8_enable, cp437_enable)`: Implemented by LGFX; FastEPD logs `[unimplemented]`.
-- `drawString(s, x, y)`: **Return value semantics differ**: LGFX returns the drawn string width; FastEPD returns `kWasmOk` and also applies a y-offset adjustment based on `getStringBox()`, so positioning/measurements can differ.
-
-### VLW font APIs
-
-- `vlwRegister(ptr, len)`: LGFX copies the bytes and returns a handle; FastEPD logs `[unimplemented]`.
-- `vlwUse(handle)`: LGFX loads the registered font blob; FastEPD logs `[unimplemented]`.
-- `vlwUseSystem(font_id, font_size)`: LGFX supports Inter + Montserrat system VLW fonts and **ignores** `font_size`; FastEPD supports only Inter and picks a closest-size **BBF** font based on `font_size`.
-- `vlwUnload()`: LGFX unloads current font; FastEPD logs `[unimplemented]`.
-- `vlwClearAll()`: LGFX frees all registered fonts; FastEPD logs `[unimplemented]`.
 
 ### Image APIs
 

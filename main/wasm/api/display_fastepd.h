@@ -2,9 +2,16 @@
 
 #include "display.h"
 
-// Internal helper (not part of the WASM API surface): perform a full FastEPD update using
-// a slow clear waveform (higher quality, less ghosting) when the active display driver is FastEPD.
+/**
+ * @brief Perform a full FastEPD refresh using the slow clear waveform.
+ * @note This helper is internal to the firmware and is not part of the WASM API surface.
+ */
 int32_t display_fastepd_full_update_slow();
+/**
+ * @brief Clear FastEPD VLW state owned by the currently running app.
+ * @note Called during app teardown so registered font handles do not leak across apps.
+ */
+void display_fastepd_reset_runtime_for_app();
 
 class DisplayFastEpd final : public Display {
 public:

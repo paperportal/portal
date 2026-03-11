@@ -3,6 +3,9 @@ idf_component_register(
     "main.cpp"
     "m5papers3_display.cpp"
     "sd_card.cpp"
+    "fonts/vlw_font.cpp"
+    "fonts/vlw_registry.cpp"
+    "fonts/vlw_renderer_fastepd.cpp"
     "host/event_loop.cpp"
     "host/microtask_scheduler.cpp"
     "input/gesture_engine.cpp"
@@ -55,25 +58,6 @@ idf_component_register(
 target_add_binary_data(${COMPONENT_LIB} "assets/entrypoint.wasm" BINARY)
 target_add_binary_data(${COMPONENT_LIB} "assets/settings.wasm" BINARY)
 target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_32.vlw" BINARY)
-
-# Inter system font
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_8.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_9.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_10.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_11.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_12.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_13.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_14.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_15.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_16.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_18.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_20.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_22.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_24.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_26.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_28.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_30.bbf" BINARY)
-target_add_binary_data(${COMPONENT_LIB} "assets/inter_medium_32.bbf" BINARY)
 
 target_add_binary_data(${COMPONENT_LIB} "assets/montserrat_light_20.vlw" BINARY)
 target_add_binary_data(${COMPONENT_LIB} "assets/sleepimage.jpg" BINARY)

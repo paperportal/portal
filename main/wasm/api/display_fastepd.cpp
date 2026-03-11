@@ -1,11 +1,15 @@
 #include <inttypes.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <memory>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string>
 #include <string.h>
 #include <FastEPD.h>
 #include <JPEGDEC.h>
+#include "fonts/vlw_registry.h"
+#include "fonts/vlw_renderer_fastepd.h"
 #include "lgfx/utility/lgfx_pngle.h"
 #include "display_fastepd.h"
 #include "display_fastepd_arc.h"
@@ -13,24 +17,6 @@
 #include "esp_log.h"
 #include "../api.h"
 #include "errors.h"
-
-extern const uint8_t _binary_inter_medium_8_bbf[] asm("_binary_inter_medium_8_bbf_start");
-extern const uint8_t _binary_inter_medium_9_bbf[] asm("_binary_inter_medium_8_bbf_start");
-extern const uint8_t _binary_inter_medium_10_bbf[] asm("_binary_inter_medium_10_bbf_start");
-extern const uint8_t _binary_inter_medium_11_bbf[] asm("_binary_inter_medium_10_bbf_start");
-extern const uint8_t _binary_inter_medium_12_bbf[] asm("_binary_inter_medium_12_bbf_start");
-extern const uint8_t _binary_inter_medium_13_bbf[] asm("_binary_inter_medium_12_bbf_start");
-extern const uint8_t _binary_inter_medium_14_bbf[] asm("_binary_inter_medium_14_bbf_start");
-extern const uint8_t _binary_inter_medium_15_bbf[] asm("_binary_inter_medium_14_bbf_start");
-extern const uint8_t _binary_inter_medium_16_bbf[] asm("_binary_inter_medium_16_bbf_start");
-extern const uint8_t _binary_inter_medium_18_bbf[] asm("_binary_inter_medium_18_bbf_start");
-extern const uint8_t _binary_inter_medium_20_bbf[] asm("_binary_inter_medium_20_bbf_start");
-extern const uint8_t _binary_inter_medium_22_bbf[] asm("_binary_inter_medium_22_bbf_start");
-extern const uint8_t _binary_inter_medium_24_bbf[] asm("_binary_inter_medium_24_bbf_start");
-extern const uint8_t _binary_inter_medium_26_bbf[] asm("_binary_inter_medium_26_bbf_start");
-extern const uint8_t _binary_inter_medium_28_bbf[] asm("_binary_inter_medium_28_bbf_start");
-extern const uint8_t _binary_inter_medium_30_bbf[] asm("_binary_inter_medium_30_bbf_start");
-extern const uint8_t _binary_inter_medium_32_bbf[] asm("_binary_inter_medium_32_bbf_start");
 
 extern void hold_pwroff_pulse_low();
 
@@ -52,68 +38,36 @@ namespace {
 
 constexpr const char *kTag = "display_fastepd";
 
-struct SystemBbfFont {
-    int32_t size;
-    const uint8_t *ptr;
-};
-
-constexpr SystemBbfFont kInterMediumBbfFonts[] = {
-    {8, _binary_inter_medium_8_bbf},
-    {9, _binary_inter_medium_9_bbf},
-    {10, _binary_inter_medium_10_bbf},
-    {11, _binary_inter_medium_11_bbf},
-    {12, _binary_inter_medium_12_bbf},
-    {13, _binary_inter_medium_13_bbf},
-    {14, _binary_inter_medium_14_bbf},
-    {15, _binary_inter_medium_15_bbf},
-    {16, _binary_inter_medium_16_bbf},
-    {18, _binary_inter_medium_18_bbf},
-    {20, _binary_inter_medium_20_bbf},
-    {22, _binary_inter_medium_22_bbf},
-    {24, _binary_inter_medium_24_bbf},
-    {26, _binary_inter_medium_26_bbf},
-    {28, _binary_inter_medium_28_bbf},
-    {30, _binary_inter_medium_30_bbf},
-    {32, _binary_inter_medium_32_bbf},
-};
-
-const uint8_t *pick_closest_system_bbf_font(const SystemBbfFont *fonts, size_t count, int32_t want_size,
-    int32_t *out_selected_size)
-{
-    if (!fonts || count == 0) {
-        return nullptr;
-    }
-
-    size_t best_index = 0;
-    uint64_t best_diff = UINT64_MAX;
-    for (size_t i = 0; i < count; ++i) {
-        const int64_t diff = (int64_t)want_size - (int64_t)fonts[i].size;
-        const uint64_t abs_diff = (diff < 0) ? (uint64_t)(-diff) : (uint64_t)diff;
-        if (abs_diff < best_diff || (abs_diff == best_diff && fonts[i].size < fonts[best_index].size)) {
-            best_index = i;
-            best_diff = abs_diff;
-        }
-    }
-
-    if (out_selected_size) {
-        *out_selected_size = fonts[best_index].size;
-    }
-    return fonts[best_index].ptr;
-}
-
 constexpr size_t kMaxJpgBytes = 1024 * 1024;
 constexpr size_t kMaxPngBytes = 1024 * 1024;
 constexpr size_t kMaxXthBytes = 1024 * 1024;
 constexpr size_t kMaxXtgBytes = 1024 * 1024;
+constexpr size_t kMaxVlwBytes = 1024 * 1024;
 
 extern const uint8_t _binary_sleepimage_jpg_start[] asm("_binary_sleepimage_jpg_start");
 extern const uint8_t _binary_sleepimage_jpg_end[] asm("_binary_sleepimage_jpg_end");
 
+/** @brief Process-wide FastEPD instance used by the FastEPD display backend. */
 static FASTEPD g_epd;
+/** @brief Tracks whether the shared FastEPD instance has been initialized. */
 static bool g_epd_inited = false;
+/** @brief Cached brightness value exposed through the display API. */
 static uint8_t g_brightness = 0;
+/** @brief Active public display mode, defaulting to FastEPD 4bpp grayscale. */
 static int32_t g_display_mode = 2; // default: GRAY16 (4bpp) set by ensure_epd_ready()
 
+/** @brief App-scoped VLW registry, selection state, and text attributes for FastEPD. */
+struct FastEpdVlwRuntime {
+    VlwRegistry registry;
+    std::shared_ptr<VlwFont> active_font;
+    bool active_font_is_system = false;
+    FastEpdVlwTextState text_state = {};
+};
+
+/** @brief Current app's FastEPD VLW state, cleared when the app unloads. */
+FastEpdVlwRuntime g_vlw_runtime;
+
+/** @brief Convert RGB888 into grayscale for FastEPD framebuffer operations. */
 uint8_t rgb888_to_gray8(int32_t rgb888)
 {
     const uint32_t raw = (uint32_t)rgb888;
@@ -123,6 +77,7 @@ uint8_t rgb888_to_gray8(int32_t rgb888)
     return (uint8_t)((r * 77u + g * 150u + b * 29u + 128u) >> 8);
 }
 
+/** @brief Return the encoded white pixel value for the active FastEPD mode. */
 uint8_t epd_white_for_mode(int32_t mode)
 {
     if (mode == BB_MODE_1BPP) {
@@ -134,6 +89,7 @@ uint8_t epd_white_for_mode(int32_t mode)
     return 0xF;
 }
 
+/** @brief Quantize an 8-bit grayscale value into the active FastEPD mode. */
 uint8_t gray8_to_epd_color(uint8_t gray, int32_t mode)
 {
     if (mode == BB_MODE_1BPP) {
@@ -151,6 +107,7 @@ uint8_t gray8_to_epd_color(uint8_t gray, int32_t mode)
     return v;
 }
 
+/** @brief Quantize a 4-bit grayscale value into the active FastEPD mode. */
 uint8_t gray4_to_epd_color(uint8_t v4, int32_t mode)
 {
     if (mode == BB_MODE_1BPP) {
@@ -163,6 +120,44 @@ uint8_t gray4_to_epd_color(uint8_t v4, int32_t mode)
     return v4;
 }
 
+/** @brief Validate the public text datum codes supported by the API. */
+bool is_valid_text_datum(int32_t datum)
+{
+    switch (datum) {
+    case 0:
+    case 1:
+    case 2:
+    case 4:
+    case 5:
+    case 6:
+    case 8:
+    case 9:
+    case 10:
+    case 16:
+    case 17:
+    case 18:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/** @brief Restore default text attributes for the next app or font selection. */
+void reset_vlw_text_state()
+{
+    g_vlw_runtime.text_state = FastEpdVlwTextState{};
+}
+
+/** @brief Clear all app-owned FastEPD VLW state, including registered fonts. */
+void fastepd_vlw_reset_all()
+{
+    g_vlw_runtime.active_font.reset();
+    g_vlw_runtime.active_font_is_system = false;
+    g_vlw_runtime.registry.Clear();
+    reset_vlw_text_state();
+}
+
+/** @brief Initialize FastEPD on demand and recover if the framebuffer vanished. */
 bool ensure_epd_ready(void)
 {
     if (g_epd_inited) {
@@ -198,6 +193,7 @@ bool ensure_epd_ready(void)
     return g_epd.currentBuffer() != nullptr;
 }
 
+/** @brief Convert a missing-display condition into the standard WASM API error. */
 int32_t require_epd_ready_or_set_error(const char *context)
 {
     if (ensure_epd_ready()) {
@@ -209,6 +205,7 @@ int32_t require_epd_ready_or_set_error(const char *context)
 
 } // namespace
 
+/** @brief Run a full-panel slow refresh through the shared FastEPD instance. */
 int32_t display_fastepd_full_update_slow()
 {
     const int32_t ready_rc = require_epd_ready_or_set_error("full_update_slow: display not ready");
@@ -221,6 +218,12 @@ int32_t display_fastepd_full_update_slow()
         return kWasmErrInternal;
     }
     return kWasmOk;
+}
+
+/** @brief Drop all FastEPD VLW state owned by the app being unloaded. */
+void display_fastepd_reset_runtime_for_app()
+{
+    fastepd_vlw_reset_all();
 }
 
 namespace {
@@ -990,6 +993,7 @@ int32_t DisplayFastEpd::release(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
     ESP_LOGI(kTag, "release: deinitializing FastEPD resources");
+    fastepd_vlw_reset_all();
     g_epd.deInit();
     bbepDeinitBus();
     g_epd_inited = false;
@@ -1254,17 +1258,23 @@ int32_t DisplayFastEpd::setCursor(wasm_exec_env_t exec_env, int32_t x, int32_t y
 int32_t DisplayFastEpd::setTextSize(wasm_exec_env_t exec_env, float sx, float sy)
 {
     (void)exec_env;
-    (void)sx;
-    (void)sy;
-    warn_unimplemented("setTextSize");
+    if (!(sx > 0.0f) || !(sy > 0.0f)) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "setTextSize: sx/sy must be > 0");
+        return kWasmErrInvalidArgument;
+    }
+    g_vlw_runtime.text_state.size_x = sx;
+    g_vlw_runtime.text_state.size_y = sy;
     return kWasmOk;
 }
 
 int32_t DisplayFastEpd::setTextDatum(wasm_exec_env_t exec_env, int32_t datum)
 {
     (void)exec_env;
-    (void)datum;
-    warn_unimplemented("setTextDatum");
+    if (!is_valid_text_datum(datum)) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "setTextDatum: invalid datum");
+        return kWasmErrInvalidArgument;
+    }
+    g_vlw_runtime.text_state.datum = datum;
     return kWasmOk;
 }
 
@@ -1279,6 +1289,9 @@ int32_t DisplayFastEpd::setTextColor(wasm_exec_env_t exec_env, int32_t fg_rgb888
     const uint8_t fg = gray8_to_epd_color(rgb888_to_gray8(fg_rgb888), mode);
     const int bg = use_bg ? (int)gray8_to_epd_color(rgb888_to_gray8(bg_rgb888), mode) : BBEP_TRANSPARENT;
     g_epd.setTextColor((int)fg, bg);
+    g_vlw_runtime.text_state.fg_rgb888 = fg_rgb888;
+    g_vlw_runtime.text_state.bg_rgb888 = bg_rgb888;
+    g_vlw_runtime.text_state.use_bg = use_bg != 0;
     return kWasmOk;
 }
 
@@ -1290,14 +1303,15 @@ int32_t DisplayFastEpd::setTextWrap(wasm_exec_env_t exec_env, int32_t wrap_x, in
         return rc;
     }
     g_epd.setTextWrap((wrap_x != 0) || (wrap_y != 0));
+    g_vlw_runtime.text_state.wrap_x = wrap_x != 0;
+    g_vlw_runtime.text_state.wrap_y = wrap_y != 0;
     return kWasmOk;
 }
 
 int32_t DisplayFastEpd::setTextScroll(wasm_exec_env_t exec_env, int32_t scroll)
 {
     (void)exec_env;
-    (void)scroll;
-    warn_unimplemented("setTextScroll");
+    g_vlw_runtime.text_state.scroll_enabled = scroll != 0;
     return kWasmOk;
 }
 
@@ -1319,9 +1333,8 @@ int32_t DisplayFastEpd::setTextFont(wasm_exec_env_t exec_env, int32_t font_id)
 int32_t DisplayFastEpd::setTextEncoding(wasm_exec_env_t exec_env, int32_t utf8_enable, int32_t cp437_enable)
 {
     (void)exec_env;
-    (void)utf8_enable;
-    (void)cp437_enable;
-    warn_unimplemented("setTextEncoding");
+    g_vlw_runtime.text_state.utf8_enabled = utf8_enable != 0;
+    g_vlw_runtime.text_state.cp437_enabled = cp437_enable != 0;
     return kWasmOk;
 }
 
@@ -1336,13 +1349,27 @@ int32_t DisplayFastEpd::drawString(wasm_exec_env_t exec_env, const char *s, int3
         wasm_api_set_last_error(kWasmErrInvalidArgument, "drawString: s is null");
         return kWasmErrInvalidArgument;
     }
+
+    if (g_vlw_runtime.active_font) {
+        int32_t width = 0;
+        const int32_t draw_rc = DrawString(g_epd, *g_vlw_runtime.active_font, g_vlw_runtime.text_state, s, x, y, &width);
+        if (draw_rc != kWasmOk) {
+            wasm_api_set_last_error(draw_rc, "drawString: VLW renderer failed");
+            return draw_rc;
+        }
+        return width;
+    }
+
     BB_RECT rect;
     g_epd.setCursor(0, 0);
-    if (BBEP_SUCCESS == g_epd.getStringBox(s, &rect)) {
-        y -= rect.y;
+    const int box_rc = g_epd.getStringBox(s, &rect);
+    if (box_rc != BBEP_SUCCESS) {
+        wasm_api_set_last_error(kWasmErrInternal, "drawString: getStringBox failed");
+        return kWasmErrInternal;
     }
+    y -= rect.y;
     g_epd.drawString(s, x, y);
-    return kWasmOk;
+    return rect.w;
 }
 
 int32_t DisplayFastEpd::textWidth(wasm_exec_env_t exec_env, const char *s)
@@ -1355,6 +1382,15 @@ int32_t DisplayFastEpd::textWidth(wasm_exec_env_t exec_env, const char *s)
     if (!s) {
         wasm_api_set_last_error(kWasmErrInvalidArgument, "textWidth: s is null");
         return kWasmErrInvalidArgument;
+    }
+    if (g_vlw_runtime.active_font) {
+        int32_t width = 0;
+        const int32_t measure_rc = MeasureTextWidth(*g_vlw_runtime.active_font, g_vlw_runtime.text_state, s, &width);
+        if (measure_rc != kWasmOk) {
+            wasm_api_set_last_error(measure_rc, "textWidth: VLW renderer failed");
+            return measure_rc;
+        }
+        return width;
     }
     BB_RECT rect = {};
     const int epd_rc = g_epd.getStringBox(s, &rect);
@@ -1372,6 +1408,15 @@ int32_t DisplayFastEpd::fontHeight(wasm_exec_env_t exec_env)
     if (rc != kWasmOk) {
         return rc;
     }
+    if (g_vlw_runtime.active_font) {
+        int32_t height = 0;
+        const int32_t height_rc = CurrentFontHeight(*g_vlw_runtime.active_font, g_vlw_runtime.text_state, &height);
+        if (height_rc != kWasmOk) {
+            wasm_api_set_last_error(height_rc, "fontHeight: VLW renderer failed");
+            return height_rc;
+        }
+        return height;
+    }
     BB_RECT rect = {};
     const int epd_rc = g_epd.getStringBox("M", &rect);
     if (epd_rc != BBEP_SUCCESS) {
@@ -1384,63 +1429,100 @@ int32_t DisplayFastEpd::fontHeight(wasm_exec_env_t exec_env)
 int32_t DisplayFastEpd::vlwRegister(wasm_exec_env_t exec_env, const uint8_t *ptr, size_t len)
 {
     (void)exec_env;
-    (void)ptr;
-    (void)len;
-    warn_unimplemented("vlwRegister");
-    return kWasmOk;
+    if (!ptr && len != 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwRegister: ptr is null");
+        return kWasmErrInvalidArgument;
+    }
+    if (len == 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwRegister: len is 0");
+        return kWasmErrInvalidArgument;
+    }
+    if (len > kMaxVlwBytes) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwRegister: len too large");
+        return kWasmErrInvalidArgument;
+    }
+
+    std::string error;
+    const int32_t handle = g_vlw_runtime.registry.RegisterCopy(ptr, len, "wasm_vlw_font", &error);
+    if (handle <= 0) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, error.empty() ? "vlwRegister: parse failed" : error.c_str());
+        return kWasmErrInvalidArgument;
+    }
+    ESP_LOGI(kTag, "vlwRegister handle=%" PRId32 " bytes=%u", handle, (unsigned)len);
+    return handle;
 }
 
 int32_t DisplayFastEpd::vlwUse(wasm_exec_env_t exec_env, int32_t handle)
 {
-    warn_unimplemented("vlwUse");
+    (void)exec_env;
+    const int32_t rc = require_epd_ready_or_set_error("vlwUse: display not ready");
+    if (rc != kWasmOk) {
+        return rc;
+    }
+
+    std::shared_ptr<VlwFont> font = g_vlw_runtime.registry.Get(handle);
+    if (!font || !font->IsValid()) {
+        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwUse: invalid handle");
+        return kWasmErrInvalidArgument;
+    }
+
+    g_vlw_runtime.active_font = std::move(font);
+    g_vlw_runtime.active_font_is_system = false;
+    ESP_LOGI(kTag, "vlwUse handle=%" PRId32 " font='%s' glyphs=%u", handle, g_vlw_runtime.active_font->debug_name(),
+        (unsigned)g_vlw_runtime.active_font->metrics().glyph_count);
     return kWasmOk;
 }
 
 int32_t DisplayFastEpd::vlwUseSystem(wasm_exec_env_t exec_env, int32_t font_id, int32_t font_size)
 {
     (void)exec_env;
+    (void)font_size;
     const int32_t rc = require_epd_ready_or_set_error("vlwUseSystem: display not ready");
     if (rc != kWasmOk) {
         return rc;
     }
-    if (font_size <= 0) {
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwUseSystem: invalid font_size");
+
+    std::string error;
+    std::shared_ptr<VlwFont> font = GetSystemVlwFont(font_id, &error);
+    if (!font || !font->IsValid()) {
+        wasm_api_set_last_error(
+            kWasmErrInvalidArgument,
+            error.empty() ? "vlwUseSystem: invalid font_id" : error.c_str());
         return kWasmErrInvalidArgument;
     }
 
-    switch (font_id) {
-    case kVlwSystemFontInter: {
-        int32_t selected_size = 0;
-        const uint8_t *font_ptr = pick_closest_system_bbf_font(kInterMediumBbfFonts,
-            sizeof(kInterMediumBbfFonts) / sizeof(kInterMediumBbfFonts[0]), font_size, &selected_size);
-        if (!font_ptr) {
-            wasm_api_set_last_error(kWasmErrInternal, "vlwUseSystem: no fonts available");
-            return kWasmErrInternal;
-        }
-        g_epd.setFont(font_ptr, false);
-        ESP_LOGI(kTag, "vlwUseSystem loaded inter_medium_%" PRId32 " (requested=%" PRId32 ")", selected_size,
-            font_size);
-        break;
-    }
-    default:
-        ESP_LOGI(kTag, "vlwUseSystem rejected invalid font_id=%" PRId32, font_id);
-        wasm_api_set_last_error(kWasmErrInvalidArgument, "vlwUseSystem: invalid font_id");
-        return kWasmErrInvalidArgument;
-    }
+    g_vlw_runtime.active_font = std::move(font);
+    g_vlw_runtime.active_font_is_system = true;
+    ESP_LOGI(kTag, "vlwUseSystem loaded font '%s' glyphs=%u", GetSystemVlwFontName(font_id),
+        (unsigned)g_vlw_runtime.active_font->metrics().glyph_count);
     return kWasmOk;
 }
 
 int32_t DisplayFastEpd::vlwUnload(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
-    warn_unimplemented("vlwUnload");
+    const int32_t rc = require_epd_ready_or_set_error("vlwUnload: display not ready");
+    if (rc != kWasmOk) {
+        return rc;
+    }
+
+    g_vlw_runtime.active_font.reset();
+    g_vlw_runtime.active_font_is_system = false;
     return kWasmOk;
 }
 
 int32_t DisplayFastEpd::vlwClearAll(wasm_exec_env_t exec_env)
 {
     (void)exec_env;
-    warn_unimplemented("vlwClearAll");
+    const int32_t rc = require_epd_ready_or_set_error("vlwClearAll: display not ready");
+    if (rc != kWasmOk) {
+        return rc;
+    }
+
+    g_vlw_runtime.active_font.reset();
+    g_vlw_runtime.active_font_is_system = false;
+    g_vlw_runtime.registry.Clear();
+    ESP_LOGI(kTag, "vlwClearAll cleared registered VLW fonts");
     return kWasmOk;
 }
 
